@@ -1,0 +1,61 @@
+# Production-shaped stack: Postgres + web + realtime
+# Usage:
+#   1. Copy .env.production.example → .env.production and fill secrets
+#   2. Set prisma provider to postgresql (see docs/LAUNCH_2_WEEKS.md)
+#   3. docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+#   4. docker compose -f docker-compose.prod.yml exec web npx prisma migrate deploy
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-watchify}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-watchify}
+    volumes:
+      - watchify_pg_prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-watchify} -d ${POSTGRES_DB:-watchify}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${WEB_PORT:-3344}:3344"
+    env_file:
+      - .env.production
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-watchify}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-watchify}?schema=public
+      NEXT_PUBLIC_REALTIME_URL: ${NEXT_PUBLIC_REALTIME_URL}
+      WATCHIFY_DEV_BILLING: "false"
+      NEXT_PUBLIC_SHOW_DEMO_LOGIN: "false"
+      WATCHIFY_SEED_DEMO_USERS: "false"
+
+  realtime:
+    build:
+      context: .
+      dockerfile: Dockerfile.realtime
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${REALTIME_PORT:-3345}:3345"
+    env_file:
+      - .env.production
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-watchify}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-watchify}?schema=public
+      REALTIME_PORT: "3345"
+      WATCHIFY_DEV_BILLING: "false"
+
+volumes:
+  watchify_pg_prod:

@@ -1,0 +1,81 @@
+services:
+  - type: web
+    name: watchify-web
+    runtime: docker
+    plan: free
+    region: oregon
+    branch: main
+    autoDeploy: true
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    envVars:
+      - key: PORT
+        value: "3344"
+      - key: DATABASE_URL
+        sync: false
+      - key: NEXTAUTH_URL
+        value: https://watchify-web.onrender.com
+      - key: NEXTAUTH_SECRET
+        generateValue: true
+      - key: NEXT_PUBLIC_APP_URL
+        value: https://watchify-web.onrender.com
+      - key: NEXT_PUBLIC_REALTIME_URL
+        value: https://watchify-realtime.onrender.com
+      - key: ALLOWED_ORIGINS
+        value: https://watchify-web.onrender.com
+      - key: REALTIME_SECRET
+        generateValue: true
+      - key: TOKEN_ENCRYPTION_SECRET
+        generateValue: true
+      - key: WATCHIFY_DEV_BILLING
+        value: "false"
+      - key: WATCHIFY_OPEN_RELAY_TURN
+        value: "false"
+      - key: NEXT_PUBLIC_SHOW_DEMO_LOGIN
+        value: "false"
+      - key: WATCHIFY_SEED_DEMO_USERS
+        value: "false"
+      - key: METERED_DOMAIN
+        value: watchify.metered.live
+      - key: METERED_TURN_API_KEY
+        sync: false
+      - key: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PRICE_PLUS
+        sync: false
+      - key: STRIPE_PRICE_PARTY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: TMDB_API_KEY
+        sync: false
+
+  - type: web
+    name: watchify-realtime
+    runtime: docker
+    plan: free
+    region: oregon
+    branch: main
+    autoDeploy: true
+    dockerfilePath: ./Dockerfile.realtime
+    dockerContext: .
+    healthCheckPath: /
+    envVars:
+      - key: REALTIME_PORT
+        value: "3345"
+      - key: DATABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_APP_URL
+        value: https://watchify-web.onrender.com
+      - key: ALLOWED_ORIGINS
+        value: https://watchify-web.onrender.com
+      - key: REALTIME_SECRET
+        fromService:
+          type: web
+          name: watchify-web
+          envVarKey: REALTIME_SECRET

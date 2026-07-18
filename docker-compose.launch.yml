@@ -1,0 +1,28 @@
+# Local / soft-launch stack with Postgres (swap SQLite for launch week).
+# Usage:
+#   1. Set provider = "postgresql" in prisma/schema.prisma
+#   2. docker compose -f docker-compose.launch.yml up -d db
+#   3. DATABASE_URL=postgresql://watchify:watchify@localhost:5432/watchify npx prisma migrate deploy
+#   4. npm run db:seed   # only non-prod
+#   5. npm run dev
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: watchify
+      POSTGRES_PASSWORD: watchify
+      POSTGRES_DB: watchify
+    ports:
+      - "5432:5432"
+    volumes:
+      - watchify_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U watchify -d watchify"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  watchify_pg:

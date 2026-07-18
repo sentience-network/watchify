@@ -1,0 +1,319 @@
+// Watchify — SQLite for local, swap provider + DATABASE_URL for Postgres.
+// Example Postgres: provider = "postgresql", DATABASE_URL="postgresql://..."
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                       String    @id
+  email                    String    @unique
+  passwordHash             String?
+  name                     String
+  handle                   String    @unique
+  bio                      String    @default("")
+  avatarHue                Int       @default(168)
+  plan                     String    @default("free")
+  stripeCustomerId         String?
+  stripeSubscriptionId     String?
+  /// user | mod | admin
+  role                     String    @default("user")
+  emailVerifiedAt          DateTime?
+  bannedAt                 DateTime?
+  warnedAt                 DateTime?
+  ageVerified              Boolean   @default(false)
+  socialLinksJson          String    @default("{}")
+  linkedServicesJson       String    @default("[]")
+  publicWatching           Boolean   @default(true)
+  currentlyWatchingId      String?
+  currentlyWatchingServiceId String?
+  watchingProgressPercent  Int?
+  recentlyWatchedIdsJson   String    @default("[]")
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  friendshipsAsUser   Friendship[]        @relation("UserFriends")
+  friendshipsAsFriend Friendship[]        @relation("FriendOf")
+  friendRequestsFrom  FriendRequest[]     @relation("FriendRequestFrom")
+  friendRequestsTo    FriendRequest[]     @relation("FriendRequestTo")
+  watchlists          Watchlist[]
+  hostedParties       Party[]             @relation("PartyHost")
+  partyMemberships    PartyMember[]
+  partyJoinRequests   PartyJoinRequest[]
+  partyMessages       PartyMessage[]
+  partyReactions      PartyReaction[]
+  blocksInitiated     Block[]             @relation("Blocker")
+  blocksReceived      Block[]             @relation("Blocked")
+  reportsFiled        Report[]            @relation("Reporter")
+  reportsAgainst      Report[]            @relation("Reported")
+  reportsReviewed     Report[]            @relation("ReportReviewer")
+  activities          Activity[]
+  emailTokens         EmailVerificationToken[]
+  passwordTokens      PasswordResetToken[]
+  traktConnection     TraktConnection?
+  importedMedia       ImportedMedia[]
+  analyticsEvents     AnalyticsEvent[]
+}
+
+model TraktConnection {
+  userId                String   @id
+  accessTokenCiphertext String
+  refreshTokenCiphertext String
+  tokenExpiresAt        DateTime?
+  scope                 String   @default("")
+  lastSyncedAt          DateTime?
+  lastSyncError         String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ImportedMedia {
+  id           String   @id @default(cuid())
+  userId       String
+  source       String
+  sourceId     String
+  mediaType    String
+  title        String
+  year         Int?
+  catalogId    String?
+  watchedAt    DateTime?
+  isCurrent    Boolean  @default(false)
+  metadataJson String   @default("{}")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, source, sourceId, watchedAt])
+  @@index([userId, source, watchedAt])
+}
+
+model AnalyticsEvent {
+  id         String   @id @default(cuid())
+  name       String
+  userId     String?
+  sessionHash String?
+  propertiesJson String @default("{}")
+  createdAt  DateTime @default(now())
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([name, createdAt])
+  @@index([userId, createdAt])
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// Durable soft rate-limit buckets (survives process restart; SQLite-friendly).
+model RateLimitBucket {
+  key       String   @id
+  count     Int      @default(0)
+  resetAt   DateTime
+  updatedAt DateTime @updatedAt
+}
+
+model Friendship {
+  id        String   @id @default(cuid())
+  userId    String
+  friendId  String
+  createdAt DateTime @default(now())
+  user      User     @relation("UserFriends", fields: [userId], references: [id], onDelete: Cascade)
+  friend    User     @relation("FriendOf", fields: [friendId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, friendId])
+  @@index([friendId])
+}
+
+model FriendRequest {
+  id         String   @id @default(cuid())
+  fromUserId String
+  toUserId   String
+  status     String   @default("pending")
+  createdAt  DateTime @default(now())
+  fromUser   User     @relation("FriendRequestFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser     User     @relation("FriendRequestTo", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@index([toUserId, status])
+  @@index([fromUserId, status])
+}
+
+model Watchlist {
+  id          String          @id @default(cuid())
+  name        String
+  description String          @default("")
+  isPublic    Boolean         @default(true)
+  ownerId     String
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  owner       User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  items       WatchlistItem[]
+
+  @@index([ownerId])
+}
+
+model WatchlistItem {
+  id          String    @id @default(cuid())
+  watchlistId String
+  movieId     String
+  addedAt     DateTime  @default(now())
+  watchlist   Watchlist @relation(fields: [watchlistId], references: [id], onDelete: Cascade)
+
+  @@unique([watchlistId, movieId])
+}
+
+model Party {
+  id              String             @id @default(cuid())
+  name            String
+  hostId          String
+  movieId         String
+  startsAt        DateTime?
+  isLive          Boolean            @default(false)
+  status          String             @default("open")
+  serviceId       String?
+  syncMode        String             @default("social")
+  coHostIdsJson   String             @default("[]")
+  recurringWeekly Boolean            @default(false)
+  inviteCode      String             @unique @default(cuid())
+  inviteExpiresAt DateTime?
+  inviteRevokedAt DateTime?
+  visibility      String             @default("public")
+  maxMembers      Int                @default(20)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  host            User               @relation("PartyHost", fields: [hostId], references: [id], onDelete: Cascade)
+  members         PartyMember[]
+  joinRequests    PartyJoinRequest[]
+  messages        PartyMessage[]
+  reactions       PartyReaction[]
+  playbackSync    PartyPlaybackSync?
+
+  @@index([hostId, status])
+  @@index([status])
+}
+
+model PartyMember {
+  id       String   @id @default(cuid())
+  partyId  String
+  userId   String
+  joinedAt DateTime @default(now())
+  party    Party    @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([partyId, userId])
+}
+
+model PartyJoinRequest {
+  id         String   @id @default(cuid())
+  partyId    String
+  fromUserId String
+  status     String   @default("pending")
+  createdAt  DateTime @default(now())
+  party      Party    @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  fromUser   User     @relation(fields: [fromUserId], references: [id], onDelete: Cascade)
+
+  @@index([partyId, status])
+}
+
+model PartyMessage {
+  id        String   @id @default(cuid())
+  partyId   String
+  userId    String
+  text      String
+  createdAt DateTime @default(now())
+  party     Party    @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([partyId, createdAt])
+}
+
+model PartyReaction {
+  id        String   @id @default(cuid())
+  partyId   String
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+  party     Party    @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([partyId])
+}
+
+model PartyPlaybackSync {
+  partyId     String   @id
+  positionSec Float    @default(0)
+  playing     Boolean  @default(false)
+  updatedAt   DateTime @default(now())
+  updatedBy   String
+  party       Party    @relation(fields: [partyId], references: [id], onDelete: Cascade)
+}
+
+model Block {
+  id        String   @id @default(cuid())
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+  blocker   User     @relation("Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked   User     @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+}
+
+model Report {
+  id           String    @id @default(cuid())
+  reporterId   String
+  targetUserId String
+  reason       String
+  details      String    @default("")
+  /// open | dismissed | warned | banned
+  status       String    @default("open")
+  reviewedAt   DateTime?
+  reviewedById String?
+  actionNote   String    @default("")
+  createdAt    DateTime  @default(now())
+  reporter     User      @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  target       User      @relation("Reported", fields: [targetUserId], references: [id], onDelete: Cascade)
+  reviewedBy   User?     @relation("ReportReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([status, createdAt])
+}
+
+model Activity {
+  id              String   @id @default(cuid())
+  userId          String
+  type            String
+  movieId         String
+  watchlistId     String?
+  partyId         String?
+  serviceId       String?
+  progressPercent Int?
+  createdAt       DateTime @default(now())
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([createdAt])
+}

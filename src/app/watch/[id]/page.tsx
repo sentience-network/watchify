@@ -1,0 +1,221 @@
+"use client";
+
+import Link from "next/link";
+import { useParams, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { AppShell } from "@/components/AppShell";
+import { FreePlayer } from "@/components/FreePlayer";
+import { InviteFriendsPrompt } from "@/components/InviteFriendsPrompt";
+import { ProviderDeepLinks } from "@/components/ScrubToTimeBanner";
+import { ScreenSharePanel } from "@/components/ScreenSharePanel";
+import { ShareMenu } from "@/components/ShareMenu";
+import { DEMO_CATALOG_NOTE } from "@/lib/deep-links";
+import { getMovie } from "@/lib/movies";
+import { isFreePlayable } from "@/lib/free-content";
+import { absoluteUrl } from "@/lib/site";
+import { useWatchify } from "@/lib/store";
+import type { MovieProvider } from "@/lib/types";
+
+function WatchInner() {
+  const params = useParams<{ id: string }>();
+  const search = useSearchParams();
+  const { setCurrentlyWatching, openParties } = useWatchify();
+  const movie = getMovie(params.id);
+  const partyId = search.get("party") || undefined;
+  const justJoined = search.get("joined") === "1";
+  const [liveProviders, setLiveProviders] = useState<MovieProvider[] | null>(null);
+  const [providerNote, setProviderNote] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!movie || movie.freePlaybackUrl) return;
+    let cancelled = false;
+    void fetch(`/api/catalog/providers?movieId=${encodeURIComponent(movie.id)}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        if (Array.isArray(data.providers)) setLiveProviders(data.providers);
+        if (typeof data.note === "string") setProviderNote(data.note);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [movie]);
+
+  if (!movie) {
+    return (
+      <AppShell>
+        <p className="text-mist">Title not found.</p>
+      </AppShell>
+    );
+  }
+
+  const free = isFreePlayable(movie);
+  const providers = liveProviders || movie.providers || [];
+  const shareUrl =
+    typeof window !== "undefined" ? window.location.href : `/watch/${movie.id}`;
+  const party = partyId
+    ? openParties.find((p) => p.id === partyId)
+    : undefined;
+  const inviteCode = party?.inviteCode || partyId;
+
+  return (
+    <AppShell>
+      <div className="mx-auto max-w-4xl animate-fade-up">
+        <p className="text-xs uppercase tracking-[0.16em] text-teal">
+          Watchify Watch
+        </p>
+        <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="font-display text-3xl font-bold text-white">
+              {movie.title}
+            </h1>
+            <p className="mt-1 text-sm text-mist/75">
+              {movie.year} · {movie.genres.join(" · ")}
+              {free
+                ? " · Free on Watchify"
+                : movie.trailerYoutubeId
+                  ? " · Trailer"
+                  : ""}
+              {movie.licenseKind
+                ? ` · ${movie.licenseKind.replace("_", " ")}`
+                : ""}
+              {partyId ? " · party sync on" : ""}
+            </p>
+          </div>
+          <ShareMenu
+            url={
+              inviteCode
+                ? absoluteUrl(`/share/party/${inviteCode}`)
+                : shareUrl
+            }
+            title={`${movie.title} on Watchify`}
+            text={
+              free
+                ? `Watch ${movie.title} free on Watchify`
+                : `Watching ${movie.title} on Watchify`
+            }
+          />
+        </div>
+
+        <div className="mt-6">
+          {free ? (
+            <FreePlayer movieId={movie.id} partyId={partyId} autoplay />
+          ) : movie.trailerYoutubeId ? (
+            <div className="space-y-3">
+              <div className="aspect-video overflow-hidden rounded-2xl bg-black">
+                <iframe
+                  title={`${movie.title} trailer`}
+                  className="h-full w-full"
+                  src={`https://www.youtube.com/embed/${movie.trailerYoutubeId}`}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+              <p className="text-sm text-mist">
+                Official trailer embed only — full film is not hosted on Watchify.
+                Open a streamer below with your own account, or{" "}
+                <button
+                  type="button"
+                  className="text-teal-soft hover:underline"
+                  onClick={() =>
+                    setCurrentlyWatching(movie.id, { progressPercent: 0 })
+                  }
+                >
+                  share that you&apos;re watching
+                </button>
+                .
+              </p>
+            </div>
+          ) : (
+            <p className="rounded-2xl border border-line bg-panel/50 p-5 text-sm text-mist">
+              No free playback or trailer for this title yet. Use deep links below
+              or see{" "}
+              <Link href="/content" className="text-teal-soft hover:underline">
+                Content & licensing
+              </Link>
+              .
+            </p>
+          )}
+        </div>
+
+        {!free && providers.length > 0 && (
+          <div className="mt-5 rounded-2xl border border-line bg-panel/40 p-4">
+            <ProviderDeepLinks providers={providers} label="Watch on your service" />
+            <p className="mt-2 text-[11px] leading-relaxed text-mist/55">
+              {providerNote || DEMO_CATALOG_NOTE}
+            </p>
+          </div>
+        )}
+
+        <p className="mt-4 text-sm leading-relaxed text-mist/80">
+          {movie.overview}
+        </p>
+
+        {movie.attribution && (
+          <p className="mt-3 text-xs text-mist/65">
+            Attribution: {movie.attribution.creator} ·{" "}
+            <a
+              href={movie.attribution.licenseUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="text-teal-soft hover:underline"
+            >
+              {movie.attribution.license}
+            </a>
+            {" · "}
+            <a
+              href={movie.attribution.sourceUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="text-teal-soft hover:underline"
+            >
+              source
+            </a>
+          </p>
+        )}
+
+        {free && (
+          <div className="mt-8">
+            <ScreenSharePanel />
+          </div>
+        )}
+
+        <div className="mt-8 flex flex-wrap gap-3 text-sm">
+          <Link href="/library" className="text-teal-soft hover:underline">
+            Free library
+          </Link>
+          <Link href="/parties" className="text-teal-soft hover:underline">
+            Parties
+          </Link>
+          <Link href="/content" className="text-teal-soft hover:underline">
+            How we get content
+          </Link>
+        </div>
+      </div>
+      {partyId && justJoined && party && (
+        <InviteFriendsPrompt
+          active
+          partyId={party.id}
+          inviteUrl={absoluteUrl(`/share/party/${party.inviteCode || party.id}`)}
+          partyName={party.name}
+          movieTitle={movie.title}
+        />
+      )}
+    </AppShell>
+  );
+}
+
+export default function WatchPage() {
+  return (
+    <Suspense
+      fallback={
+        <AppShell>
+          <p className="text-mist">Loading…</p>
+        </AppShell>
+      }
+    >
+      <WatchInner />
+    </Suspense>
+  );
+}

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <rect width="512" height="512" rx="96" fill="#0a1210"/>
+  <rect x="40" y="40" width="432" height="432" rx="80" fill="#0f1f1c"/>
+  <circle cx="256" cy="240" r="120" fill="#0d9488"/>
+  <path d="M220 180v120l105-60-105-60z" fill="#0a1210"/>
+  <text x="256" y="430" text-anchor="middle" fill="#5eead4" font-family="system-ui,sans-serif" font-size="48" font-weight="700">Watchify</text>
+</svg>

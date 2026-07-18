@@ -1,0 +1,55 @@
+{
+  "name": "watchify",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -k -n next,rt -c cyan,magenta \"npm run dev:next\" \"npm run dev:realtime\"",
+    "dev:next": "next dev -p 3344",
+    "dev:realtime": "tsx server/realtime.ts",
+    "build": "prisma generate && next build",
+    "start": "next start -p 3344",
+    "start:realtime": "tsx server/realtime.ts",
+    "lint": "next lint",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:push": "prisma db push",
+    "db:seed": "prisma db seed",
+    "db:reset": "prisma migrate reset --force",
+    "test": "tsx --test tests/week4.test.ts",
+    "launch:check": "node scripts/launch-check.mjs",
+    "launch:check:prod": "node scripts/launch-check.mjs --prod",
+    "db:prepare-postgres": "node scripts/prepare-postgres.mjs"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "bcryptjs": "^3.0.3",
+    "concurrently": "^10.0.3",
+    "next": "14.2.21",
+    "next-auth": "^4.24.14",
+    "nodemailer": "^7.0.13",
+    "posthog-js": "^1.404.0",
+    "react": "^18",
+    "react-dom": "^18",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3",
+    "stripe": "^22.3.2"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^20",
+    "@types/nodemailer": "^8.0.1",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "dotenv": "^17.4.2",
+    "eslint": "^8",
+    "eslint-config-next": "14.2.21",
+    "postcss": "^8",
+    "prisma": "^5.22.0",
+    "tailwindcss": "^3.4.1",
+    "tsx": "^4.23.1",
+    "typescript": "^5"
+  }
+}
