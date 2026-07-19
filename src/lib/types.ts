@@ -105,6 +105,13 @@ export type User = {
   handle: string;
   bio: string;
   avatarHue: number;
+  /** Optional https avatar; hue+initials when null */
+  avatarUrl?: string | null;
+  profileTheme?: string;
+  borderStyle?: string;
+  accentColor?: string;
+  /** Showcase shelf (max 8 catalog ids) */
+  favoriteMovieIds?: string[];
   currentlyWatchingId: string | null;
   currentlyWatchingServiceId?: StreamingServiceId | null;
   watchingProgressPercent?: number | null;

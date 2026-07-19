@@ -11,9 +11,12 @@
   --teal-soft: #99f6e4;
   --amber: #f0b429;
   --amber-soft: #f6d98b;
-  --line: rgba(197, 212, 206, 0.12);
+  --coral: #fb7185;
+  --sky: #60a5fa;
+  --line: rgba(197, 212, 206, 0.14);
   --background: var(--ink);
   --foreground: #eef5f1;
+  --profile-accent: var(--teal);
 }
 
 * {
@@ -28,10 +31,21 @@ body {
 body {
   color: var(--foreground);
   background:
-    radial-gradient(1200px 600px at 10% -10%, rgba(45, 212, 191, 0.16), transparent 55%),
-    radial-gradient(900px 500px at 90% 0%, rgba(240, 180, 41, 0.1), transparent 50%),
+    radial-gradient(1200px 600px at 10% -10%, rgba(45, 212, 191, 0.2), transparent 55%),
+    radial-gradient(900px 500px at 90% 0%, rgba(240, 180, 41, 0.12), transparent 50%),
+    radial-gradient(700px 400px at 50% 100%, rgba(96, 165, 250, 0.06), transparent 55%),
     linear-gradient(180deg, #0d1613 0%, var(--ink) 45%, #0a100e 100%);
   font-family: var(--font-body), sans-serif;
+}
+
+a,
+button {
+  transition:
+    color 0.2s ease,
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.25s ease,
+    transform 0.2s ease;
 }
 
 ::selection {
@@ -81,4 +95,82 @@ body {
 .poster-shine:hover {
   transform: translateY(-4px) scale(1.02);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+}
+
+/* Profile page templates (no user HTML) */
+.profile-frame {
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--profile-accent) 18%, transparent),
+      transparent 55%
+    ),
+    rgba(21, 34, 30, 0.72);
+  backdrop-filter: blur(8px);
+}
+
+.profile-border-soft .profile-frame {
+  border-radius: 1.5rem;
+  border-width: 1px;
+}
+
+.profile-border-sharp .profile-frame {
+  border-radius: 0.5rem;
+  border-width: 1px;
+}
+
+.profile-border-double .profile-frame {
+  border-radius: 1.25rem;
+  border-width: 3px;
+  border-color: color-mix(in srgb, var(--profile-accent) 45%, var(--line));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.profile-border-glow .profile-frame {
+  border-radius: 1.5rem;
+  border-color: color-mix(in srgb, var(--profile-accent) 55%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--profile-accent) 35%, transparent),
+    0 0 40px color-mix(in srgb, var(--profile-accent) 22%, transparent);
+}
+
+.profile-theme-neon .profile-frame {
+  background:
+    radial-gradient(
+      600px 280px at 0% 0%,
+      rgba(34, 211, 238, 0.22),
+      transparent 60%
+    ),
+    rgba(12, 24, 28, 0.85);
+}
+
+.profile-theme-cinema .profile-frame {
+  background:
+    radial-gradient(
+      600px 280px at 100% 0%,
+      rgba(240, 180, 41, 0.2),
+      transparent 60%
+    ),
+    rgba(22, 18, 12, 0.85);
+}
+
+.profile-theme-coral .profile-frame {
+  background:
+    radial-gradient(
+      600px 280px at 20% 0%,
+      rgba(251, 113, 133, 0.2),
+      transparent 60%
+    ),
+    rgba(24, 14, 18, 0.85);
+}
+
+.profile-theme-midnight .profile-frame {
+  background:
+    radial-gradient(
+      600px 280px at 80% 0%,
+      rgba(96, 165, 250, 0.18),
+      transparent 60%
+    ),
+    rgba(12, 16, 28, 0.88);
 }

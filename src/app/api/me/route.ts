@@ -50,6 +50,13 @@ export async function PATCH(req: Request) {
     plan?: PlanId;
     linkService?: StreamingServiceId;
     unlinkService?: StreamingServiceId;
+    avatarHue?: number;
+    avatarUrl?: string | null;
+    useDicebearAvatar?: boolean;
+    profileTheme?: string;
+    borderStyle?: string;
+    accentColor?: string;
+    favoriteMovieIds?: string[];
   };
   try {
     body = await req.json();
@@ -88,13 +95,27 @@ export async function PATCH(req: Request) {
     body.name !== undefined ||
     body.bio !== undefined ||
     body.publicWatching !== undefined ||
-    body.ageConfirmed !== undefined
+    body.ageConfirmed !== undefined ||
+    body.avatarHue !== undefined ||
+    body.avatarUrl !== undefined ||
+    body.useDicebearAvatar ||
+    body.profileTheme !== undefined ||
+    body.borderStyle !== undefined ||
+    body.accentColor !== undefined ||
+    body.favoriteMovieIds !== undefined
   ) {
     await updateProfile(auth.userId, {
       name: body.name,
       bio: body.bio,
       publicWatching: body.publicWatching,
       ageConfirmed: body.ageConfirmed,
+      avatarHue: body.avatarHue,
+      avatarUrl: body.avatarUrl,
+      useDicebearAvatar: body.useDicebearAvatar,
+      profileTheme: body.profileTheme,
+      borderStyle: body.borderStyle,
+      accentColor: body.accentColor,
+      favoriteMovieIds: body.favoriteMovieIds,
     });
   }
 

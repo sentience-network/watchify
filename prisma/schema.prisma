@@ -18,6 +18,16 @@ model User {
   handle                   String    @unique
   bio                      String    @default("")
   avatarHue                Int       @default(168)
+  /// Optional https avatar image; null → hue + initials
+  avatarUrl                String?
+  /// classic | neon | cinema | coral | midnight
+  profileTheme             String    @default("classic")
+  /// soft | sharp | double | glow
+  borderStyle              String    @default("soft")
+  /// Sanitized hex accent, e.g. #2dd4bf
+  accentColor              String    @default("#2dd4bf")
+  /// JSON string[] of catalog movie ids (favorites shelf, max 8)
+  favoriteMovieIdsJson     String    @default("[]")
   plan                     String    @default("free")
   stripeCustomerId         String?
   stripeSubscriptionId     String?

@@ -22,6 +22,11 @@ const nextConfig = {
         hostname: "archive.org",
         pathname: "/services/img/**",
       },
+      {
+        protocol: "https",
+        hostname: "api.dicebear.com",
+        pathname: "/**",
+      },
     ],
   },
   async headers() {
@@ -43,7 +48,7 @@ const nextConfig = {
               "default-src 'self'",
               "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://www.youtube.com https://www.youtube-nocookie.com",
               "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' data: blob: https://image.tmdb.org https://i.ytimg.com https://upload.wikimedia.org https://archive.org https://*.archive.org https://*.fbcdn.net https://platform-lookaside.fbsbx.com",
+              "img-src 'self' data: blob: https://image.tmdb.org https://i.ytimg.com https://upload.wikimedia.org https://archive.org https://*.archive.org https://*.fbcdn.net https://platform-lookaside.fbsbx.com https://api.dicebear.com https://avatars.githubusercontent.com https://*.googleusercontent.com",
               "font-src 'self' data:",
               "media-src 'self' blob: https://commondatastorage.googleapis.com https://*.googleapis.com https://archive.org https://*.archive.org https://download.blender.org https://*.blender.org",
               "connect-src 'self' https://api.stripe.com https://archive.org https://*.archive.org https://www.youtube.com https://watchify-realtime.onrender.com wss://watchify-realtime.onrender.com http://localhost:3345 http://127.0.0.1:3345 ws://localhost:3345 ws://127.0.0.1:3345",

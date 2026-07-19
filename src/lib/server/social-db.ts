@@ -18,6 +18,14 @@ import type {
   Watchlist,
   WatchParty,
 } from "../types";
+import {
+  dicebearAvatar,
+  normalizeBorderStyle,
+  normalizeProfileTheme,
+  profileLooksFromRow,
+  sanitizeAvatarUrl,
+  sanitizeHexColor,
+} from "../profile-themes";
 import { EMPTY_SOCIAL_LINKS } from "../types";
 
 function parseJson<T>(raw: string, fallback: T): T {
@@ -38,6 +46,11 @@ export function mapPublicUser(row: {
   handle: string;
   bio: string;
   avatarHue: number;
+  avatarUrl?: string | null;
+  profileTheme?: string | null;
+  borderStyle?: string | null;
+  accentColor?: string | null;
+  favoriteMovieIdsJson?: string | null;
   currentlyWatchingId: string | null;
   currentlyWatchingServiceId: string | null;
   watchingProgressPercent: number | null;
@@ -46,12 +59,18 @@ export function mapPublicUser(row: {
   socialLinksJson: string;
   publicWatching: boolean;
 }): User {
+  const looks = profileLooksFromRow(row);
   return {
     id: row.id,
     name: row.name,
     handle: row.handle,
     bio: row.bio,
-    avatarHue: row.avatarHue,
+    avatarHue: looks.avatarHue,
+    avatarUrl: looks.avatarUrl,
+    profileTheme: looks.profileTheme,
+    borderStyle: looks.borderStyle,
+    accentColor: looks.accentColor,
+    favoriteMovieIds: looks.favoriteMovieIds,
     currentlyWatchingId: row.publicWatching ? row.currentlyWatchingId : null,
     currentlyWatchingServiceId: row.publicWatching
       ? (row.currentlyWatchingServiceId as StreamingServiceId | null)
@@ -338,6 +357,13 @@ export async function updateProfile(
     publicWatching?: boolean;
     linkedServices?: StreamingServiceId[];
     ageConfirmed?: boolean;
+    avatarHue?: number;
+    avatarUrl?: string | null;
+    useDicebearAvatar?: boolean;
+    profileTheme?: string;
+    borderStyle?: string;
+    accentColor?: string;
+    favoriteMovieIds?: string[];
   }
 ) {
   const data: Record<string, unknown> = {};
@@ -351,6 +377,31 @@ export async function updateProfile(
     data.linkedServicesJson = JSON.stringify(patch.linkedServices);
   }
   if (patch.ageConfirmed !== undefined) data.ageVerified = patch.ageConfirmed;
+  if (patch.avatarHue !== undefined) {
+    data.avatarHue = Math.max(0, Math.min(359, Math.round(patch.avatarHue)));
+  }
+  if (patch.useDicebearAvatar) {
+    const me = await prisma.user.findUnique({ where: { id: userId } });
+    data.avatarUrl = dicebearAvatar(me?.handle || userId);
+  } else if (patch.avatarUrl !== undefined) {
+    data.avatarUrl = sanitizeAvatarUrl(patch.avatarUrl);
+  }
+  if (patch.profileTheme !== undefined) {
+    data.profileTheme = normalizeProfileTheme(patch.profileTheme);
+  }
+  if (patch.borderStyle !== undefined) {
+    data.borderStyle = normalizeBorderStyle(patch.borderStyle);
+  }
+  if (patch.accentColor !== undefined) {
+    data.accentColor = sanitizeHexColor(patch.accentColor);
+  }
+  if (patch.favoriteMovieIds !== undefined) {
+    const ids = patch.favoriteMovieIds
+      .filter((x) => typeof x === "string" && x.length > 0 && x.length < 80)
+      .slice(0, 8);
+    data.favoriteMovieIdsJson = JSON.stringify(ids);
+  }
+  if (Object.keys(data).length === 0) return;
   await prisma.user.update({ where: { id: userId }, data });
 }
 
