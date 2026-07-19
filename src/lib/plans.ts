@@ -105,11 +105,11 @@ export function hasPlanAtLeast(current: PlanId, required: PlanId): boolean {
   return planRank(current) >= planRank(required);
 }
 
+/** Server: secret + publishable. Client: publishable only (secret is never bundled). */
 export function stripeConfigured(): boolean {
-  return Boolean(
-    process.env.STRIPE_SECRET_KEY &&
-      process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
-  );
+  const publishable = Boolean(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
+  if (typeof window !== "undefined") return publishable;
+  return Boolean(process.env.STRIPE_SECRET_KEY && publishable);
 }
 
 export function getStripePriceId(planId: PlanId): string | null {

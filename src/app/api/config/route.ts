@@ -12,6 +12,9 @@ import { devBillingGrantsEnabled, showDemoLogin } from "@/lib/features";
 import { traktConfigured } from "@/lib/server/trakt";
 import { tmdbConfigured } from "@/lib/tmdb";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 /** Public config for the client — never includes secrets. */
 export async function GET() {
   return NextResponse.json({
