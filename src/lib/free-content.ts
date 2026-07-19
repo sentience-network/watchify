@@ -5,7 +5,7 @@
  * Prefer YouTube embeds of rights-cleared / PD uploads (hotlink MP4s rot often).
  * Never paid-streamer scrapes.
  */
-export const FREE_LIBRARY: Movie[] = [
+const FREE_LIBRARY_BASE: Movie[] = [
   {
     id: "free1",
     title: "Big Buck Bunny",
@@ -248,6 +248,23 @@ export const FREE_LIBRARY: Movie[] = [
     },
   },
 ];
+
+function youtubeThumb(id: string, quality: "hq" | "max" = "hq"): string {
+  return quality === "max"
+    ? `https://i.ytimg.com/vi/${id}/maxresdefault.jpg`
+    : `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
+}
+
+/** Free library with working YouTube preview thumbnails (Wikimedia poster hotlinks were 400ing). */
+export const FREE_LIBRARY: Movie[] = FREE_LIBRARY_BASE.map((m) => {
+  const yt = m.youtubePlaybackId || m.trailerYoutubeId;
+  if (!yt) return m;
+  return {
+    ...m,
+    posterPath: youtubeThumb(yt, "hq"),
+    backdropPath: youtubeThumb(yt, "max"),
+  };
+});
 
 /** Known official trailer YouTube IDs for catalog titles (embed only). */
 export const TRAILER_IDS: Record<string, string> = {

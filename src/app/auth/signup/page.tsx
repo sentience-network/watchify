@@ -4,6 +4,7 @@ import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
+import { PasswordInput } from "@/components/PasswordInput";
 import { track } from "@/lib/analytics-client";
 
 export default function SignUpPage() {
@@ -92,16 +93,21 @@ export default function SignUpPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="Email"
-            className="w-full rounded-xl border border-line bg-ink/50 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-teal/40"
+            autoComplete="email"
+            className="auth-field w-full rounded-xl border border-line bg-ink/80 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-teal/40"
+            style={{
+              color: "#eef5f1",
+              WebkitTextFillColor: "#eef5f1",
+              caretColor: "#eef5f1",
+            }}
           />
-          <input
-            type="password"
+          <PasswordInput
+            value={password}
+            onChange={setPassword}
+            placeholder="Password (8+ characters)"
             required
             minLength={8}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password (8+ characters)"
-            className="w-full rounded-xl border border-line bg-ink/50 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-teal/40"
+            autoComplete="new-password"
           />
           <label className="flex items-start gap-2 text-sm text-mist">
             <input

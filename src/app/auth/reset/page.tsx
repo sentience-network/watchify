@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, Suspense, useState } from "react";
+import { PasswordInput } from "@/components/PasswordInput";
 
 function ResetForm() {
   const params = useSearchParams();
@@ -57,23 +58,21 @@ function ResetForm() {
         Reset password
       </h1>
       <form onSubmit={onSubmit} className="mt-6 space-y-3">
-        <input
-          type="password"
-          required
-          minLength={8}
+        <PasswordInput
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={setPassword}
           placeholder="New password (8+)"
-          className="w-full rounded-xl border border-line bg-ink/50 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-teal/40"
-        />
-        <input
-          type="password"
           required
           minLength={8}
+          autoComplete="new-password"
+        />
+        <PasswordInput
           value={confirm}
-          onChange={(e) => setConfirm(e.target.value)}
+          onChange={setConfirm}
           placeholder="Confirm password"
-          className="w-full rounded-xl border border-line bg-ink/50 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-teal/40"
+          required
+          minLength={8}
+          autoComplete="new-password"
         />
         {error && <p className="text-sm text-amber-soft">{error}</p>}
         <button

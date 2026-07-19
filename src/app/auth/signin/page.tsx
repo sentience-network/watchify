@@ -4,6 +4,7 @@ import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, Suspense, useEffect, useState } from "react";
+import { PasswordInput } from "@/components/PasswordInput";
 
 function SignInForm() {
   const router = useRouter();
@@ -93,15 +94,20 @@ function SignInForm() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="Email"
-          className="w-full rounded-xl border border-line bg-ink/50 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-teal/40"
+          autoComplete="email"
+          className="auth-field w-full rounded-xl border border-line bg-ink/80 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-teal/40"
+          style={{
+            color: "#eef5f1",
+            WebkitTextFillColor: "#eef5f1",
+            caretColor: "#eef5f1",
+          }}
         />
-        <input
-          type="password"
-          required
+        <PasswordInput
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={setPassword}
           placeholder="Password"
-          className="w-full rounded-xl border border-line bg-ink/50 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-teal/40"
+          required
+          autoComplete="current-password"
         />
         {error && <p className="text-sm text-amber-soft">{error}</p>}
         <button

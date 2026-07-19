@@ -39,6 +39,18 @@ body {
   color: #fff;
 }
 
+/* Keep typed / autofilled credentials visible on dark auth fields */
+.auth-field,
+.auth-field:-webkit-autofill,
+.auth-field:-webkit-autofill:hover,
+.auth-field:-webkit-autofill:focus {
+  -webkit-text-fill-color: #eef5f1 !important;
+  caret-color: #eef5f1 !important;
+  color: #eef5f1 !important;
+  transition: background-color 99999s ease-in-out 0s;
+  box-shadow: 0 0 0 1000px #101a17 inset;
+}
+
 .film-grain {
   position: relative;
 }
