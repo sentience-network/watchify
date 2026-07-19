@@ -41,21 +41,39 @@ function SignInForm() {
     e.preventDefault();
     setLoading(true);
     setError("");
-    const res = await signIn("credentials", {
-      email,
-      password,
-      redirect: false,
-    });
-    setLoading(false);
-    if (res?.error) {
+    try {
+      const res = await Promise.race([
+        signIn("credentials", {
+          email,
+          password,
+          redirect: false,
+        }),
+        new Promise<null>((resolve) =>
+          window.setTimeout(() => resolve(null), 45000)
+        ),
+      ]);
+      setLoading(false);
+      if (!res) {
+        setError(
+          "Server is waking up (Render free tier can take ~1 minute). Wait, then try again."
+        );
+        return;
+      }
+      if (res.error) {
+        setError(
+          res.error === "ACCOUNT_BANNED"
+            ? "This account has been suspended."
+            : "Invalid email or password. Demo accounts are not seeded on production — create an account or use one you already made."
+        );
+        return;
+      }
+      router.push(callbackUrl);
+    } catch {
+      setLoading(false);
       setError(
-        res.error === "ACCOUNT_BANNED"
-          ? "This account has been suspended."
-          : "Invalid email or password."
+        "Sign-in failed to reach the server. If the site just woke from sleep, wait a few seconds and retry."
       );
-      return;
     }
-    router.push(callbackUrl);
   }
 
   return (
@@ -118,8 +136,8 @@ function SignInForm() {
       )}
       {!providers.google && !providers.github && (
         <p className="mt-4 text-xs text-mist/60">
-          Google/GitHub sign-in appear when{" "}
-          <code>GOOGLE_CLIENT_*</code> / <code>GITHUB_*</code> env vars are set.
+          Email + password only for now. Google/GitHub can be enabled later via
+          env vars.
         </p>
       )}
         <p className="mt-6 text-sm text-mist">
