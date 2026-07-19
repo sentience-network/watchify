@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { InviteFriendsInApp } from "@/components/InviteFriendsInApp";
 import { ShareMenu } from "@/components/ShareMenu";
 
 /**
@@ -63,6 +64,13 @@ export function InviteFriendsPrompt({
         Share the preview link — they see the party first, then sign in to join.{" "}
         {movieTitle} is better with people.
       </p>
+      <div className="mt-3">
+        <InviteFriendsInApp
+          inviteUrl={inviteUrl}
+          partyName={partyName}
+          movieTitle={movieTitle}
+        />
+      </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <ShareMenu
           url={inviteUrl}

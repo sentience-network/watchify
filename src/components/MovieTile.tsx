@@ -24,24 +24,13 @@ export function MovieTile({ movie }: Props) {
       ? "Trailer"
       : topProvider
         ? `On ${topProvider.name}`
-        : "";
+        : movie.tmdbId
+          ? "TMDB"
+          : "";
 
   return (
     <div className="group relative w-[140px] shrink-0 animate-fade-up">
-      <Link
-        href={
-          free || movie.trailerYoutubeId || topProvider
-            ? `/watch/${movie.id}`
-            : `/discover`
-        }
-        className="text-left"
-        onClick={(e) => {
-          if (!free && !movie.trailerYoutubeId && !topProvider) {
-            e.preventDefault();
-            setCurrentlyWatching(movie.id);
-          }
-        }}
-      >
+      <Link href={`/watch/${movie.id}`} className="text-left">
         <MoviePoster movie={movie} />
         <p className="mt-2 line-clamp-2 font-display text-sm font-semibold leading-snug text-white">
           {movie.title}

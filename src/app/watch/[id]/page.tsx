@@ -10,21 +10,49 @@ import { ProviderDeepLinks } from "@/components/ScrubToTimeBanner";
 import { ScreenSharePanel } from "@/components/ScreenSharePanel";
 import { ShareMenu } from "@/components/ShareMenu";
 import { DEMO_CATALOG_NOTE } from "@/lib/deep-links";
-import { getMovie } from "@/lib/movies";
+import { getMovie, rememberCatalogMovies } from "@/lib/movies";
 import { isFreePlayable } from "@/lib/free-content";
 import { absoluteUrl } from "@/lib/site";
 import { useWatchify } from "@/lib/store";
-import type { MovieProvider } from "@/lib/types";
+import type { Movie, MovieProvider } from "@/lib/types";
 
 function WatchInner() {
   const params = useParams<{ id: string }>();
   const search = useSearchParams();
   const { setCurrentlyWatching, openParties } = useWatchify();
-  const movie = getMovie(params.id);
+  const [movie, setMovie] = useState<Movie | undefined>(() => getMovie(params.id));
+  const [loadingTitle, setLoadingTitle] = useState(!getMovie(params.id));
   const partyId = search.get("party") || undefined;
   const justJoined = search.get("joined") === "1";
   const [liveProviders, setLiveProviders] = useState<MovieProvider[] | null>(null);
   const [providerNote, setProviderNote] = useState<string | null>(null);
+
+  useEffect(() => {
+    const local = getMovie(params.id);
+    if (local) {
+      setMovie(local);
+      setLoadingTitle(false);
+      return;
+    }
+    let cancelled = false;
+    setLoadingTitle(true);
+    void fetch(`/api/catalog/title/${encodeURIComponent(params.id)}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        if (data.movie) {
+          rememberCatalogMovies([data.movie as Movie]);
+          setMovie(data.movie as Movie);
+        }
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setLoadingTitle(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [params.id]);
 
   useEffect(() => {
     if (!movie || movie.freePlaybackUrl) return;
@@ -41,6 +69,14 @@ function WatchInner() {
       cancelled = true;
     };
   }, [movie]);
+
+  if (loadingTitle) {
+    return (
+      <AppShell>
+        <p className="text-mist">Loading title…</p>
+      </AppShell>
+    );
+  }
 
   if (!movie) {
     return (

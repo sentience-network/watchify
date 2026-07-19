@@ -10,6 +10,7 @@ const baseLinks = [
   { href: "/library", label: "Free" },
   { href: "/parties", label: "Parties" },
   { href: "/feed", label: "Friends" },
+  { href: "/messages", label: "Messages" },
   { href: "/tv", label: "TV mode" },
   { href: "/watchlists", label: "Lists" },
 ];
@@ -124,8 +125,8 @@ export function Sidebar() {
       <nav className="fixed bottom-[72px] left-0 right-0 z-30 flex border-t border-line bg-ink/95 px-1 py-2 backdrop-blur md:hidden">
         {[
           { href: "/discover", label: "Discover" },
-          { href: "/library", label: "Free" },
           { href: "/parties", label: "Parties" },
+          { href: "/messages", label: "Messages" },
           { href: "/feed", label: "Friends" },
           { href: "/settings", label: "More" },
         ].map((link) => {

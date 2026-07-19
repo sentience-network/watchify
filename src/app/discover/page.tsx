@@ -11,11 +11,9 @@ import { WatchingNowStrip } from "@/components/WatchingNowStrip";
 import { DEMO_CATALOG_NOTE } from "@/lib/deep-links";
 import {
   CATALOG,
-  allGenres,
-  catalogStats,
   freeMovies,
   getMovie,
-  moviesByGenre,
+  rememberCatalogMovies,
   searchMovies,
 } from "@/lib/movies";
 import {
@@ -24,7 +22,9 @@ import {
   recommendationsFromFriends,
 } from "@/lib/social-graph";
 import { STREAMING_SERVICES, type StreamingServiceId } from "@/lib/streaming";
+import { TMDB_CATALOG_SCALE_NOTE } from "@/lib/tmdb";
 import { useWatchify } from "@/lib/store";
+import type { Movie } from "@/lib/types";
 import { getUser } from "@/lib/users";
 
 type ProviderFilter = "all" | "free" | StreamingServiceId;
@@ -53,21 +53,107 @@ function FilterChip({
   );
 }
 
+type BrowsePayload = {
+  movies: Movie[];
+  page: number;
+  totalPages: number;
+  totalResults: number;
+};
+
+async function fetchBrowse(
+  kind: string,
+  media: string,
+  page = 1
+): Promise<BrowsePayload> {
+  const res = await fetch(
+    `/api/catalog/browse?kind=${encodeURIComponent(kind)}&media=${encodeURIComponent(media)}&page=${page}`
+  );
+  if (!res.ok) return { movies: [], page: 1, totalPages: 0, totalResults: 0 };
+  return res.json();
+}
+
 export default function DiscoverPage() {
   const { state, openParties, publicWatching, ready, directoryUsers, currentUserId } =
     useWatchify();
   const [query, setQuery] = useState("");
   const [provider, setProvider] = useState<ProviderFilter>("all");
   const [tmdbLive, setTmdbLive] = useState(false);
+  const [trending, setTrending] = useState<Movie[]>([]);
+  const [popularMovies, setPopularMovies] = useState<Movie[]>([]);
+  const [popularTv, setPopularTv] = useState<Movie[]>([]);
+  const [topRated, setTopRated] = useState<Movie[]>([]);
+  const [liveResults, setLiveResults] = useState<Movie[]>([]);
+  const [liveTotal, setLiveTotal] = useState(0);
+  const [livePage, setLivePage] = useState(1);
+  const [liveTotalPages, setLiveTotalPages] = useState(0);
+  const [searching, setSearching] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [catalogScale, setCatalogScale] = useState(0);
+
   useEffect(() => {
     fetch("/api/config")
       .then((r) => r.json())
       .then((d) => setTmdbLive(Boolean(d.tmdbConfigured)))
       .catch(() => undefined);
   }, []);
-  const genres = useMemo(() => allGenres(), []);
-  const stats = useMemo(() => catalogStats(), []);
-  const results = useMemo(() => {
+
+  useEffect(() => {
+    if (!tmdbLive) return;
+    let cancelled = false;
+    void Promise.all([
+      fetchBrowse("trending", "all", 1),
+      fetchBrowse("popular", "movie", 1),
+      fetchBrowse("popular", "tv", 1),
+      fetchBrowse("top_rated", "movie", 1),
+    ]).then(([tr, pop, tv, top]) => {
+      if (cancelled) return;
+      rememberCatalogMovies([
+        ...tr.movies,
+        ...pop.movies,
+        ...tv.movies,
+        ...top.movies,
+      ]);
+      setTrending(tr.movies);
+      setPopularMovies(pop.movies);
+      setPopularTv(tv.movies);
+      setTopRated(top.movies);
+      setCatalogScale(
+        Math.max(tr.totalResults, pop.totalResults, tv.totalResults, top.totalResults)
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [tmdbLive]);
+
+  useEffect(() => {
+    const q = query.trim();
+    if (!tmdbLive || !q) {
+      setLiveResults([]);
+      setLiveTotal(0);
+      setLivePage(1);
+      setLiveTotalPages(0);
+      return;
+    }
+    const handle = window.setTimeout(() => {
+      setSearching(true);
+      void fetch(`/api/catalog/search?q=${encodeURIComponent(q)}&page=1`)
+        .then((r) => r.json())
+        .then((data) => {
+          const movies = (data.movies || []) as Movie[];
+          rememberCatalogMovies(movies);
+          setLiveResults(movies);
+          setLiveTotal(data.totalResults || 0);
+          setLivePage(data.page || 1);
+          setLiveTotalPages(data.totalPages || 0);
+        })
+        .catch(() => undefined)
+        .finally(() => setSearching(false));
+    }, 280);
+    return () => window.clearTimeout(handle);
+  }, [query, tmdbLive]);
+
+  const localResults = useMemo(() => {
     let list = searchMovies(query);
     if (provider === "free") list = list.filter((m) => Boolean(m.freePlaybackUrl));
     else if (provider !== "all") {
@@ -75,6 +161,18 @@ export default function DiscoverPage() {
     }
     return list;
   }, [query, provider]);
+
+  const results = useMemo(() => {
+    if (provider === "free") return localResults;
+    if (tmdbLive && query.trim()) {
+      const seen = new Set(liveResults.map((m) => m.id));
+      const localExtra = localResults.filter((m) => !seen.has(m.id));
+      return [...liveResults, ...localExtra];
+    }
+    if (provider !== "all") return localResults;
+    return localResults;
+  }, [provider, tmdbLive, query, liveResults, localResults]);
+
   const onMyServices = useMemo(() => {
     if (!state.linkedServices.length) return [];
     return CATALOG.filter((m) =>
@@ -94,6 +192,47 @@ export default function DiscoverPage() {
   );
   const watchingCount = publicWatching.length;
   const showFiltered = Boolean(query.trim()) || provider !== "all";
+  const scaleLabel =
+    catalogScale > 0
+      ? `${catalogScale.toLocaleString()}+ titles indexed on TMDB for this feed`
+      : "hundreds of thousands of titles";
+
+  async function loadMoreSearch() {
+    if (!query.trim() || livePage >= liveTotalPages || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const next = livePage + 1;
+      const res = await fetch(
+        `/api/catalog/search?q=${encodeURIComponent(query.trim())}&page=${next}`
+      );
+      const data = await res.json();
+      const movies = (data.movies || []) as Movie[];
+      rememberCatalogMovies(movies);
+      setLiveResults((prev) => {
+        const seen = new Set(prev.map((m) => m.id));
+        return [...prev, ...movies.filter((m) => !seen.has(m.id))];
+      });
+      setLivePage(data.page || next);
+      setLiveTotalPages(data.totalPages || liveTotalPages);
+    } finally {
+      setLoadingMore(false);
+    }
+  }
+
+  async function loadMoreBrowse(
+    kind: string,
+    media: string,
+    setter: React.Dispatch<React.SetStateAction<Movie[]>>,
+    current: Movie[]
+  ) {
+    const nextPage = Math.floor(current.length / 20) + 1;
+    const more = await fetchBrowse(kind, media, Math.max(2, nextPage));
+    rememberCatalogMovies(more.movies);
+    setter((prev) => {
+      const seen = new Set(prev.map((m) => m.id));
+      return [...prev, ...more.movies.filter((m) => !seen.has(m.id))];
+    });
+  }
 
   return (
     <AppShell>
@@ -109,13 +248,11 @@ export default function DiscoverPage() {
                 Watch together tonight
               </h1>
               <p className="mt-2 max-w-xl text-sm text-mist/80 md:text-base">
-                Friends watching, live parties, and taste from your graph across every service you link.
+                Friends watching, live parties, and a full TMDB-powered catalog — search any movie or show.
               </p>
               <p className="mt-2 max-w-2xl text-[11px] leading-relaxed text-mist/55">
-                {tmdbLive
-                  ? "Live TMDB watch/providers enabled for titles with IDs · metadata only, never streams"
-                  : DEMO_CATALOG_NOTE}{" "}
-                · {stats.free} free · {stats.catalog} catalog
+                {tmdbLive ? TMDB_CATALOG_SCALE_NOTE : DEMO_CATALOG_NOTE} · {free.length} free on Watchify
+                {tmdbLive ? ` · ${scaleLabel}` : ` · ${CATALOG.length} local catalog`}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -135,12 +272,21 @@ export default function DiscoverPage() {
             </span>
             <span className="rounded-full border border-line px-3 py-1.5 text-mist">{watchingCount} public now</span>
             <span className="rounded-full border border-amber/30 bg-amber/10 px-3 py-1.5 text-amber-soft">{liveParties.length} live parties</span>
+            {tmdbLive && (
+              <span className="rounded-full border border-line px-3 py-1.5 text-mist">
+                Live catalog · search the full TMDB library
+              </span>
+            )}
           </div>
 
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search titles, genres, years, services…"
+            placeholder={
+              tmdbLive
+                ? "Search millions of TMDB titles — movies & TV…"
+                : "Search titles, genres, years, services…"
+            }
             className="mt-5 w-full max-w-xl rounded-xl border border-line bg-panel/80 px-4 py-3 text-sm text-white outline-none ring-teal/40 placeholder:text-mist/40 focus:ring-2"
           />
 
@@ -158,14 +304,32 @@ export default function DiscoverPage() {
         {showFiltered ? (
           <section>
             <h2 className="mb-4 font-display text-xl font-semibold text-white">
-              {query.trim() ? "Results" : "Filtered"} · {results.length}
+              {query.trim()
+                ? searching
+                  ? "Searching…"
+                  : tmdbLive
+                    ? `Results · ${liveTotal.toLocaleString() || results.length}`
+                    : `Results · ${results.length}`
+                : `Filtered · ${results.length}`}
             </h2>
             <div className="flex flex-wrap gap-4">
               {results.map((m) => (
                 <MovieTile key={m.id} movie={m} />
               ))}
-              {!results.length && <p className="text-mist">No matches — try another title or filter.</p>}
+              {!results.length && !searching && (
+                <p className="text-mist">No matches — try another title or filter.</p>
+              )}
             </div>
+            {tmdbLive && query.trim() && livePage < liveTotalPages && (
+              <button
+                type="button"
+                onClick={() => void loadMoreSearch()}
+                disabled={loadingMore}
+                className="mt-6 rounded-xl border border-line px-4 py-2.5 text-sm text-mist hover:text-white disabled:opacity-50"
+              >
+                {loadingMore ? "Loading…" : "Load more titles"}
+              </button>
+            )}
           </section>
         ) : (
           <>
@@ -266,11 +430,74 @@ export default function DiscoverPage() {
             )}
 
             <MovieRow title="Watchify Free · play here" subtitle="Synced parties on CC / public-domain titles" movies={free} />
-            <MovieRow title="Trending across the graph" subtitle="What people are queuing this week" movies={CATALOG.filter((m) => !m.freePlaybackUrl).slice(0, 12)} />
-            <MovieRow title="Critically loved" movies={[...CATALOG].filter((m) => !m.freePlaybackUrl).sort((a, b) => b.rating - a.rating).slice(0, 12)} />
-            {genres.slice(0, 4).map((genre) => (
-              <MovieRow key={genre} title={genre} movies={moviesByGenre(genre).slice(0, 12)} />
-            ))}
+
+            {tmdbLive && trending.length > 0 && (
+              <section className="mb-10">
+                <MovieRow
+                  title="Trending this week"
+                  subtitle="Live from TMDB — movies & TV"
+                  movies={trending}
+                />
+                <button
+                  type="button"
+                  className="mt-2 text-xs text-teal-soft hover:underline"
+                  onClick={() =>
+                    void loadMoreBrowse("trending", "all", setTrending, trending)
+                  }
+                >
+                  Load more trending →
+                </button>
+              </section>
+            )}
+
+            {tmdbLive && popularMovies.length > 0 && (
+              <section className="mb-10">
+                <MovieRow
+                  title="Popular movies"
+                  subtitle="Paginated from TMDB’s full movie library"
+                  movies={popularMovies}
+                />
+                <button
+                  type="button"
+                  className="mt-2 text-xs text-teal-soft hover:underline"
+                  onClick={() =>
+                    void loadMoreBrowse("popular", "movie", setPopularMovies, popularMovies)
+                  }
+                >
+                  Load more movies →
+                </button>
+              </section>
+            )}
+
+            {tmdbLive && popularTv.length > 0 && (
+              <section className="mb-10">
+                <MovieRow
+                  title="Popular TV"
+                  subtitle="Series from TMDB’s full TV library"
+                  movies={popularTv}
+                />
+                <button
+                  type="button"
+                  className="mt-2 text-xs text-teal-soft hover:underline"
+                  onClick={() =>
+                    void loadMoreBrowse("popular", "tv", setPopularTv, popularTv)
+                  }
+                >
+                  Load more TV →
+                </button>
+              </section>
+            )}
+
+            {tmdbLive && topRated.length > 0 && (
+              <MovieRow title="Top rated" subtitle="Critically loved on TMDB" movies={topRated} />
+            )}
+
+            {!tmdbLive && (
+              <>
+                <MovieRow title="Trending across the graph" subtitle="What people are queuing this week" movies={CATALOG.filter((m) => !m.freePlaybackUrl).slice(0, 12)} />
+                <MovieRow title="Critically loved" movies={[...CATALOG].filter((m) => !m.freePlaybackUrl).sort((a, b) => b.rating - a.rating).slice(0, 12)} />
+              </>
+            )}
           </>
         )}
       </div>

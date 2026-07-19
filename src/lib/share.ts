@@ -42,6 +42,9 @@ export type SharePlatformId =
   | "instagram"
   | "tiktok"
   | "snapchat"
+  | "discord"
+  | "threads"
+  | "messenger"
   | "copy"
   | "native";
 
@@ -77,7 +80,28 @@ export const SHARE_PLATFORMS: SharePlatform[] = [
   { id: "linkedin", label: "LinkedIn", kind: "direct" },
   { id: "whatsapp", label: "WhatsApp", kind: "direct" },
   { id: "telegram", label: "Telegram", kind: "direct" },
-  { id: "sms", label: "Messages / SMS", kind: "direct" },
+  {
+    id: "messenger",
+    label: "Messenger",
+    kind: "copy_then_open",
+    honesty:
+      "We copy the invite link — open Messenger and paste it in a chat (web apps rarely get a compose intent).",
+  },
+  { id: "sms", label: "Messages / SMS / iMessage", kind: "direct" },
+  {
+    id: "discord",
+    label: "Discord",
+    kind: "copy_then_open",
+    honesty:
+      "Discord has no public web compose URL. We copy the invite — open Discord and paste it in a server or DM.",
+  },
+  {
+    id: "threads",
+    label: "Threads",
+    kind: "copy_then_open",
+    honesty:
+      "Threads has no reliable share intent. We copy the link — open Threads and paste it in a post.",
+  },
   {
     id: "snapchat",
     label: "Snapchat",
@@ -138,6 +162,18 @@ export function snapchatOpenUrl() {
   return "https://www.snapchat.com/";
 }
 
+export function discordOpenUrl() {
+  return "https://discord.com/channels/@me";
+}
+
+export function threadsOpenUrl() {
+  return "https://www.threads.net/";
+}
+
+export function messengerOpenUrl() {
+  return "https://www.messenger.com/";
+}
+
 export function directShareHref(
   platform: SharePlatformId,
   opts: { url: string; title: string; text: string }
@@ -156,6 +192,8 @@ export function directShareHref(
       return whatsappIntent(text, url);
     case "telegram":
       return telegramIntent(text, url);
+    case "messenger":
+      return messengerOpenUrl();
     case "sms":
       return smsIntent(text, url);
     case "email":
@@ -166,6 +204,10 @@ export function directShareHref(
       return tiktokOpenUrl();
     case "snapchat":
       return snapchatOpenUrl();
+    case "discord":
+      return discordOpenUrl();
+    case "threads":
+      return threadsOpenUrl();
     default:
       return null;
   }

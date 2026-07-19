@@ -23,6 +23,8 @@ export type Movie = {
   trailerYoutubeId?: string;
   /** TMDB id for optional live watch/providers lookup */
   tmdbId?: number;
+  /** TMDB media type when sourced from the live catalog import */
+  mediaType?: "movie" | "tv";
   /**
    * Direct playable URL for Watchify-hosted free/licensed titles only.
    * Never used for paid-streamer scrapes.

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { MoviePoster } from "@/components/MoviePoster";
@@ -14,6 +14,7 @@ import { getUser } from "@/lib/users";
 
 export default function ProfilePage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const {
     state,
     currentUserId,
@@ -31,6 +32,7 @@ export default function ProfilePage() {
     directoryUsers.find((u) => u.id === params.id) || getUser(params.id);
   const [reportMsg, setReportMsg] = useState("");
   const [reporting, setReporting] = useState(false);
+  const [messaging, setMessaging] = useState(false);
 
   if (!user) {
     return (
@@ -156,9 +158,36 @@ export default function ProfilePage() {
                     Blocked
                   </span>
                 ) : alreadyFriend ? (
-                  <span className="rounded-lg bg-teal/15 px-3 py-2 text-xs font-medium text-teal-soft">
-                    Friends
-                  </span>
+                  <>
+                    <span className="rounded-lg bg-teal/15 px-3 py-2 text-xs font-medium text-teal-soft">
+                      Friends
+                    </span>
+                    <button
+                      type="button"
+                      disabled={messaging}
+                      onClick={async () => {
+                        setMessaging(true);
+                        try {
+                          const res = await fetch("/api/messages", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ friendId: user.id }),
+                          });
+                          const data = await res.json();
+                          if (res.ok && data.conversationId) {
+                            router.push(`/messages?c=${data.conversationId}`);
+                          } else {
+                            setReportMsg(data.error || "Could not open chat");
+                          }
+                        } finally {
+                          setMessaging(false);
+                        }
+                      }}
+                      className="rounded-lg bg-teal px-3 py-2 text-xs font-semibold text-ink hover:bg-teal-soft disabled:opacity-50"
+                    >
+                      {messaging ? "Opening…" : "Message"}
+                    </button>
+                  </>
                 ) : incoming ? (
                   <button
                     type="button"

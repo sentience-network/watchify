@@ -24,6 +24,7 @@ export async function GET() {
     realtimeUrl: realtimePublicUrl(),
     traktConfigured: traktConfigured(),
     tmdbConfigured: tmdbConfigured(),
+    liveCatalog: tmdbConfigured(),
     posthogConfigured: Boolean(process.env.NEXT_PUBLIC_POSTHOG_KEY && process.env.NEXT_PUBLIC_POSTHOG_HOST),
     plans: PLANS.map((p) => ({
       id: p.id,

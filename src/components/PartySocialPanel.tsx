@@ -18,6 +18,7 @@ import { getPartyRealtime } from "@/lib/party-realtime";
 import { FreePlayer } from "./FreePlayer";
 import { ProviderDeepLinks, ScrubToTimeBanner } from "./ScrubToTimeBanner";
 import { ServiceBadge } from "./ServiceBadge";
+import { InviteFriendsInApp } from "./InviteFriendsInApp";
 import { ShareMenu } from "./ShareMenu";
 import { partyInviteUrl } from "@/lib/social-graph";
 
@@ -164,6 +165,16 @@ export function PartySocialPanel({ partyId }: { partyId: string }) {
             : "Chat and reactions only. Not a shared video stream."}{" "}
         {STREAMING_HONEST_COPY}
       </p>
+
+      {inviteUrl ? (
+        <div className="mt-3 border-t border-line/60 pt-3">
+          <InviteFriendsInApp
+            inviteUrl={inviteUrl}
+            partyName={party.name}
+            movieTitle={movie.title}
+          />
+        </div>
+      ) : null}
 
       <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-mist">
         <span>

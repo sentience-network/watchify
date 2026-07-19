@@ -4,6 +4,7 @@ import { buildProviderDeepLink } from "./deep-links";
 import { FREE_LIBRARY, TRAILER_IDS } from "./free-content";
 import { isAbsolutePoster, resolvePosterPath } from "./poster-paths";
 import type { StreamingServiceId } from "./streaming";
+import { getCachedMovie, rememberMovies } from "./tmdb";
 
 export function posterUrl(movie: Movie, size: "w342" | "w500" = "w500") {
   const path = resolvePosterPath(movie.id, movie.posterPath);
@@ -475,7 +476,12 @@ export const CATALOG: Movie[] = [
 ];
 
 export function getMovie(id: string): Movie | undefined {
-  return CATALOG.find((m) => m.id === id);
+  return CATALOG.find((m) => m.id === id) || getCachedMovie(id);
+}
+
+/** Cache a live TMDB title so sync getMovie works across the client session. */
+export function rememberCatalogMovies(movies: Movie[]): void {
+  rememberMovies(movies);
 }
 
 export function freeMovies(): Movie[] {
