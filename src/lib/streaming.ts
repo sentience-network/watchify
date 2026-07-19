@@ -88,14 +88,15 @@ export function getStreamingService(
 /** Deep link for people who already subscribe — search, not a pirate mirror. */
 export function openOnServiceUrl(
   serviceId: StreamingServiceId,
-  title: string
+  title: string,
+  year?: number
 ): string {
-  const q = encodeURIComponent(title);
+  const q = encodeURIComponent(year && year > 0 ? `${title} ${year}` : title);
   switch (serviceId) {
     case "netflix":
       return `https://www.netflix.com/search?q=${q}`;
     case "disney":
-      return `https://www.disneyplus.com/search/${q}`;
+      return `https://www.disneyplus.com/search?q=${q}`;
     case "hulu":
       return `https://www.hulu.com/search?q=${q}`;
     case "max":
@@ -111,6 +112,10 @@ export function openOnServiceUrl(
     default:
       return `https://www.justwatch.com/us/search?q=${q}`;
   }
+}
+
+export function isStreamingServiceId(id: string): id is StreamingServiceId {
+  return STREAMING_SERVICES.some((s) => s.id === id);
 }
 
 /** Where-to-watch hint for friends who may not subscribe. */

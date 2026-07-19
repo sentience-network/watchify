@@ -1,8 +1,9 @@
 ﻿import type { Movie } from "./types";
 
 /**
- * Watchify-hosted free library — public domain / Creative Commons only.
- * Never paid-streamer scrapes. Each playable title includes attribution.
+ * Watchify free library — public domain / Creative Commons only.
+ * Prefer YouTube embeds of rights-cleared / PD uploads (hotlink MP4s rot often).
+ * Never paid-streamer scrapes.
  */
 export const FREE_LIBRARY: Movie[] = [
   {
@@ -17,9 +18,10 @@ export const FREE_LIBRARY: Movie[] = [
     genres: ["Animation", "Comedy"],
     runtime: 10,
     rating: 7.5,
-    trailerYoutubeId: "YE7VzlLtp-4",
+    trailerYoutubeId: "aqz-KE-bpKQ",
+    youtubePlaybackId: "aqz-KE-bpKQ",
     freePlaybackUrl:
-      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+      "https://download.blender.org/peach/bigbuckbunny_movies/BigBuckBunny_320x180.mp4",
     licenseKind: "creative_commons",
     attribution: {
       creator: "Blender Foundation",
@@ -40,9 +42,8 @@ export const FREE_LIBRARY: Movie[] = [
     genres: ["Animation", "Sci-Fi"],
     runtime: 11,
     rating: 7.0,
-    trailerYoutubeId: "TLkA0RELQ1M",
-    freePlaybackUrl:
-      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+    trailerYoutubeId: "TLkA0RELQ1g",
+    youtubePlaybackId: "TLkA0RELQ1g",
     licenseKind: "creative_commons",
     attribution: {
       creator: "Blender Foundation",
@@ -64,8 +65,7 @@ export const FREE_LIBRARY: Movie[] = [
     runtime: 15,
     rating: 7.8,
     trailerYoutubeId: "eRsGyueVLvQ",
-    freePlaybackUrl:
-      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
+    youtubePlaybackId: "eRsGyueVLvQ",
     licenseKind: "creative_commons",
     attribution: {
       creator: "Blender Foundation",
@@ -86,9 +86,8 @@ export const FREE_LIBRARY: Movie[] = [
     genres: ["Sci-Fi", "Short"],
     runtime: 12,
     rating: 6.8,
-    trailerYoutubeId: "iOTiMYaMPFc",
-    freePlaybackUrl:
-      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
+    trailerYoutubeId: "41hv2tW5Lc4",
+    youtubePlaybackId: "41hv2tW5Lc4",
     licenseKind: "creative_commons",
     attribution: {
       creator: "Blender Foundation",
@@ -102,16 +101,15 @@ export const FREE_LIBRARY: Movie[] = [
     title: "Night of the Living Dead",
     year: 1968,
     overview:
-      "George A. Romero’s landmark horror film — U.S. public domain; hosted via Internet Archive.",
+      "George A. Romero’s landmark horror film — U.S. public domain; played via a Public Domain Films YouTube upload.",
     posterPath:
       "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5b/Night_of_the_Living_Dead_%281968%29_theatrical_poster.jpg/440px-Night_of_the_Living_Dead_%281968%29_theatrical_poster.jpg",
     backdropPath: "/sw7mordbZxgITU877yTpZCud90M.jpg",
     genres: ["Horror"],
     runtime: 96,
     rating: 7.8,
-    trailerYoutubeId: "H91BxkBXttE",
-    freePlaybackUrl:
-      "https://archive.org/download/night_of_the_living_dead/night_of_the_living_dead_512kb.mp4",
+    trailerYoutubeId: "MQ8ZKw7YIfQ",
+    youtubePlaybackId: "MQ8ZKw7YIfQ",
     licenseKind: "public_domain",
     attribution: {
       creator: "George A. Romero / Image Ten",
@@ -125,16 +123,15 @@ export const FREE_LIBRARY: Movie[] = [
     title: "Nosferatu",
     year: 1922,
     overview:
-      "F. W. Murnau’s silent vampire classic — public domain in the U.S.; Archive.org source.",
+      "F. W. Murnau’s silent vampire classic — public domain in the U.S.; YouTube Cult Cinema Classics upload.",
     posterPath:
       "https://upload.wikimedia.org/wikipedia/commons/thumb/6/61/Nosferatu_shadow.jpg/440px-Nosferatu_shadow.jpg",
     backdropPath: "/TU9NIjwzjoKPwQHoHshkFcQUCG.jpg",
     genres: ["Horror", "Silent"],
     runtime: 94,
     rating: 7.9,
-    trailerYoutubeId: "YXNbYJHivJ8",
-    freePlaybackUrl:
-      "https://archive.org/download/Nosferatu_201303/Nosferatu.mp4",
+    trailerYoutubeId: "Ydxl9Gi2jIM",
+    youtubePlaybackId: "Ydxl9Gi2jIM",
     licenseKind: "public_domain",
     attribution: {
       creator: "F. W. Murnau / Prana Film",
@@ -148,15 +145,14 @@ export const FREE_LIBRARY: Movie[] = [
     title: "Plan 9 from Outer Space",
     year: 1957,
     overview:
-      "Ed Wood’s infamous sci-fi — widely treated as public domain in the U.S.; Archive.org.",
+      "Ed Wood’s infamous sci-fi — widely treated as public domain in the U.S.; free YouTube playback.",
     posterPath: "/hA2ple9q4qnwxp3hKVNhroipsir.jpg",
     backdropPath: "/tbhdm8UJAb4ViCTsulYFL3lxMCd.jpg",
     genres: ["Sci-Fi", "Comedy"],
     runtime: 79,
     rating: 4.0,
-    trailerYoutubeId: "jNVXR9d8nks",
-    freePlaybackUrl:
-      "https://archive.org/download/Plan9FromOuterSpace/Plan_9_from_Outer_Space_512kb.mp4",
+    trailerYoutubeId: "M2EdYGSk1VE",
+    youtubePlaybackId: "M2EdYGSk1VE",
     licenseKind: "public_domain",
     attribution: {
       creator: "Edward D. Wood Jr.",
@@ -170,21 +166,20 @@ export const FREE_LIBRARY: Movie[] = [
     title: "His Girl Friday",
     year: 1940,
     overview:
-      "Howard Hawks screwball comedy classic — U.S. public domain; Internet Archive.",
+      "Howard Hawks screwball comedy classic — U.S. public domain; free full-film YouTube playback.",
     posterPath: "/uDO8zWDhfWwoFdKS4fzkUJt0Rf0.jpg",
     backdropPath: "/qJeU7KM4D2lRHer0qyYACAOpFS.jpg",
     genres: ["Comedy", "Romance"],
     runtime: 92,
     rating: 7.8,
-    trailerYoutubeId: "KxqN5M7sV3M",
-    freePlaybackUrl:
-      "https://archive.org/download/HisGirlFriday1940/His%20Girl%20Friday%20%281940%29.mp4",
+    trailerYoutubeId: "kmYcT5gT6a4",
+    youtubePlaybackId: "kmYcT5gT6a4",
     licenseKind: "public_domain",
     attribution: {
       creator: "Howard Hawks / Columbia Pictures",
       license: "Public Domain (US)",
       licenseUrl: "https://creativecommons.org/publicdomain/mark/1.0/",
-      sourceUrl: "https://archive.org/details/HisGirlFriday1940",
+      sourceUrl: "https://archive.org/details/his_girl_friday",
     },
   },
   {
@@ -198,9 +193,8 @@ export const FREE_LIBRARY: Movie[] = [
     genres: ["Comedy", "Mystery", "Romance"],
     runtime: 113,
     rating: 7.7,
-    trailerYoutubeId: "0z8OA5J0QhI",
-    freePlaybackUrl:
-      "https://archive.org/download/charade1963/Charade%20%281963%29.mp4",
+    trailerYoutubeId: "dsY8kJp_-wA",
+    youtubePlaybackId: "dsY8kJp_-wA",
     licenseKind: "public_domain",
     attribution: {
       creator: "Stanley Donen",
@@ -214,16 +208,15 @@ export const FREE_LIBRARY: Movie[] = [
     title: "The Phantom of the Opera",
     year: 1925,
     overview:
-      "Lon Chaney silent classic — public domain; Archive.org restoration upload.",
+      "Lon Chaney silent classic — public domain; free full-film YouTube playback.",
     posterPath:
       "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6a/Phantom_of_the_Opera_%281925_film%29_poster.jpg/440px-Phantom_of_the_Opera_%281925_film%29_poster.jpg",
     backdropPath: "/8eLXy49xlXi8mWdIwRCx2TdVNyr.jpg",
     genres: ["Horror", "Silent"],
     runtime: 93,
     rating: 7.6,
-    trailerYoutubeId: "kZZTzE2eV0s",
-    freePlaybackUrl:
-      "https://archive.org/download/ThePhantomOfTheOpera1925/The%20Phantom%20of%20the%20Opera%20%281925%29.mp4",
+    trailerYoutubeId: "w1gW1pnKBPI",
+    youtubePlaybackId: "w1gW1pnKBPI",
     licenseKind: "public_domain",
     attribution: {
       creator: "Universal Pictures / Rupert Julian",
@@ -244,9 +237,8 @@ export const FREE_LIBRARY: Movie[] = [
     genres: ["Crime", "Noir"],
     runtime: 67,
     rating: 7.3,
-    trailerYoutubeId: "J0qK5k0vQ0g",
-    freePlaybackUrl:
-      "https://archive.org/download/detour_1945/Detour.mp4",
+    trailerYoutubeId: "QJN1oxtqxdM",
+    youtubePlaybackId: "QJN1oxtqxdM",
     licenseKind: "public_domain",
     attribution: {
       creator: "Edgar G. Ulmer / PRC",
@@ -294,7 +286,7 @@ export const TRAILER_IDS: Record<string, string> = {
 };
 
 export function isFreePlayable(movie: Movie | undefined): boolean {
-  return Boolean(movie?.freePlaybackUrl);
+  return Boolean(movie?.youtubePlaybackId || movie?.freePlaybackUrl);
 }
 
 export function paidStreamerBlocked(label: string): boolean {

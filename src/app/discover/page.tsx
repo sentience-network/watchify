@@ -21,7 +21,11 @@ import {
   liveFriendCount,
   recommendationsFromFriends,
 } from "@/lib/social-graph";
-import { STREAMING_SERVICES, type StreamingServiceId } from "@/lib/streaming";
+import {
+  STREAMING_SERVICES,
+  isStreamingServiceId,
+  type StreamingServiceId,
+} from "@/lib/streaming";
 import { TMDB_CATALOG_SCALE_NOTE } from "@/lib/tmdb";
 import { useWatchify } from "@/lib/store";
 import type { Movie } from "@/lib/types";
@@ -155,7 +159,8 @@ export default function DiscoverPage() {
 
   const localResults = useMemo(() => {
     let list = searchMovies(query);
-    if (provider === "free") list = list.filter((m) => Boolean(m.freePlaybackUrl));
+    if (provider === "free")
+      list = list.filter((m) => Boolean(m.youtubePlaybackId || m.freePlaybackUrl));
     else if (provider !== "all") {
       list = list.filter((m) => m.providers?.some((p) => p.id === provider));
     }
@@ -176,7 +181,10 @@ export default function DiscoverPage() {
   const onMyServices = useMemo(() => {
     if (!state.linkedServices.length) return [];
     return CATALOG.filter((m) =>
-      m.providers?.some((p) => state.linkedServices.includes(p.id))
+      m.providers?.some(
+        (p) =>
+          isStreamingServiceId(p.id) && state.linkedServices.includes(p.id)
+      )
     ).slice(0, 24);
   }, [state.linkedServices]);
   const free = useMemo(() => freeMovies(), []);
@@ -494,8 +502,8 @@ export default function DiscoverPage() {
 
             {!tmdbLive && (
               <>
-                <MovieRow title="Trending across the graph" subtitle="What people are queuing this week" movies={CATALOG.filter((m) => !m.freePlaybackUrl).slice(0, 12)} />
-                <MovieRow title="Critically loved" movies={[...CATALOG].filter((m) => !m.freePlaybackUrl).sort((a, b) => b.rating - a.rating).slice(0, 12)} />
+                <MovieRow title="Trending across the graph" subtitle="What people are queuing this week" movies={CATALOG.filter((m) => !m.youtubePlaybackId && !m.freePlaybackUrl).slice(0, 12)} />
+                <MovieRow title="Critically loved" movies={[...CATALOG].filter((m) => !m.youtubePlaybackId && !m.freePlaybackUrl).sort((a, b) => b.rating - a.rating).slice(0, 12)} />
               </>
             )}
           </>

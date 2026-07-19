@@ -19,6 +19,18 @@ const SERVICE_NAMES: Record<StreamingServiceId, string> = {
   paramount: "Paramount+",
 };
 
+export type RentalPartnerId =
+  | "amazon"
+  | "apple"
+  | "google"
+  | "vudu"
+  | "youtube"
+  | "microsoft";
+
+function searchQuery(title: string, year?: number): string {
+  return year && year > 0 ? `${title} ${year}` : title;
+}
+
 /**
  * Build a working deep link for a streamer.
  * Prefer title-specific IDs when curated; otherwise official search URLs.
@@ -27,10 +39,11 @@ const SERVICE_NAMES: Record<StreamingServiceId, string> = {
 export function buildProviderDeepLink(
   serviceId: StreamingServiceId,
   title: string,
-  titleId?: string
+  titleId?: string,
+  year?: number
 ): ProviderDeepLink {
   const name = SERVICE_NAMES[serviceId];
-  const q = encodeURIComponent(title);
+  const q = encodeURIComponent(searchQuery(title, year));
 
   if (titleId) {
     const specific = titleSpecificUrl(serviceId, titleId);
@@ -63,7 +76,9 @@ function titleSpecificUrl(
         ? titleId
         : `https://www.hulu.com/${titleId.replace(/^\//, "")}`;
     case "prime":
-      return `https://www.amazon.com/gp/video/detail/${encodeURIComponent(titleId)}`;
+      return withAmazonAffiliate(
+        `https://www.amazon.com/gp/video/detail/${encodeURIComponent(titleId)}`
+      );
     case "disney":
       return titleId.startsWith("http")
         ? titleId
@@ -90,13 +105,15 @@ function searchUrl(serviceId: StreamingServiceId, q: string): string {
     case "netflix":
       return `https://www.netflix.com/search?q=${q}`;
     case "disney":
-      return `https://www.disneyplus.com/search/${q}`;
+      return `https://www.disneyplus.com/search?q=${q}`;
     case "hulu":
       return `https://www.hulu.com/search?q=${q}`;
     case "max":
       return `https://www.max.com/search?q=${q}`;
     case "prime":
-      return `https://www.amazon.com/s?k=${q}&i=instant-video`;
+      return withAmazonAffiliate(
+        `https://www.amazon.com/s?k=${q}&i=instant-video`
+      );
     case "apple":
       return `https://tv.apple.com/search?term=${q}`;
     case "peacock":
@@ -106,6 +123,52 @@ function searchUrl(serviceId: StreamingServiceId, q: string): string {
     default:
       return `https://www.justwatch.com/us/search?q=${q}`;
   }
+}
+
+/** Optional Amazon Associates tag from env (server or NEXT_PUBLIC). */
+export function withAmazonAffiliate(url: string): string {
+  const tag =
+    process.env.AMAZON_AFFILIATE_TAG?.trim() ||
+    process.env.NEXT_PUBLIC_AMAZON_AFFILIATE_TAG?.trim();
+  if (!tag) return url;
+  try {
+    const u = new URL(url);
+    if (!u.hostname.includes("amazon.")) return url;
+    u.searchParams.set("tag", tag);
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
+/** Rent/buy partner search — opens partner checkout, not Watchify billing. */
+export function buildRentalPartnerLink(
+  partner: RentalPartnerId,
+  query: string
+): string {
+  const q = encodeURIComponent(query);
+  switch (partner) {
+    case "amazon":
+      return withAmazonAffiliate(
+        `https://www.amazon.com/s?k=${q}&i=instant-video`
+      );
+    case "apple":
+      return `https://tv.apple.com/search?term=${q}`;
+    case "google":
+      return `https://play.google.com/store/search?q=${q}&c=movies`;
+    case "vudu":
+      return `https://www.vudu.com/content/movies/search?searchString=${q}`;
+    case "youtube":
+      return `https://www.youtube.com/results?search_query=${q}+movie+rent`;
+    case "microsoft":
+      return `https://www.microsoft.com/store/search?q=${q}`;
+    default:
+      return justWatchSearchUrl(query);
+  }
+}
+
+export function justWatchSearchUrl(query: string): string {
+  return `https://www.justwatch.com/us/search?q=${encodeURIComponent(query)}`;
 }
 
 export function formatPlayhead(seconds: number): string {
@@ -125,3 +188,6 @@ export const TIMESTAMP_LIMIT_COPY =
 
 export const DEMO_CATALOG_NOTE =
   "Demo catalog: curated titles with official search / title deep-link patterns. Availability varies by region. Add TMDB_API_KEY for live watch/providers (metadata only — never scrapes streams).";
+
+export const RENT_BUY_COPY =
+  "Rent or buy opens Amazon, Apple TV, Vudu, and other partners in a new tab — you complete checkout on their site. Watchify does not host paid studio films or charge rentals itself.";

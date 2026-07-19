@@ -1,12 +1,18 @@
 import type { PlanId } from "./plans";
 import type { StreamingServiceId } from "./streaming";
 
+/** How the user can obtain the title via an outbound partner link. */
+export type OfferKind = "stream" | "rent" | "buy";
+
 export type MovieProvider = {
-  id: StreamingServiceId;
+  /** StreamingServiceId for subscriptions, or partner id (amazon, vudu, …). */
+  id: string;
   name: string;
   deepLink: string;
   /** True when URL opens a specific title page (not just search). */
   titleSpecific?: boolean;
+  /** Defaults to stream when omitted (curated catalog). */
+  kind?: OfferKind;
 };
 
 export type Movie = {
@@ -30,6 +36,11 @@ export type Movie = {
    * Never used for paid-streamer scrapes.
    */
   freePlaybackUrl?: string;
+  /**
+   * YouTube video id for in-app free playback (PD / CC / rights-cleared uploads).
+   * Prefer over broken hotlinks; party sync uses the IFrame API.
+   */
+  youtubePlaybackId?: string;
   /** How this title may be played on Watchify */
   licenseKind?: "catalog" | "trailer" | "public_domain" | "creative_commons" | "avod_sample";
   attribution?: { creator: string; license: string; licenseUrl: string; sourceUrl: string };

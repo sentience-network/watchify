@@ -1,17 +1,9 @@
-import type { StreamingServiceId } from "./streaming";
-import { buildProviderDeepLink } from "./deep-links";
-import type { Movie, MovieProvider } from "./types";
-
-const TMDB_PROVIDER_MAP: Record<number, StreamingServiceId> = {
-  8: "netflix",
-  9: "prime",
-  15: "hulu",
-  337: "disney",
-  1899: "max",
-  386: "peacock",
-  531: "paramount",
-  350: "apple",
-};
+import type { Movie } from "./types";
+import {
+  buildWatchOffersFromTmdb,
+  fallbackRentBuyOffers,
+  type WatchOffersResult,
+} from "./watch-offers";
 
 const MOVIE_GENRES: Record<number, string> = {
   28: "Action",
@@ -339,20 +331,26 @@ export async function fetchTmdbTitle(id: string): Promise<Movie | null> {
 
 /**
  * Live watch/providers from TMDB (metadata only).
- * Never scrapes streams. Graceful when TMDB_API_KEY is missing.
+ * Includes stream + rent + buy partner links. Never scrapes streams.
  */
 export async function fetchTmdbWatchProviders(
   tmdbId: number,
   title: string,
   region = "US",
-  mediaType: "movie" | "tv" = "movie"
-): Promise<{ providers: MovieProvider[]; source: "tmdb" | "unavailable"; note: string }> {
+  mediaType: "movie" | "tv" = "movie",
+  year?: number
+): Promise<WatchOffersResult> {
   const key = apiKey();
   if (!key) {
+    const fb = fallbackRentBuyOffers(title, year);
     return {
-      providers: [],
+      stream: [],
+      rent: fb.rent,
+      buy: fb.buy,
+      providers: [...fb.rent, ...fb.buy],
+      watchPageUrl: fb.watchPageUrl,
       source: "unavailable",
-      note: "TMDB_API_KEY not set — using curated demo deep links.",
+      note: "TMDB_API_KEY not set — curated stream links + partner Rent/Buy search.",
     };
   }
 
@@ -364,36 +362,63 @@ export async function fetchTmdbWatchProviders(
     const url = `https://api.themoviedb.org/3${path}?api_key=${encodeURIComponent(key)}`;
     const res = await fetch(url, { next: { revalidate: 86400 } });
     if (!res.ok) {
+      const fb = fallbackRentBuyOffers(title, year);
       return {
-        providers: [],
+        stream: [],
+        rent: fb.rent,
+        buy: fb.buy,
+        providers: [...fb.rent, ...fb.buy],
+        watchPageUrl: fb.watchPageUrl,
         source: "unavailable",
-        note: `TMDB returned ${res.status} — falling back to curated links.`,
+        note: `TMDB returned ${res.status} — falling back to curated + partner Rent/Buy links.`,
       };
     }
     const data = (await res.json()) as {
-      results?: Record<string, { flatrate?: { provider_id: number; provider_name: string }[] }>;
+      results?: Record<
+        string,
+        {
+          link?: string;
+          flatrate?: { provider_id: number; provider_name: string }[];
+          ads?: { provider_id: number; provider_name: string }[];
+          rent?: { provider_id: number; provider_name: string }[];
+          buy?: { provider_id: number; provider_name: string }[];
+        }
+      >;
     };
-    const flat = data.results?.[region]?.flatrate || [];
-    const seen = new Set<StreamingServiceId>();
-    const providers: MovieProvider[] = [];
-    for (const p of flat) {
-      const id = TMDB_PROVIDER_MAP[p.provider_id];
-      if (!id || seen.has(id)) continue;
-      seen.add(id);
-      providers.push(buildProviderDeepLink(id, title));
+    const regionData = data.results?.[region];
+    if (!regionData) {
+      const fb = fallbackRentBuyOffers(title, year);
+      return {
+        stream: [],
+        rent: fb.rent,
+        buy: fb.buy,
+        providers: [...fb.rent, ...fb.buy],
+        watchPageUrl: fb.watchPageUrl,
+        source: "fallback",
+        note: `No TMDB watch data for ${region} — partner Rent/Buy links available.`,
+      };
     }
-    return {
-      providers,
-      source: "tmdb",
-      note: providers.length
-        ? `Live watch/providers from TMDB (${region}). Deep links open the service — timestamps are not in the URL.`
-        : `No flatrate providers listed for ${region} on TMDB.`,
-    };
+
+    return buildWatchOffersFromTmdb({
+      title,
+      year,
+      region,
+      regionLink: regionData.link,
+      flatrate: regionData.flatrate,
+      ads: regionData.ads,
+      rent: regionData.rent,
+      buy: regionData.buy,
+    });
   } catch {
+    const fb = fallbackRentBuyOffers(title, year);
     return {
-      providers: [],
+      stream: [],
+      rent: fb.rent,
+      buy: fb.buy,
+      providers: [...fb.rent, ...fb.buy],
+      watchPageUrl: fb.watchPageUrl,
       source: "unavailable",
-      note: "TMDB request failed — using curated demo deep links.",
+      note: "TMDB request failed — using curated demo deep links + partner Rent/Buy.",
     };
   }
 }

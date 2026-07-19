@@ -65,7 +65,7 @@ export function PartySocialPanel({ partyId }: { partyId: string }) {
         return {
           id: party.serviceId,
           name: svc.name,
-          deepLink: openOnServiceUrl(party.serviceId, movie.title),
+          deepLink: openOnServiceUrl(party.serviceId, movie.title, movie.year),
           titleSpecific: false as boolean,
         };
       }
@@ -249,7 +249,13 @@ export function PartySocialPanel({ partyId }: { partyId: string }) {
 
       {movie.providers && movie.providers.length > 0 && !free ? (
         <div className="mt-3">
-          <ProviderDeepLinks providers={movie.providers} label="Open on service" />
+          <ProviderDeepLinks
+            providers={movie.providers.filter(
+              (p) => !p.kind || p.kind === "stream"
+            )}
+            label="Open on service"
+            mode="stream"
+          />
         </div>
       ) : null}
 

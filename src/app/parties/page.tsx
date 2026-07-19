@@ -117,7 +117,7 @@ function PartiesInner() {
 
   const movieOptions = useMemo(() => {
     if (syncMode === "watchify_free") return freeMovies();
-    return CATALOG.filter((m) => !m.freePlaybackUrl);
+    return CATALOG.filter((m) => !m.youtubePlaybackId && !m.freePlaybackUrl);
   }, [syncMode]);
 
   useEffect(() => {

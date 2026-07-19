@@ -40,17 +40,27 @@ export default function ContentPage() {
               own legal login.
             </li>
             <li>
-              <strong className="text-white">Free on Watchify</strong> — trailers
-              (YouTube embeds) and a public-domain / Creative Commons library with
-              attribution, real in-app playback, and synced parties.
+              <strong className="text-white">Free on Watchify</strong> — public
+              domain / Creative Commons titles with attribution, in-app playback
+              (YouTube embeds or direct files), and synced parties. Trailers for
+              catalog titles are YouTube embeds only.
             </li>
             <li>
               <strong className="text-white">Deep links to your services</strong> —
-              curated (~100+) catalog with official search/title URLs for Netflix,
-              Max, Hulu, Prime, Disney+, Peacock, Paramount+, Apple TV+. Optional
-              <code className="text-teal-soft">TMDB_API_KEY</code> for live
-              watch/providers. Exact player timestamps via URL are usually not
-              supported — parties show a live playhead + scrub helper instead.
+              curated catalog with official search/title URLs for Netflix, Max,
+              Hulu, Prime, Disney+, Peacock, Paramount+, Apple TV+. With{" "}
+              <code className="text-teal-soft">TMDB_API_KEY</code>, live
+              stream + rent/buy partner links (Amazon, Apple TV, Vudu, etc.).
+              Exact player timestamps via URL are usually not supported — parties
+              show a live playhead + scrub helper instead.
+            </li>
+            <li>
+              <strong className="text-white">Rent or buy via partners</strong> —
+              title pages offer outbound Rent/Buy buttons that open Amazon Video,
+              Apple TV, Vudu, Google Play, and similar checkouts. Watchify does not
+              host studio films or process rental payments itself (optional Amazon
+              Associates tag via{" "}
+              <code className="text-teal-soft">AMAZON_AFFILIATE_TAG</code>).
             </li>
             <li>
               <strong className="text-white">Screen share of free/owned media</strong>{" "}

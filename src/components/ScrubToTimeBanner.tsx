@@ -64,9 +64,15 @@ export function ScrubToTimeBanner({
 type ProviderLinksProps = {
   providers: MovieProvider[];
   label?: string;
+  /** stream → "On Netflix"; rent → "Rent on Amazon"; buy → "Buy on …" */
+  mode?: "stream" | "rent" | "buy";
 };
 
-export function ProviderDeepLinks({ providers, label }: ProviderLinksProps) {
+export function ProviderDeepLinks({
+  providers,
+  label,
+  mode = "stream",
+}: ProviderLinksProps) {
   if (!providers.length) return null;
   return (
     <div className="flex flex-wrap gap-2">
@@ -75,18 +81,30 @@ export function ProviderDeepLinks({ providers, label }: ProviderLinksProps) {
           {label}
         </span>
       )}
-      {providers.map((p) => (
-        <a
-          key={p.id}
-          href={p.deepLink}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="rounded-lg border border-line bg-panel/60 px-2.5 py-1 text-xs text-mist hover:border-teal/40 hover:text-teal-soft"
-          title={p.titleSpecific ? `Open ${p.name} title page` : `Search ${p.name}`}
-        >
-          On {p.name}
-        </a>
-      ))}
+      {providers.map((p) => {
+        const prefix =
+          mode === "rent" ? "Rent on" : mode === "buy" ? "Buy on" : "On";
+        return (
+          <a
+            key={`${mode}-${p.id}`}
+            href={p.deepLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={
+              mode === "stream"
+                ? "rounded-lg border border-line bg-panel/60 px-2.5 py-1 text-xs text-mist hover:border-teal/40 hover:text-teal-soft"
+                : "rounded-lg border border-teal/35 bg-teal/10 px-2.5 py-1 text-xs font-medium text-teal-soft hover:bg-teal/20"
+            }
+            title={
+              p.titleSpecific
+                ? `Open ${p.name} title page`
+                : `${prefix} ${p.name}`
+            }
+          >
+            {prefix} {p.name}
+          </a>
+        );
+      })}
     </div>
   );
 }

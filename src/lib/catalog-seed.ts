@@ -158,7 +158,7 @@ export const EXTRA_SEED: SeedRow[] = [
 
 export function seedToMovie(row: SeedRow): Movie {
   const providerLinks: ProviderDeepLink[] = row.providers.map((p) =>
-    buildProviderDeepLink(p.id, row.title, p.titleId)
+    buildProviderDeepLink(p.id, row.title, p.titleId, row.year)
   );
   return {
     id: row.id,
@@ -173,7 +173,7 @@ export function seedToMovie(row: SeedRow): Movie {
     trailerYoutubeId: row.trailerYoutubeId,
     tmdbId: row.tmdbId,
     licenseKind: "catalog",
-    providers: providerLinks,
+    providers: providerLinks.map((p) => ({ ...p, kind: "stream" as const })),
   };
 }
 

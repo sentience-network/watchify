@@ -9,7 +9,7 @@ import { InviteFriendsPrompt } from "@/components/InviteFriendsPrompt";
 import { ProviderDeepLinks } from "@/components/ScrubToTimeBanner";
 import { ScreenSharePanel } from "@/components/ScreenSharePanel";
 import { ShareMenu } from "@/components/ShareMenu";
-import { DEMO_CATALOG_NOTE } from "@/lib/deep-links";
+import { DEMO_CATALOG_NOTE, RENT_BUY_COPY } from "@/lib/deep-links";
 import { getMovie, rememberCatalogMovies } from "@/lib/movies";
 import { isFreePlayable } from "@/lib/free-content";
 import { absoluteUrl } from "@/lib/site";
@@ -24,7 +24,10 @@ function WatchInner() {
   const [loadingTitle, setLoadingTitle] = useState(!getMovie(params.id));
   const partyId = search.get("party") || undefined;
   const justJoined = search.get("joined") === "1";
-  const [liveProviders, setLiveProviders] = useState<MovieProvider[] | null>(null);
+  const [streamOffers, setStreamOffers] = useState<MovieProvider[] | null>(null);
+  const [rentOffers, setRentOffers] = useState<MovieProvider[]>([]);
+  const [buyOffers, setBuyOffers] = useState<MovieProvider[]>([]);
+  const [watchPageUrl, setWatchPageUrl] = useState<string | null>(null);
   const [providerNote, setProviderNote] = useState<string | null>(null);
 
   useEffect(() => {
@@ -55,13 +58,23 @@ function WatchInner() {
   }, [params.id]);
 
   useEffect(() => {
-    if (!movie || movie.freePlaybackUrl) return;
+    if (!movie || movie.freePlaybackUrl || movie.youtubePlaybackId) return;
     let cancelled = false;
     void fetch(`/api/catalog/providers?movieId=${encodeURIComponent(movie.id)}`)
       .then((r) => r.json())
       .then((data) => {
         if (cancelled) return;
-        if (Array.isArray(data.providers)) setLiveProviders(data.providers);
+        if (Array.isArray(data.stream)) setStreamOffers(data.stream);
+        else if (Array.isArray(data.providers)) {
+          setStreamOffers(
+            data.providers.filter(
+              (p: MovieProvider) => !p.kind || p.kind === "stream"
+            )
+          );
+        }
+        if (Array.isArray(data.rent)) setRentOffers(data.rent);
+        if (Array.isArray(data.buy)) setBuyOffers(data.buy);
+        if (typeof data.watchPageUrl === "string") setWatchPageUrl(data.watchPageUrl);
         if (typeof data.note === "string") setProviderNote(data.note);
       })
       .catch(() => undefined);
@@ -87,7 +100,11 @@ function WatchInner() {
   }
 
   const free = isFreePlayable(movie);
-  const providers = liveProviders || movie.providers || [];
+  const providers =
+    streamOffers ||
+    (movie.providers || []).filter((p) => !p.kind || p.kind === "stream");
+  const rentList = rentOffers;
+  const buyList = buyOffers;
   const shareUrl =
     typeof window !== "undefined" ? window.location.href : `/watch/${movie.id}`;
   const party = partyId
@@ -175,10 +192,47 @@ function WatchInner() {
           )}
         </div>
 
-        {!free && providers.length > 0 && (
-          <div className="mt-5 rounded-2xl border border-line bg-panel/40 p-4">
-            <ProviderDeepLinks providers={providers} label="Watch on your service" />
-            <p className="mt-2 text-[11px] leading-relaxed text-mist/55">
+        {!free && (
+          <div className="mt-5 space-y-4 rounded-2xl border border-line bg-panel/40 p-4">
+            {providers.length > 0 && (
+              <ProviderDeepLinks
+                providers={providers}
+                label="Stream with your subscription"
+                mode="stream"
+              />
+            )}
+            {(rentList.length > 0 || buyList.length > 0) && (
+              <div className="space-y-2 border-t border-line/60 pt-3">
+                {rentList.length > 0 && (
+                  <ProviderDeepLinks
+                    providers={rentList}
+                    label={buyList.length ? "Rent now" : "Rent or buy"}
+                    mode="rent"
+                  />
+                )}
+                {buyList.length > 0 && (
+                  <ProviderDeepLinks
+                    providers={buyList}
+                    label="Buy"
+                    mode="buy"
+                  />
+                )}
+                <p className="text-[11px] leading-relaxed text-mist/55">
+                  {RENT_BUY_COPY}
+                </p>
+              </div>
+            )}
+            {watchPageUrl && (
+              <a
+                href={watchPageUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex text-xs font-medium text-teal-soft hover:underline"
+              >
+                See all where-to-watch options →
+              </a>
+            )}
+            <p className="text-[11px] leading-relaxed text-mist/55">
               {providerNote || DEMO_CATALOG_NOTE}
             </p>
           </div>

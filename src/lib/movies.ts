@@ -456,7 +456,10 @@ function withBaseProviders(movie: Movie): Movie {
   const ids = BASE_PROVIDERS[movie.id] || ["netflix", "prime"];
   return {
     ...movie,
-    providers: ids.map((id) => buildProviderDeepLink(id, movie.title)),
+    providers: ids.map((id) => ({
+      ...buildProviderDeepLink(id, movie.title, undefined, movie.year),
+      kind: "stream" as const,
+    })),
   };
 }
 
@@ -485,11 +488,13 @@ export function rememberCatalogMovies(movies: Movie[]): void {
 }
 
 export function freeMovies(): Movie[] {
-  return CATALOG.filter((m) => Boolean(m.freePlaybackUrl));
+  return CATALOG.filter((m) =>
+    Boolean(m.youtubePlaybackId || m.freePlaybackUrl)
+  );
 }
 
 export function catalogMovies(): Movie[] {
-  return CATALOG.filter((m) => !m.freePlaybackUrl);
+  return CATALOG.filter((m) => !m.youtubePlaybackId && !m.freePlaybackUrl);
 }
 
 export function moviesByProvider(providerId: StreamingServiceId | "free"): Movie[] {
