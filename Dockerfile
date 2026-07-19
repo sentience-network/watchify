@@ -12,12 +12,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-cert
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
-ARG NEXT_PUBLIC_APP_URL
-ARG NEXT_PUBLIC_REALTIME_URL
-ARG NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
-ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
-ENV NEXT_PUBLIC_REALTIME_URL=$NEXT_PUBLIC_REALTIME_URL
-ENV NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=$NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+# Public URL defaults (Render also injects service env during docker build).
+# Do not use empty ARG→ENV assignments — they wipe injected NEXT_PUBLIC_* values.
+ENV NEXT_PUBLIC_APP_URL=https://watchify-web-9rx1.onrender.com
+ENV NEXT_PUBLIC_REALTIME_URL=https://watchify-realtime.onrender.com
+# Publishable key is public; bake so client checkout UI works even if build-args are empty.
+ENV NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_51TuqGUH14A0jEoKl6uXIGJ4tSK4zSFmGKTPVAnfTU1hDYdr5tXkoV0ypzhWKMdSs4VmWJpeihf18qWsqQO6G7XKX004gUoe7Kv
 # Keep SQLite for local development, but generate a Postgres client in the image.
 RUN sed 's/provider = "sqlite"/provider = "postgresql"/' prisma/schema.prisma > prisma/schema.postgresql.prisma \
     && npx prisma generate --schema prisma/schema.postgresql.prisma \
