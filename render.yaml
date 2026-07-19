@@ -56,6 +56,18 @@ services:
         sync: false
       - key: TMDB_API_KEY
         sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: FACEBOOK_CLIENT_ID
+        sync: false
+      - key: FACEBOOK_CLIENT_SECRET
+        sync: false
+      - key: GITHUB_ID
+        sync: false
+      - key: GITHUB_SECRET
+        sync: false
 
   - type: web
     name: watchify-realtime

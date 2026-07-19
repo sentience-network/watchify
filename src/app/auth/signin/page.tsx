@@ -17,6 +17,7 @@ function SignInForm() {
   const [providers, setProviders] = useState({
     google: false,
     github: false,
+    facebook: false,
   });
   const callbackUrl = params.get("callbackUrl") || "/discover";
 
@@ -27,6 +28,7 @@ function SignInForm() {
         setProviders({
           google: Boolean(d.googleAuthConfigured),
           github: Boolean(d.githubAuthConfigured),
+          facebook: Boolean(d.facebookAuthConfigured),
         });
         const demo = Boolean(d.showDemoLogin);
         setShowDemo(demo);
@@ -118,7 +120,7 @@ function SignInForm() {
           {loading ? "Signing in…" : "Sign in"}
         </button>
       </form>
-      {(providers.google || providers.github) && (
+      {(providers.google || providers.github || providers.facebook) && (
         <div className="mt-4 space-y-2">
           {providers.google && (
             <button
@@ -127,6 +129,15 @@ function SignInForm() {
               className="w-full rounded-xl border border-line px-4 py-2.5 text-sm text-mist hover:text-white"
             >
               Continue with Google
+            </button>
+          )}
+          {providers.facebook && (
+            <button
+              type="button"
+              onClick={() => signIn("facebook", { callbackUrl })}
+              className="w-full rounded-xl border border-line px-4 py-2.5 text-sm text-mist hover:text-white"
+            >
+              Continue with Facebook
             </button>
           )}
           {providers.github && (
@@ -140,10 +151,10 @@ function SignInForm() {
           )}
         </div>
       )}
-      {!providers.google && !providers.github && (
+      {!providers.google && !providers.github && !providers.facebook && (
         <p className="mt-4 text-xs text-mist/60">
-          Email + password only for now. Google/GitHub can be enabled later via
-          env vars.
+          Email + password only right now. Add Google / Facebook / GitHub OAuth
+          env vars on Render to enable social login.
         </p>
       )}
         <p className="mt-6 text-sm text-mist">

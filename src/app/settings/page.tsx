@@ -103,7 +103,13 @@ export default function SettingsPage() {
   async function saveSocial(e: FormEvent) {
     e.preventDefault();
     setMsg("");
-    for (const key of ["x", "instagram", "tiktok", "letterboxd"] as const) {
+    for (const key of [
+      "x",
+      "facebook",
+      "instagram",
+      "tiktok",
+      "letterboxd",
+    ] as const) {
       const result = validateSocialUrl(key, links[key]);
       if (!result.ok) {
         setMsg(result.error);
@@ -339,13 +345,15 @@ export default function SettingsPage() {
             Connected social
           </h2>
           <p className="mt-1 text-xs text-mist/70">
-            Plus/Party only. HTTPS profile URLs for X, Instagram, TikTok,
-            Letterboxd.
+            Plus/Party only. Paste HTTPS profile URLs (not passwords). Sharing a
+            Watchify link to Facebook/Instagram uses the Share menu — Instagram
+            cannot auto-post from the web.
           </p>
           <form onSubmit={saveSocial} className="mt-4 space-y-2">
             {(
               [
                 ["x", "X / Twitter"],
+                ["facebook", "Facebook"],
                 ["instagram", "Instagram"],
                 ["tiktok", "TikTok"],
                 ["letterboxd", "Letterboxd"],

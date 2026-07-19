@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="500" height="750" viewBox="0 0 500 750">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1a3d38"/>
+      <stop offset="100%" stop-color="#0b1210"/>
+    </linearGradient>
+  </defs>
+  <rect width="500" height="750" fill="url(#g)"/>
+  <text x="250" y="380" text-anchor="middle" fill="#7dd3c0" font-family="system-ui,sans-serif" font-size="48" font-weight="700">Watchify</text>
+</svg>

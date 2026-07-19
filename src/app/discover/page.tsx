@@ -9,6 +9,7 @@ import { MovieTile } from "@/components/MovieTile";
 import { ServiceBadge } from "@/components/ServiceBadge";
 import { WatchingNowStrip } from "@/components/WatchingNowStrip";
 import { DEMO_CATALOG_NOTE } from "@/lib/deep-links";
+import { isFreePlayable } from "@/lib/free-content";
 import {
   CATALOG,
   freeMovies,
@@ -159,8 +160,7 @@ export default function DiscoverPage() {
 
   const localResults = useMemo(() => {
     let list = searchMovies(query);
-    if (provider === "free")
-      list = list.filter((m) => Boolean(m.youtubePlaybackId || m.freePlaybackUrl));
+    if (provider === "free") list = list.filter((m) => isFreePlayable(m));
     else if (provider !== "all") {
       list = list.filter((m) => m.providers?.some((p) => p.id === provider));
     }

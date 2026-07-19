@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   authConfigured,
+  facebookAuthConfigured,
   githubAuthConfigured,
   googleAuthConfigured,
 } from "@/lib/auth";
@@ -23,6 +24,7 @@ export async function GET() {
     authConfigured,
     googleAuthConfigured,
     githubAuthConfigured,
+    facebookAuthConfigured,
     emailTransport: getEmailTransport(),
     realtimeUrl: realtimePublicUrl(),
     traktConfigured: traktConfigured(),

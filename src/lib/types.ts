@@ -93,6 +93,7 @@ export type Activity = {
 
 export type SocialLinks = {
   x: string;
+  facebook: string;
   instagram: string;
   tiktok: string;
   letterboxd: string;
@@ -230,6 +231,7 @@ export type AppState = {
 
 export const EMPTY_SOCIAL_LINKS: SocialLinks = {
   x: "",
+  facebook: "",
   instagram: "",
   tiktok: "",
   letterboxd: "",

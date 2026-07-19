@@ -311,9 +311,37 @@ export async function searchTmdb(
   };
 }
 
+async function fetchTmdbTrailerYoutubeId(
+  tmdbId: number,
+  mediaType: "movie" | "tv"
+): Promise<string | undefined> {
+  const path =
+    mediaType === "movie"
+      ? `/movie/${tmdbId}/videos`
+      : `/tv/${tmdbId}/videos`;
+  const data = await tmdbFetch<{
+    results?: {
+      key?: string;
+      site?: string;
+      type?: string;
+      official?: boolean;
+    }[];
+  }>(path);
+  const videos = data?.results || [];
+  const yt = videos.filter(
+    (v) => v.site === "YouTube" && v.key && /trailer|teaser/i.test(v.type || "")
+  );
+  yt.sort((a, b) => Number(b.official) - Number(a.official));
+  const pick =
+    yt[0] ||
+    videos.find((v) => v.site === "YouTube" && v.key) ||
+    null;
+  return pick?.key || undefined;
+}
+
 export async function fetchTmdbTitle(id: string): Promise<Movie | null> {
   const cached = getCachedMovie(id);
-  if (cached) return cached;
+  if (cached?.trailerYoutubeId || cached?.youtubePlaybackId) return cached;
 
   const parsed = parseTmdbCatalogId(id);
   if (!parsed || !tmdbConfigured()) return null;
@@ -324,8 +352,25 @@ export async function fetchTmdbTitle(id: string): Promise<Movie | null> {
       : `/tv/${parsed.tmdbId}`;
   const data = await tmdbFetch<TmdbListItem>(path);
   if (!data) return null;
-  const movie = mapTmdbItemToMovie(data, parsed.mediaType);
-  if (movie) rememberMovies([movie]);
+  let movie = mapTmdbItemToMovie(data, parsed.mediaType);
+  if (!movie) return null;
+
+  const trailerId = await fetchTmdbTrailerYoutubeId(
+    parsed.tmdbId,
+    parsed.mediaType
+  );
+  if (trailerId) {
+    movie = {
+      ...movie,
+      trailerYoutubeId: trailerId,
+      licenseKind: movie.licenseKind || "trailer",
+    };
+  }
+  // Merge with any prior cache fields (e.g. browse without trailer)
+  if (cached) {
+    movie = { ...cached, ...movie };
+  }
+  rememberMovies([movie]);
   return movie;
 }
 

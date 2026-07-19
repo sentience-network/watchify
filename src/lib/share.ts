@@ -61,13 +61,19 @@ export type SharePlatform = {
 export const SHARE_PLATFORMS: SharePlatform[] = [
   { id: "native", label: "Device share…", kind: "native_or_copy" },
   { id: "x", label: "X / Twitter", kind: "direct" },
-  { id: "facebook", label: "Facebook", kind: "direct" },
+  {
+    id: "facebook",
+    label: "Facebook",
+    kind: "direct",
+    honesty:
+      "Opens Facebook’s share dialog with your Watchify link. Auto-posting to a Page feed needs Meta app review (not enabled).",
+  },
   {
     id: "instagram",
     label: "Instagram",
     kind: "copy_then_open",
     honesty:
-      "Instagram has no reliable web share intent. We copy the link — paste it in a Story, post, or DM after opening Instagram.",
+      "Instagram can’t compose posts from the web. We copy the link — paste it in a Story, Reel caption, or DM. Auto-publish needs a Business account + Meta review.",
   },
   {
     id: "tiktok",
@@ -255,7 +261,7 @@ export async function nativeShare(data: {
 
 /** Allow only https:// public profile URLs for known social hosts. */
 export function validateSocialUrl(
-  platform: "x" | "instagram" | "tiktok" | "letterboxd",
+  platform: "x" | "facebook" | "instagram" | "tiktok" | "letterboxd",
   raw: string
 ): { ok: true; url: string } | { ok: false; error: string } {
   const trimmed = raw.trim();
@@ -272,6 +278,7 @@ export function validateSocialUrl(
   const host = parsed.hostname.replace(/^www\./, "").toLowerCase();
   const allowed: Record<typeof platform, string[]> = {
     x: ["x.com", "twitter.com"],
+    facebook: ["facebook.com", "fb.com", "fb.me"],
     instagram: ["instagram.com"],
     tiktok: ["tiktok.com"],
     letterboxd: ["letterboxd.com"],

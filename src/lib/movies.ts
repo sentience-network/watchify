@@ -19,6 +19,10 @@ export function posterUrl(movie: Movie, size: "w342" | "w500" = "w500") {
     return `https://i.ytimg.com/vi/${yt}/hqdefault.jpg`;
   }
   if (isAbsolutePoster(path)) return path;
+  if (!path || path === "/" || !path.startsWith("/")) {
+    if (yt) return `https://i.ytimg.com/vi/${yt}/hqdefault.jpg`;
+    return "/poster-fallback.svg";
+  }
   return `https://image.tmdb.org/t/p/${size}${path}`;
 }
 

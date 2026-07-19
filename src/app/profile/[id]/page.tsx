@@ -92,9 +92,10 @@ export default function ProfilePage() {
     ? (
         [
           ["X", social.x],
-          ["Instagram", social.instagram],
-          ["TikTok", social.tiktok],
-          ["Letterboxd", social.letterboxd],
+          ["Facebook", social.facebook || ""],
+          ["Instagram", social.instagram || ""],
+          ["TikTok", social.tiktok || ""],
+          ["Letterboxd", social.letterboxd || ""],
         ] as const
       ).filter(([, href]) => Boolean(href))
     : [];

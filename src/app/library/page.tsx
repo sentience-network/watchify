@@ -1,12 +1,12 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { FormEvent, Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
+import { SafePosterImage } from "@/components/SafePosterImage";
 import { ScreenSharePanel } from "@/components/ScreenSharePanel";
-import { freeMovies, posterUrl, rememberCatalogMovies } from "@/lib/movies";
+import { freeMovies, rememberCatalogMovies } from "@/lib/movies";
 import { STREAMING_HONEST_COPY } from "@/lib/streaming";
 import type { Movie } from "@/lib/types";
 
@@ -35,7 +35,6 @@ type SeriesSummary = {
 };
 
 function TitleCard({ m }: { m: Movie }) {
-  const thumb = posterUrl(m, "w500");
   const epBadge =
     m.season && m.episode
       ? `S${String(m.season).padStart(2, "0")}E${String(m.episode).padStart(2, "0")}`
@@ -48,15 +47,11 @@ function TitleCard({ m }: { m: Movie }) {
       className="group overflow-hidden rounded-2xl border border-line bg-panel/50 transition hover:border-teal/40"
     >
       <div className="relative aspect-video w-full bg-ink">
-        <Image
-          src={thumb}
+        <SafePosterImage
+          movie={m}
           alt={`${m.title} preview`}
-          fill
           className="object-cover transition duration-300 group-hover:scale-[1.03]"
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-          unoptimized={
-            thumb.startsWith("http") && !thumb.includes("image.tmdb.org")
-          }
         />
         <div className="absolute inset-0 bg-gradient-to-t from-ink/90 via-ink/20 to-transparent" />
         <span className="absolute bottom-3 left-3 rounded-md bg-teal px-2.5 py-1 text-xs font-semibold text-ink">
@@ -92,19 +87,28 @@ function TitleCard({ m }: { m: Movie }) {
 }
 
 function SeriesCard({ s }: { s: SeriesSummary }) {
+  const stub: Movie = {
+    id: s.firstEpisodeId,
+    title: s.title,
+    year: s.year,
+    overview: "",
+    posterPath: s.posterPath,
+    backdropPath: s.posterPath,
+    genres: ["TV"],
+    runtime: 0,
+    rating: 0,
+  };
   return (
     <Link
       href={`/library/series/${encodeURIComponent(s.slug)}`}
       className="group overflow-hidden rounded-2xl border border-line bg-panel/50 transition hover:border-teal/40"
     >
       <div className="relative aspect-video w-full bg-ink">
-        <Image
-          src={s.posterPath}
+        <SafePosterImage
+          movie={stub}
           alt={`${s.title} series`}
-          fill
           className="object-cover transition duration-300 group-hover:scale-[1.03]"
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-          unoptimized
         />
         <div className="absolute inset-0 bg-gradient-to-t from-ink/90 via-ink/20 to-transparent" />
         <span className="absolute bottom-3 left-3 rounded-md bg-teal px-2.5 py-1 text-xs font-semibold text-ink">

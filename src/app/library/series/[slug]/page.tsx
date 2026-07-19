@@ -1,11 +1,11 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { posterUrl, rememberCatalogMovies } from "@/lib/movies";
+import { SafePosterImage } from "@/components/SafePosterImage";
+import { rememberCatalogMovies } from "@/lib/movies";
 import type { Movie } from "@/lib/types";
 
 type SeriesPayload = {
@@ -99,7 +99,6 @@ export default function SeriesPage() {
         {!loading && episodes.length > 0 && (
           <ol className="mt-8 space-y-2">
             {episodes.map((ep, i) => {
-              const thumb = posterUrl(ep, "w342");
               const label = episodeLabel(ep, i);
               const name = ep.episodeTitle || ep.title;
               return (
@@ -112,16 +111,11 @@ export default function SeriesPage() {
                       {label}
                     </span>
                     <div className="relative h-12 w-20 shrink-0 overflow-hidden rounded-md bg-ink">
-                      <Image
-                        src={thumb}
+                      <SafePosterImage
+                        movie={ep}
                         alt=""
-                        fill
-                        className="object-cover"
+                        size="w342"
                         sizes="80px"
-                        unoptimized={
-                          thumb.startsWith("http") &&
-                          !thumb.includes("image.tmdb.org")
-                        }
                       />
                     </div>
                     <div className="min-w-0 flex-1">

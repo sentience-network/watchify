@@ -1,6 +1,7 @@
 ﻿import Image from "next/image";
 import Link from "next/link";
-import { CATALOG, backdropUrl, posterUrl } from "@/lib/movies";
+import { SafePosterImage } from "@/components/SafePosterImage";
+import { CATALOG, backdropUrl } from "@/lib/movies";
 import { SiteFooter } from "@/components/SiteFooter";
 import { prisma } from "@/lib/db";
 import { funnelCounts } from "@/lib/server/analytics";
@@ -116,11 +117,10 @@ export default async function LandingPage() {
                     animationDelay: `${i * 80}ms`,
                   }}
                 >
-                  <Image
-                    src={posterUrl(m, "w342")}
+                  <SafePosterImage
+                    movie={m}
                     alt={m.title}
-                    fill
-                    className="object-cover"
+                    size="w342"
                     sizes="76px"
                   />
                 </div>

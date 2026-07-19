@@ -1,10 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
+import { SafePosterImage } from "@/components/SafePosterImage";
 import { ShareMenu } from "@/components/ShareMenu";
 import { ServiceBadge } from "@/components/ServiceBadge";
-import { getMovie, posterUrl } from "@/lib/movies";
+import { getMovie } from "@/lib/movies";
 import { watchingShareUrl } from "@/lib/share";
 import { useWatchify } from "@/lib/store";
 import { isFreePlayable } from "@/lib/free-content";
@@ -36,13 +36,7 @@ export function NowWatchingBar() {
         {movie ? (
           <>
             <div className="relative h-12 w-8 shrink-0 overflow-hidden rounded md:h-14 md:w-10">
-              <Image
-                src={posterUrl(movie, "w342")}
-                alt=""
-                fill
-                className="object-cover"
-                sizes="40px"
-              />
+              <SafePosterImage movie={movie} alt="" size="w342" sizes="40px" />
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-teal animate-pulsebar">
