@@ -252,8 +252,9 @@ export async function browseArchiveFreeMovies(opts: {
     rows: String(pageSize),
     page: String(page),
   });
-  // A–Z by title (Archive titleSorter); fallback client sort if missing
-  params.append("sort[]", "titleSorter+asc");
+  // Do not pass sort[]=titleSorter+asc via URLSearchParams — it encodes "+" as
+  // "%2B" and Archive returns {"error":"[UNSUPPORTED_SORT]..."} with empty docs.
+  // A–Z is applied client-side below.
   for (const fl of [
     "identifier",
     "title",
@@ -268,7 +269,7 @@ export async function browseArchiveFreeMovies(opts: {
 
   const res = await fetch(`${SEARCH_URL}?${params.toString()}`, {
     headers: { "User-Agent": "Watchify/1.0 (free catalog; +https://watchify.app)" },
-    next: { revalidate: 3600 },
+    cache: "no-store",
   });
   if (!res.ok) {
     return {
@@ -286,7 +287,21 @@ export async function browseArchiveFreeMovies(opts: {
 
   const data = (await res.json()) as {
     response?: { numFound?: number; docs?: IaSearchDoc[] };
+    error?: string;
   };
+  if (data.error) {
+    return {
+      movies: [],
+      page,
+      pageSize,
+      total: 0,
+      totalPages: 0,
+      kind,
+      query,
+      source: "archive.org",
+      note: `Internet Archive search error: ${data.error}`,
+    };
+  }
   const total = data.response?.numFound || 0;
   const movies = (data.response?.docs || [])
     .map((d) => docToMovie(d, kind))
