@@ -15,11 +15,12 @@ export type FreeCatalogKind = "all" | "movies" | "tv";
 const FREE_MOVIE_QUERY =
   "collection:feature_films AND mediatype:movies AND format:MPEG4 AND licenseurl:*publicdomain*";
 
+/** classic_tv only + pre-1978 years — avoids mis-tagged modern uploads in broader TV collections. */
 const FREE_TV_QUERY =
-  "(collection:classic_tv OR collection:television) AND mediatype:movies AND format:MPEG4 AND licenseurl:*publicdomain* AND NOT title:Commercial AND NOT title:Credits";
+  "collection:classic_tv AND mediatype:movies AND format:MPEG4 AND licenseurl:*publicdomain* AND year:[1900 TO 1977] AND NOT title:Commercial AND NOT title:Credits";
 
 const FREE_ALL_QUERY =
-  "(collection:feature_films OR collection:classic_tv OR collection:television) AND mediatype:movies AND format:MPEG4 AND licenseurl:*publicdomain*";
+  "((collection:feature_films) OR (collection:classic_tv AND year:[1900 TO 1977] AND NOT title:Commercial AND NOT title:Credits)) AND mediatype:movies AND format:MPEG4 AND licenseurl:*publicdomain*";
 
 function queryForKind(kind: FreeCatalogKind): string {
   if (kind === "tv") return FREE_TV_QUERY;
