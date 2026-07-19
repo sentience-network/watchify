@@ -144,18 +144,33 @@ function LibraryInner() {
   const [seriesLoading, setSeriesLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const [seriesError, setSeriesError] = useState("");
+
   const loadSeries = useCallback(async () => {
     setSeriesLoading(true);
+    setSeriesError("");
     try {
       const res = await fetch("/api/catalog/free/series");
       const data = (await res.json()) as {
         series?: SeriesSummary[];
         note?: string;
+        error?: string;
       };
+      if (!res.ok) {
+        setSeries([]);
+        setSeriesError(data.error || "Could not load series list.");
+        return;
+      }
       setSeries(data.series || []);
       setSeriesNote(data.note || null);
+      if (!(data.series || []).length) {
+        setSeriesError(
+          "No series groups yet — Archive may be slow. Retry, or browse episodes below."
+        );
+      }
     } catch {
       setSeries([]);
+      setSeriesError("Could not reach the series catalog.");
     } finally {
       setSeriesLoading(false);
     }
@@ -178,6 +193,9 @@ function LibraryInner() {
         };
         if (!res.ok) {
           setError(data.error || "Could not load free catalog");
+          setMovies([]);
+          setTotal(0);
+          setTotalPages(0);
           return;
         }
         if (data.curated?.length) {
@@ -192,8 +210,16 @@ function LibraryInner() {
         setTotal(data.total || 0);
         setTotalPages(data.totalPages || 0);
         setNote(data.note || null);
+        if (!(data.movies || []).length && !(data.total || 0) && !nextQ.trim()) {
+          setError(
+            "Internet Archive returned no titles. This is usually temporary — retry in a moment."
+          );
+        }
       } catch {
         setError("Could not reach the free catalog. Retry in a moment.");
+        setMovies([]);
+        setTotal(0);
+        setTotalPages(0);
       } finally {
         setLoading(false);
       }
@@ -330,17 +356,24 @@ function LibraryInner() {
             {seriesLoading && (
               <p className="mt-4 text-sm text-mist">Loading series…</p>
             )}
-            {!seriesLoading && (
+            {!seriesLoading && seriesError && (
+              <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-amber-soft/40 bg-amber-soft/10 px-3 py-2.5">
+                <p className="text-sm text-amber-soft">{seriesError}</p>
+                <button
+                  type="button"
+                  onClick={() => void loadSeries()}
+                  className="rounded-lg bg-teal px-3 py-1.5 text-xs font-semibold text-ink"
+                >
+                  Retry series
+                </button>
+              </div>
+            )}
+            {!seriesLoading && series.length > 0 && (
               <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 {series.map((s) => (
                   <SeriesCard key={s.slug} s={s} />
                 ))}
               </div>
-            )}
-            {!seriesLoading && !series.length && (
-              <p className="mt-4 text-sm text-mist">
-                No multi-episode series detected yet — browse episodes below.
-              </p>
             )}
           </section>
         )}
@@ -356,17 +389,33 @@ function LibraryInner() {
                   : "Internet Archive library (A–Z)"}
           </h2>
           <p className="mt-1 text-xs text-mist/65">
-            {total
-              ? `${total.toLocaleString()} public-domain MPEG4 titles in this filter`
-              : "Loading Archive catalog…"}
+            {loading
+              ? "Loading Archive catalog…"
+              : total
+                ? `${total.toLocaleString()} public-domain MPEG4 titles in this filter`
+                : search
+                  ? "No matches in this filter"
+                  : "Archive catalog unavailable"}
           </p>
 
-          {error && <p className="mt-4 text-sm text-amber-soft">{error}</p>}
+          {error && (
+            <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-amber-soft/40 bg-amber-soft/10 px-3 py-2.5">
+              <p className="text-sm text-amber-soft">{error}</p>
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => void load(page || 1, search, kind)}
+                className="rounded-lg bg-teal px-3 py-1.5 text-xs font-semibold text-ink disabled:opacity-50"
+              >
+                Retry catalog
+              </button>
+            </div>
+          )}
           {loading && (
             <p className="mt-6 text-sm text-mist">Loading free titles…</p>
           )}
 
-          {!loading && (
+          {!loading && movies.length > 0 && (
             <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {movies.map((m) => (
                 <TitleCard key={m.id} m={m} />
@@ -375,7 +424,22 @@ function LibraryInner() {
           )}
 
           {!loading && !movies.length && !error && (
-            <p className="mt-6 text-sm text-mist">No titles matched that search.</p>
+            <div className="mt-6 flex flex-wrap items-center gap-3">
+              <p className="text-sm text-mist">
+                {search
+                  ? "No titles matched that search."
+                  : "Nothing loaded from Internet Archive."}
+              </p>
+              {!search && (
+                <button
+                  type="button"
+                  onClick={() => void load(1, "", kind)}
+                  className="rounded-lg bg-teal px-3 py-1.5 text-xs font-semibold text-ink"
+                >
+                  Retry catalog
+                </button>
+              )}
+            </div>
           )}
 
           {totalPages > 1 && (

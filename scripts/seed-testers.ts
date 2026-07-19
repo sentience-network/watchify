@@ -84,7 +84,7 @@ async function withPostgresClient<T>(
     'provider = "postgresql"'
   );
   schema = schema.replace(
-    /generator client \{[^}]+\}/s,
+    /generator client \{[\s\S]*?\}/,
     `generator client {
   provider = "prisma-client-js"
   output   = "./client"

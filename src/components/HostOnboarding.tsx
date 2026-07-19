@@ -5,14 +5,14 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useWatchify } from "@/lib/store";
 
-const KEY = "watchify_host_onboarding_v1";
+const KEY = "watchify_host_onboarding_v2";
 
 /**
- * First-run host coaching — drives Watch → Share → Party → Invite.
+ * First-night coach for soft launch: Free watch → Share → Party → Invite.
  */
 export function HostOnboarding() {
   const { data: session } = useSession();
-  const { canHostParties, openParties, currentUserId } = useWatchify();
+  const { canHostParties, openParties, currentUserId, state } = useWatchify();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -28,28 +28,61 @@ export function HostOnboarding() {
   if (!open || !session?.user) return null;
 
   const hosted = openParties.some((p) => p.hostId === currentUserId);
-  const steps = [
-    {
-      done: true,
-      label: "Account ready",
-      href: "/settings",
-    },
-    {
-      done: Boolean(canHostParties),
-      label: canHostParties ? "Party plan active" : "Activate Party plan (host rooms)",
-      href: "/pricing",
-    },
-    {
-      done: hosted,
-      label: hosted ? "You’ve hosted a room" : "Create your first live party",
-      href: "/parties",
-    },
-    {
-      done: false,
-      label: "Invite 2 friends with the share link",
-      href: "/parties",
-    },
-  ];
+  const watching = Boolean(state.currentlyWatchingId);
+
+  const steps = canHostParties
+    ? [
+        {
+          done: watching,
+          label: watching
+            ? "Playing / sharing a title"
+            : "Play something free on Watchify",
+          href: "/library",
+        },
+        {
+          done: watching,
+          label: watching
+            ? "Friends can see what you’re watching"
+            : "Share what you’re watching (Discover dock)",
+          href: "/discover",
+        },
+        {
+          done: hosted,
+          label: hosted
+            ? "You’ve hosted a live party"
+            : "Host a Watchify Free party",
+          href: "/parties",
+        },
+        {
+          done: false,
+          label: "Invite a friend with the party link (2nd device)",
+          href: "/parties",
+        },
+      ]
+    : [
+        {
+          done: watching,
+          label: watching
+            ? "Playing / sharing a title"
+            : "Play something free on Watchify",
+          href: "/library",
+        },
+        {
+          done: Boolean(canHostParties),
+          label: "Activate Party plan to host rooms",
+          href: "/pricing",
+        },
+        {
+          done: hosted,
+          label: hosted ? "You’ve hosted a room" : "Create your first live party",
+          href: "/parties",
+        },
+        {
+          done: false,
+          label: "Invite 2 friends with the share link",
+          href: "/parties",
+        },
+      ];
 
   function dismiss() {
     try {
@@ -63,7 +96,7 @@ export function HostOnboarding() {
   return (
     <aside
       className="mb-6 rounded-2xl border border-teal/35 bg-teal/10 p-4 animate-fade-up"
-      aria-label="Launch onboarding"
+      aria-label="First night onboarding"
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
@@ -71,10 +104,12 @@ export function HostOnboarding() {
             Your first night
           </p>
           <p className="mt-1 font-display text-lg font-semibold text-white">
-            Watch → Share → Party → Invite
+            Free → Share → Party → Invite
           </p>
           <p className="mt-1 text-xs text-mist/80">
-            This is the flywheel. Complete it once and the graph starts compounding.
+            {canHostParties
+              ? "Party plan is ready. Run this once on two devices — that’s the whole product."
+              : "Start free, then unlock hosting when you’re ready for a room."}
           </p>
         </div>
         <button
@@ -105,6 +140,24 @@ export function HostOnboarding() {
         ))}
       </ol>
       <div className="mt-3 flex flex-wrap gap-2">
+        <Link
+          href="/library"
+          className="rounded-lg bg-teal px-3 py-1.5 text-xs font-semibold text-ink"
+        >
+          Start with free library
+        </Link>
+        <Link
+          href="/parties"
+          className="rounded-lg border border-line px-3 py-1.5 text-xs text-mist hover:text-white"
+        >
+          Parties
+        </Link>
+        <Link
+          href="/contact?topic=soft-launch"
+          className="rounded-lg border border-line px-3 py-1.5 text-xs text-mist hover:text-white"
+        >
+          Something broken?
+        </Link>
         {(session?.user?.role === "admin" ||
           session?.user?.role === "mod") && (
           <Link
@@ -114,18 +167,6 @@ export function HostOnboarding() {
             Soft-launch script
           </Link>
         )}
-        <Link
-          href="/tv"
-          className="rounded-lg border border-line px-3 py-1.5 text-xs text-mist hover:text-white"
-        >
-          Open TV companion
-        </Link>
-        <Link
-          href="/discover"
-          className="rounded-lg bg-teal px-3 py-1.5 text-xs font-semibold text-ink"
-        >
-          Share what you&apos;re watching
-        </Link>
       </div>
     </aside>
   );

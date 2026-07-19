@@ -426,6 +426,11 @@ type SeriesCache = {
 let seriesCache: SeriesCache | null = null;
 const SERIES_CACHE_MS = 60 * 60 * 1000;
 
+/** Bust in-memory series cache (e.g. after filter changes in the same process). */
+export function clearArchiveSeriesCache(): void {
+  seriesCache = null;
+}
+
 async function fetchAllTvDocs(): Promise<Movie[]> {
   const pageSize = 100;
   const first = await browseArchiveFreeMovies({
@@ -495,11 +500,17 @@ function enrichEpisodeSeries(ep: Movie): Movie {
 }
 
 function isJunkSeriesTitle(title: string): boolean {
-  const t = title.trim();
-  if (t.length < 3) return true;
+  const t = title.trim().replace(/:+$/, "");
+  if (t.length < 4) return true;
   if (/^\d{2,4}$/.test(t)) return true;
-  if (/^(classic|tv|misc|various|unknown|pdq)$/i.test(t)) return true;
-  if (/^classic\b/i.test(t) && t.length < 20) return true;
+  if (/^(classic|tv|misc|various|unknown|pdq|pilot|failed pilot)$/i.test(t)) {
+    return true;
+  }
+  if (/^classic\b/i.test(t) && t.length < 28) return true;
+  if (/pop culture|home of the week|candle cove/i.test(t)) return true;
+  if (/^the andy griffith/i.test(t)) return true; // modern scraps, not PD pack
+  // Trailing junk from bad parses: "Show:" / "s Something"
+  if (/^s\s/i.test(t) && t.length < 24) return true;
   return false;
 }
 
@@ -520,7 +531,8 @@ function buildSeriesCache(episodes: Movie[]): SeriesCache {
 
   const series: FreeSeriesSummary[] = [];
   for (const [slug, list] of Array.from(bySlug.entries())) {
-    if (list.length < 2) continue; // need at least 2 eps to treat as a series
+    // Prefer real runs over 2-ep scraps from Archive title noise
+    if (list.length < 3) continue;
     list.sort(compareEpisodes);
     const title = list[0].seriesTitle || list[0].title;
     if (isJunkSeriesTitle(title)) continue;
