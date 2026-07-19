@@ -5,7 +5,8 @@ ENV NODE_ENV=production
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
-RUN npm ci
+# npm install (not ci): Windows-generated lockfiles can omit Linux optional deps (@emnapi/*).
+RUN npm install --omit=dev
 COPY prisma ./prisma
 COPY server ./server
 COPY src/lib ./src/lib
