@@ -31,6 +31,8 @@ yarn-error.log*
 .env.production
 .stripe-webhook-secret.json
 .render-*
+testers-credentials.txt
+prisma/.pg-tmp-testers/
 
 # local auth / reports datastore (legacy — prefer Prisma DB)
 .data/
