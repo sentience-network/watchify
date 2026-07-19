@@ -1,7 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { HostOnboarding } from "@/components/HostOnboarding";
 import { MovieRow } from "@/components/MovieRow";
@@ -17,6 +19,7 @@ import {
   rememberCatalogMovies,
   searchMovies,
 } from "@/lib/movies";
+import { personPosterUrl, type PersonCard } from "@/lib/people";
 import {
   compatibleFriends,
   liveFriendCount,
@@ -78,9 +81,27 @@ async function fetchBrowse(
 }
 
 export default function DiscoverPage() {
+  return (
+    <Suspense
+      fallback={
+        <AppShell>
+          <p className="text-sm text-mist">Loading Discover…</p>
+        </AppShell>
+      }
+    >
+      <DiscoverInner />
+    </Suspense>
+  );
+}
+
+function DiscoverInner() {
+  const searchParams = useSearchParams();
   const { state, openParties, publicWatching, ready, directoryUsers, currentUserId } =
     useWatchify();
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(searchParams.get("people") || "");
+  const [searchMode, setSearchMode] = useState<"titles" | "people">(
+    searchParams.get("people") !== null ? "people" : "titles"
+  );
   const [provider, setProvider] = useState<ProviderFilter>("all");
   const [tmdbLive, setTmdbLive] = useState(false);
   const [trending, setTrending] = useState<Movie[]>([]);
@@ -88,6 +109,10 @@ export default function DiscoverPage() {
   const [popularTv, setPopularTv] = useState<Movie[]>([]);
   const [topRated, setTopRated] = useState<Movie[]>([]);
   const [liveResults, setLiveResults] = useState<Movie[]>([]);
+  const [peopleResults, setPeopleResults] = useState<PersonCard[]>([]);
+  const [tasteRecs, setTasteRecs] = useState<
+    { movie: Movie; reason: string }[]
+  >([]);
   const [liveTotal, setLiveTotal] = useState(0);
   const [livePage, setLivePage] = useState(1);
   const [liveTotalPages, setLiveTotalPages] = useState(0);
@@ -135,6 +160,7 @@ export default function DiscoverPage() {
     const q = query.trim();
     if (!tmdbLive || !q) {
       setLiveResults([]);
+      setPeopleResults([]);
       setLiveTotal(0);
       setLivePage(1);
       setLiveTotalPages(0);
@@ -142,12 +168,27 @@ export default function DiscoverPage() {
     }
     const handle = window.setTimeout(() => {
       setSearching(true);
+      if (searchMode === "people") {
+        void fetch(`/api/catalog/people?q=${encodeURIComponent(q)}&page=1`)
+          .then((r) => r.json())
+          .then((data) => {
+            setPeopleResults((data.people || []) as PersonCard[]);
+            setLiveResults([]);
+            setLiveTotal(data.totalResults || 0);
+            setLivePage(data.page || 1);
+            setLiveTotalPages(data.totalPages || 0);
+          })
+          .catch(() => undefined)
+          .finally(() => setSearching(false));
+        return;
+      }
       void fetch(`/api/catalog/search?q=${encodeURIComponent(q)}&page=1`)
         .then((r) => r.json())
         .then((data) => {
           const movies = (data.movies || []) as Movie[];
           rememberCatalogMovies(movies);
           setLiveResults(movies);
+          setPeopleResults([]);
           setLiveTotal(data.totalResults || 0);
           setLivePage(data.page || 1);
           setLiveTotalPages(data.totalPages || 0);
@@ -156,7 +197,33 @@ export default function DiscoverPage() {
         .finally(() => setSearching(false));
     }, 280);
     return () => window.clearTimeout(handle);
-  }, [query, tmdbLive]);
+  }, [query, tmdbLive, searchMode]);
+
+  useEffect(() => {
+    if (!ready || !currentUserId || !tmdbLive) {
+      setTasteRecs([]);
+      return;
+    }
+    let cancelled = false;
+    void fetch("/api/catalog/recommend")
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        const movies = (data.movies || []) as Movie[];
+        rememberCatalogMovies(movies);
+        const reasons = (data.reasons || {}) as Record<string, string>;
+        setTasteRecs(
+          movies.map((m) => ({
+            movie: m,
+            reason: reasons[m.id] || "Based on your favorites",
+          }))
+        );
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, currentUserId, tmdbLive, directoryUsers]);
 
   const localResults = useMemo(() => {
     let list = searchMovies(query);
@@ -199,7 +266,8 @@ export default function DiscoverPage() {
     [ready, state, directoryUsers, currentUserId]
   );
   const watchingCount = publicWatching.length;
-  const showFiltered = Boolean(query.trim()) || provider !== "all";
+  const showFiltered =
+    Boolean(query.trim()) || (provider !== "all" && searchMode === "titles");
   const scaleLabel =
     catalogScale > 0
       ? `${catalogScale.toLocaleString()}+ titles indexed on TMDB for this feed`
@@ -287,26 +355,47 @@ export default function DiscoverPage() {
             )}
           </div>
 
+          <div className="mt-5 flex flex-wrap gap-2">
+            <FilterChip
+              active={searchMode === "titles"}
+              onClick={() => setSearchMode("titles")}
+            >
+              Titles
+            </FilterChip>
+            <FilterChip
+              active={searchMode === "people"}
+              onClick={() => setSearchMode("people")}
+            >
+              Actors & directors
+            </FilterChip>
+          </div>
+
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={
-              tmdbLive
-                ? "Search millions of TMDB titles — movies & TV…"
-                : "Search titles, genres, years, services…"
+              searchMode === "people"
+                ? tmdbLive
+                  ? "Search actors & directors…"
+                  : "Person search needs TMDB_API_KEY"
+                : tmdbLive
+                  ? "Search millions of TMDB titles — movies & TV…"
+                  : "Search titles, genres, years, services…"
             }
-            className="mt-5 w-full max-w-xl rounded-xl border border-line bg-panel/80 px-4 py-3 text-sm text-white outline-none ring-teal/40 placeholder:text-mist/40 focus:ring-2"
+            className="mt-3 w-full max-w-xl rounded-xl border border-line bg-panel/80 px-4 py-3 text-sm text-white outline-none ring-teal/40 placeholder:text-mist/40 focus:ring-2"
           />
 
-          <div className="mt-3 flex flex-wrap gap-2">
-            <FilterChip active={provider === "all"} onClick={() => setProvider("all")}>All</FilterChip>
-            <FilterChip active={provider === "free"} onClick={() => setProvider("free")}>Free on Watchify</FilterChip>
-            {STREAMING_SERVICES.map((s) => (
-              <FilterChip key={s.id} active={provider === s.id} onClick={() => setProvider(s.id)}>
-                {s.shortName}
-              </FilterChip>
-            ))}
-          </div>
+          {searchMode === "titles" && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              <FilterChip active={provider === "all"} onClick={() => setProvider("all")}>All</FilterChip>
+              <FilterChip active={provider === "free"} onClick={() => setProvider("free")}>Free on Watchify</FilterChip>
+              {STREAMING_SERVICES.map((s) => (
+                <FilterChip key={s.id} active={provider === s.id} onClick={() => setProvider(s.id)}>
+                  {s.shortName}
+                </FilterChip>
+              ))}
+            </div>
+          )}
         </header>
 
         {showFiltered ? (
@@ -315,33 +404,104 @@ export default function DiscoverPage() {
               {query.trim()
                 ? searching
                   ? "Searching…"
-                  : tmdbLive
-                    ? `Results · ${liveTotal.toLocaleString() || results.length}`
-                    : `Results · ${results.length}`
+                  : searchMode === "people"
+                    ? `People · ${liveTotal.toLocaleString() || peopleResults.length}`
+                    : tmdbLive
+                      ? `Results · ${liveTotal.toLocaleString() || results.length}`
+                      : `Results · ${results.length}`
                 : `Filtered · ${results.length}`}
             </h2>
-            <div className="flex flex-wrap gap-4">
-              {results.map((m) => (
-                <MovieTile key={m.id} movie={m} />
-              ))}
-              {!results.length && !searching && (
-                <p className="text-mist">No matches — try another title or filter.</p>
-              )}
-            </div>
-            {tmdbLive && query.trim() && livePage < liveTotalPages && (
-              <button
-                type="button"
-                onClick={() => void loadMoreSearch()}
-                disabled={loadingMore}
-                className="mt-6 rounded-xl border border-line px-4 py-2.5 text-sm text-mist hover:text-white disabled:opacity-50"
-              >
-                {loadingMore ? "Loading…" : "Load more titles"}
-              </button>
+            {searchMode === "people" ? (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {peopleResults.map((p) => {
+                  const thumb = personPosterUrl(p.profilePath);
+                  return (
+                    <Link
+                      key={p.id}
+                      href={`/people/${p.id}`}
+                      className="flex gap-3 rounded-2xl border border-line bg-panel/50 p-3 transition hover:border-teal/40"
+                    >
+                      <div className="relative h-20 w-14 shrink-0 overflow-hidden rounded-lg bg-ink">
+                        <Image
+                          src={thumb}
+                          alt=""
+                          fill
+                          className="object-cover"
+                          sizes="56px"
+                          unoptimized={thumb.startsWith("http")}
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-display font-semibold text-white">
+                          {p.name}
+                        </p>
+                        <p className="text-xs text-teal-soft">
+                          {p.department === "Directing"
+                            ? "Director"
+                            : p.department === "Acting"
+                              ? "Actor"
+                              : "Creator"}
+                        </p>
+                        {p.knownFor && (
+                          <p className="mt-1 line-clamp-2 text-xs text-mist/70">
+                            {p.knownFor}
+                          </p>
+                        )}
+                      </div>
+                    </Link>
+                  );
+                })}
+                {!peopleResults.length && !searching && (
+                  <p className="text-mist">No people matched — try another name.</p>
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="flex flex-wrap gap-4">
+                  {results.map((m) => (
+                    <MovieTile key={m.id} movie={m} />
+                  ))}
+                  {!results.length && !searching && (
+                    <p className="text-mist">No matches — try another title or filter.</p>
+                  )}
+                </div>
+                {tmdbLive && query.trim() && livePage < liveTotalPages && (
+                  <button
+                    type="button"
+                    onClick={() => void loadMoreSearch()}
+                    disabled={loadingMore}
+                    className="mt-6 rounded-xl border border-line px-4 py-2.5 text-sm text-mist hover:text-white disabled:opacity-50"
+                  >
+                    {loadingMore ? "Loading…" : "Load more titles"}
+                  </button>
+                )}
+              </>
             )}
           </section>
         ) : (
           <>
             <WatchingNowStrip />
+
+            {tasteRecs.length > 0 && (
+              <section className="mb-10 animate-fade-up">
+                <h2 className="mb-1 font-display text-xl font-semibold text-white">
+                  For you · from your favorites
+                </h2>
+                <p className="mb-4 text-xs text-mist/70">
+                  Based on movies, actors, and directors on your profile.
+                </p>
+                <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin">
+                  {tasteRecs.map(({ movie, reason }) => (
+                    <div key={movie.id} className="w-[140px] shrink-0">
+                      <MovieTile movie={movie} />
+                      <p className="mt-1 line-clamp-2 text-[11px] text-mist/65">
+                        {reason}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
 
             {liveParties.length > 0 && (
               <section className="mb-10 animate-fade-up">

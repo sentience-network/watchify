@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState, type CSSProperties } from "react";
@@ -11,6 +12,7 @@ import { ProfileCustomizePanel } from "@/components/ProfileCustomizePanel";
 import { ServiceBadge } from "@/components/ServiceBadge";
 import { ShareMenu } from "@/components/ShareMenu";
 import { getMovie } from "@/lib/movies";
+import { personPosterUrl } from "@/lib/people";
 import {
   normalizeBorderStyle,
   normalizeProfileTheme,
@@ -73,6 +75,7 @@ export default function ProfilePage() {
     .map((id) => getMovie(id))
     .filter(Boolean)
     .map((m) => m!);
+  const favoritePeople = user.favoritePeople || [];
   const publicLists = state.watchlists.filter(
     (w) => w.ownerId === user.id && (w.isPublic || isMe)
   );
@@ -190,6 +193,7 @@ export default function ProfilePage() {
                     borderStyle: user.borderStyle,
                     accentColor: user.accentColor,
                     favoriteMovieIds: user.favoriteMovieIds,
+                    favoritePeople: user.favoritePeople,
                   }}
                   onSaved={() => void refreshFromServer()}
                 />
@@ -330,6 +334,51 @@ export default function ProfilePage() {
                 </Link>
               ))}
             </div>
+          </section>
+        )}
+
+        {favoritePeople.length > 0 && (
+          <section className="mt-8">
+            <h2 className="font-display text-xl font-semibold text-white">
+              Favorite actors & directors
+            </h2>
+            <p className="mt-1 text-xs text-mist/65">
+              Powers Discover recommendations — add from Customize or a person page.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-3">
+              {favoritePeople.map((p) => (
+                <Link
+                  key={p.id}
+                  href={`/people/${p.id}`}
+                  className="group w-24 text-center"
+                >
+                  <div className="relative mx-auto aspect-square w-20 overflow-hidden rounded-full border border-line bg-panel">
+                    <Image
+                      src={personPosterUrl(p.profilePath)}
+                      alt=""
+                      fill
+                      className="object-cover"
+                      sizes="80px"
+                      unoptimized
+                    />
+                  </div>
+                  <p className="mt-1.5 line-clamp-2 text-xs text-mist group-hover:text-white">
+                    {p.name}
+                  </p>
+                  <p className="text-[10px] text-mist/55">
+                    {p.department === "Directing" ? "Director" : "Actor"}
+                  </p>
+                </Link>
+              ))}
+            </div>
+            {isMe && (
+              <p className="mt-3 text-xs text-mist/60">
+                <Link href="/discover?people=" className="text-teal-soft hover:underline">
+                  Browse people on Discover
+                </Link>{" "}
+                · see picks under “For you · from your favorites”.
+              </p>
+            )}
           </section>
         )}
 

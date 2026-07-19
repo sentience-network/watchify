@@ -43,14 +43,15 @@ test("invite joins create durable membership and enforce capacity", async () => 
     });
     assert.equal(created.ok, true);
     if (!created.ok) return;
-    const joined = await joinPartyByInviteDb(guestId, created.value.inviteCode!);
+    const inviteCode = created.value.inviteCode as string;
+    const joined = await joinPartyByInviteDb(guestId, inviteCode);
     assert.equal("ok" in joined && joined.ok, true);
     assert.ok(await prisma.partyMember.findUnique({ where: { partyId_userId: { partyId: created.value.id, userId: guestId } } }));
     await prisma.party.update({ where: { id: created.value.id }, data: { maxMembers: 2 } });
     const thirdId = `test_third_${suffix}`;
     await prisma.user.create({ data: { id: thirdId, email: `${thirdId}@example.test`, name: "Third", handle: thirdId } });
-    const full = await joinPartyByInviteDb(thirdId, created.value.inviteCode!);
-    assert.match("error" in full ? full.error : "", /full/i);
+    const full = await joinPartyByInviteDb(thirdId, inviteCode);
+    assert.match("error" in full ? full.error || "" : "", /full/i);
   } finally {
     await prisma.user.deleteMany({ where: { id: { startsWith: "test_" } } });
   }

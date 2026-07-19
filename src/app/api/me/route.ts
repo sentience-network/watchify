@@ -8,7 +8,7 @@ import {
   updateProfile,
 } from "@/lib/server/social-db";
 import type { PlanId } from "@/lib/plans";
-import type { SocialLinks } from "@/lib/types";
+import type { FavoritePerson, SocialLinks } from "@/lib/types";
 import type { StreamingServiceId } from "@/lib/streaming";
 import { EMPTY_SOCIAL_LINKS } from "@/lib/types";
 import { devBillingGrantsEnabled } from "@/lib/features";
@@ -57,6 +57,7 @@ export async function PATCH(req: Request) {
     borderStyle?: string;
     accentColor?: string;
     favoriteMovieIds?: string[];
+    favoritePeople?: FavoritePerson[];
   };
   try {
     body = await req.json();
@@ -102,7 +103,8 @@ export async function PATCH(req: Request) {
     body.profileTheme !== undefined ||
     body.borderStyle !== undefined ||
     body.accentColor !== undefined ||
-    body.favoriteMovieIds !== undefined
+    body.favoriteMovieIds !== undefined ||
+    body.favoritePeople !== undefined
   ) {
     await updateProfile(auth.userId, {
       name: body.name,
@@ -116,6 +118,7 @@ export async function PATCH(req: Request) {
       borderStyle: body.borderStyle,
       accentColor: body.accentColor,
       favoriteMovieIds: body.favoriteMovieIds,
+      favoritePeople: body.favoritePeople,
     });
   }
 

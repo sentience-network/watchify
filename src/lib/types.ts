@@ -99,6 +99,14 @@ export type SocialLinks = {
   letterboxd: string;
 };
 
+/** TMDB person saved on a profile for taste + recommendations. */
+export type FavoritePerson = {
+  id: number;
+  name: string;
+  department: "Acting" | "Directing" | "Other";
+  profilePath?: string | null;
+};
+
 export type User = {
   id: string;
   name: string;
@@ -112,6 +120,8 @@ export type User = {
   accentColor?: string;
   /** Showcase shelf (max 8 catalog ids) */
   favoriteMovieIds?: string[];
+  /** Favorite actors / directors (max 8) */
+  favoritePeople?: FavoritePerson[];
   currentlyWatchingId: string | null;
   currentlyWatchingServiceId?: StreamingServiceId | null;
   watchingProgressPercent?: number | null;

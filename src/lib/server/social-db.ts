@@ -26,7 +26,27 @@ import {
   sanitizeAvatarUrl,
   sanitizeHexColor,
 } from "../profile-themes";
-import { EMPTY_SOCIAL_LINKS } from "../types";
+import { EMPTY_SOCIAL_LINKS, type FavoritePerson } from "../types";
+
+function parseFavoritePeople(json: string | null | undefined): FavoritePerson[] {
+  try {
+    const arr = JSON.parse(json || "[]");
+    if (!Array.isArray(arr)) return [];
+    return arr
+      .filter(
+        (p): p is FavoritePerson =>
+          p &&
+          typeof p.id === "number" &&
+          typeof p.name === "string" &&
+          (p.department === "Acting" ||
+            p.department === "Directing" ||
+            p.department === "Other")
+      )
+      .slice(0, 8);
+  } catch {
+    return [];
+  }
+}
 
 function parseJson<T>(raw: string, fallback: T): T {
   try {
@@ -51,6 +71,7 @@ export function mapPublicUser(row: {
   borderStyle?: string | null;
   accentColor?: string | null;
   favoriteMovieIdsJson?: string | null;
+  favoritePeopleJson?: string | null;
   currentlyWatchingId: string | null;
   currentlyWatchingServiceId: string | null;
   watchingProgressPercent: number | null;
@@ -71,6 +92,7 @@ export function mapPublicUser(row: {
     borderStyle: looks.borderStyle,
     accentColor: looks.accentColor,
     favoriteMovieIds: looks.favoriteMovieIds,
+    favoritePeople: parseFavoritePeople(row.favoritePeopleJson),
     currentlyWatchingId: row.publicWatching ? row.currentlyWatchingId : null,
     currentlyWatchingServiceId: row.publicWatching
       ? (row.currentlyWatchingServiceId as StreamingServiceId | null)
@@ -364,6 +386,7 @@ export async function updateProfile(
     borderStyle?: string;
     accentColor?: string;
     favoriteMovieIds?: string[];
+    favoritePeople?: FavoritePerson[];
   }
 ) {
   const data: Record<string, unknown> = {};
@@ -400,6 +423,30 @@ export async function updateProfile(
       .filter((x) => typeof x === "string" && x.length > 0 && x.length < 80)
       .slice(0, 8);
     data.favoriteMovieIdsJson = JSON.stringify(ids);
+  }
+  if (patch.favoritePeople !== undefined) {
+    const people = patch.favoritePeople
+      .filter(
+        (p) =>
+          p &&
+          typeof p.id === "number" &&
+          typeof p.name === "string" &&
+          p.name.trim().length > 0
+      )
+      .map((p) => ({
+        id: p.id,
+        name: sanitizeText(p.name, 80),
+        department:
+          p.department === "Directing"
+            ? "Directing"
+            : p.department === "Acting"
+              ? "Acting"
+              : "Other",
+        profilePath:
+          typeof p.profilePath === "string" ? p.profilePath.slice(0, 200) : null,
+      }))
+      .slice(0, 8);
+    data.favoritePeopleJson = JSON.stringify(people);
   }
   if (Object.keys(data).length === 0) return;
   await prisma.user.update({ where: { id: userId }, data });

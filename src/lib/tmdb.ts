@@ -1,9 +1,30 @@
-import type { Movie } from "./types";
+import type { FavoritePerson, Movie } from "./types";
 import {
   buildWatchOffersFromTmdb,
   fallbackRentBuyOffers,
   type WatchOffersResult,
 } from "./watch-offers";
+
+export type TmdbPersonSummary = {
+  id: number;
+  name: string;
+  department: FavoritePerson["department"];
+  knownFor: string;
+  profilePath: string | null;
+  popularity: number;
+};
+
+export function personPosterUrl(profilePath: string | null | undefined): string {
+  if (!profilePath) return "/poster-fallback.svg";
+  if (profilePath.startsWith("http")) return profilePath;
+  return `https://image.tmdb.org/t/p/w185${profilePath}`;
+}
+
+function mapDepartment(raw: string | undefined): FavoritePerson["department"] {
+  if (raw === "Acting") return "Acting";
+  if (raw === "Directing") return "Directing";
+  return "Other";
+}
 
 const MOVIE_GENRES: Record<number, string> = {
   28: "Action",
@@ -466,4 +487,235 @@ export async function fetchTmdbWatchProviders(
       note: "TMDB request failed — using curated demo deep links + partner Rent/Buy.",
     };
   }
+}
+
+export async function searchTmdbPeople(
+  query: string,
+  page = 1
+): Promise<{
+  people: TmdbPersonSummary[];
+  page: number;
+  totalPages: number;
+  totalResults: number;
+}> {
+  const q = query.trim();
+  const empty = { people: [], page, totalPages: 0, totalResults: 0 };
+  if (!q || !tmdbConfigured()) return empty;
+
+  type Page = {
+    page?: number;
+    total_pages?: number;
+    total_results?: number;
+    results?: {
+      id?: number;
+      name?: string;
+      known_for_department?: string;
+      profile_path?: string | null;
+      popularity?: number;
+      known_for?: { title?: string; name?: string; media_type?: string }[];
+    }[];
+  };
+
+  const data = await tmdbFetch<Page>("/search/person", {
+    query: q,
+    page,
+    include_adult: "false",
+  });
+  if (!data) return empty;
+
+  const people: TmdbPersonSummary[] = (data.results || [])
+    .filter((p) => p.id && p.name)
+    .map((p) => {
+      const known = (p.known_for || [])
+        .map((k) => k.title || k.name)
+        .filter(Boolean)
+        .slice(0, 3)
+        .join(", ");
+      return {
+        id: p.id!,
+        name: p.name!.trim(),
+        department: mapDepartment(p.known_for_department),
+        knownFor: known,
+        profilePath: p.profile_path || null,
+        popularity: p.popularity || 0,
+      };
+    });
+
+  return {
+    people,
+    page: data.page || page,
+    totalPages: Math.min(data.total_pages || 0, 500),
+    totalResults: data.total_results || 0,
+  };
+}
+
+export async function fetchTmdbPerson(personId: number): Promise<{
+  person: TmdbPersonSummary & { biography: string };
+  movies: Movie[];
+} | null> {
+  if (!tmdbConfigured() || !personId) return null;
+
+  const [detail, movieCredits, tvCredits] = await Promise.all([
+    tmdbFetch<{
+      id?: number;
+      name?: string;
+      known_for_department?: string;
+      profile_path?: string | null;
+      popularity?: number;
+      biography?: string;
+    }>(`/person/${personId}`),
+    tmdbFetch<{
+      cast?: TmdbListItem[];
+      crew?: (TmdbListItem & { job?: string; department?: string })[];
+    }>(`/person/${personId}/movie_credits`),
+    tmdbFetch<{
+      cast?: TmdbListItem[];
+      crew?: (TmdbListItem & { job?: string; department?: string })[];
+    }>(`/person/${personId}/tv_credits`),
+  ]);
+
+  if (!detail?.id || !detail.name) return null;
+
+  const dept = mapDepartment(detail.known_for_department);
+  const creditItems: { item: TmdbListItem; media: "movie" | "tv"; rank: number }[] =
+    [];
+
+  for (const c of movieCredits?.cast || []) {
+    creditItems.push({
+      item: c,
+      media: "movie",
+      rank: (c as { order?: number }).order ?? 50,
+    });
+  }
+  for (const c of movieCredits?.crew || []) {
+    if (c.job === "Director" || c.department === "Directing") {
+      creditItems.push({ item: c, media: "movie", rank: 0 });
+    }
+  }
+  for (const c of tvCredits?.cast || []) {
+    creditItems.push({
+      item: { ...c, media_type: "tv" },
+      media: "tv",
+      rank: 40,
+    });
+  }
+  for (const c of tvCredits?.crew || []) {
+    if (c.job === "Director" || c.department === "Directing") {
+      creditItems.push({
+        item: { ...c, media_type: "tv" },
+        media: "tv",
+        rank: 0,
+      });
+    }
+  }
+
+  creditItems.sort(
+    (a, b) =>
+      a.rank - b.rank ||
+      (b.item.vote_average || 0) - (a.item.vote_average || 0)
+  );
+
+  const seen = new Set<string>();
+  const movies: Movie[] = [];
+  for (const row of creditItems) {
+    const m = mapTmdbItemToMovie(row.item, row.media);
+    if (!m || seen.has(m.id)) continue;
+    seen.add(m.id);
+    movies.push(m);
+    if (movies.length >= 36) break;
+  }
+  rememberMovies(movies);
+
+  return {
+    person: {
+      id: detail.id,
+      name: detail.name.trim(),
+      department: dept,
+      knownFor: movies
+        .slice(0, 3)
+        .map((m) => m.title)
+        .join(", "),
+      profilePath: detail.profile_path || null,
+      popularity: detail.popularity || 0,
+      biography: (detail.biography || "").trim(),
+    },
+    movies,
+  };
+}
+
+/**
+ * Taste recommendations from favorite movies + favorite people (TMDB).
+ */
+export async function recommendFromTaste(input: {
+  favoriteMovieIds: string[];
+  favoritePeople: FavoritePerson[];
+  excludeIds?: string[];
+}): Promise<{ movies: Movie[]; reasons: Record<string, string> }> {
+  if (!tmdbConfigured()) return { movies: [], reasons: {} };
+
+  const exclude = new Set(input.excludeIds || []);
+  const reasons: Record<string, string> = {};
+  const scored = new Map<string, { movie: Movie; score: number }>();
+
+  function add(movie: Movie, score: number, reason: string) {
+    if (exclude.has(movie.id)) return;
+    const prev = scored.get(movie.id);
+    if (!prev || score > prev.score) {
+      scored.set(movie.id, { movie, score: (prev?.score || 0) + score });
+      reasons[movie.id] = reason;
+    } else {
+      prev.score += score;
+    }
+  }
+
+  // Similar / recommended titles for each favorite movie
+  for (const catalogId of input.favoriteMovieIds.slice(0, 6)) {
+    const parsed = parseTmdbCatalogId(catalogId);
+    if (!parsed) continue;
+    const base =
+      parsed.mediaType === "movie"
+        ? `/movie/${parsed.tmdbId}`
+        : `/tv/${parsed.tmdbId}`;
+    const [similar, recs] = await Promise.all([
+      tmdbFetch<{ results?: TmdbListItem[] }>(`${base}/similar`),
+      tmdbFetch<{ results?: TmdbListItem[] }>(`${base}/recommendations`),
+    ]);
+    const seedTitle =
+      getCachedMovie(catalogId)?.title ||
+      (await fetchTmdbTitle(catalogId))?.title ||
+      "a favorite";
+    for (const item of similar?.results || []) {
+      const m = mapTmdbItemToMovie(item, parsed.mediaType);
+      if (m) add(m, 2, `Similar to ${seedTitle}`);
+    }
+    for (const item of recs?.results || []) {
+      const m = mapTmdbItemToMovie(item, parsed.mediaType);
+      if (m) add(m, 3, `Because you like ${seedTitle}`);
+    }
+  }
+
+  // Credits from favorite actors / directors
+  for (const person of input.favoritePeople.slice(0, 6)) {
+    const detail = await fetchTmdbPerson(person.id);
+    if (!detail) continue;
+    const label =
+      person.department === "Directing"
+        ? `Directed by ${person.name}`
+        : `Starring ${person.name}`;
+    for (const m of detail.movies.slice(0, 12)) {
+      add(
+        m,
+        person.department === "Directing" ? 4 : 3,
+        label
+      );
+    }
+  }
+
+  const movies = Array.from(scored.values())
+    .sort((a, b) => b.score - a.score || b.movie.rating - a.movie.rating)
+    .map((x) => x.movie)
+    .slice(0, 24);
+
+  rememberMovies(movies);
+  return { movies, reasons };
 }

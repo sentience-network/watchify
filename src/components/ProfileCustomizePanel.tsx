@@ -1,14 +1,15 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { CATALOG, freeMovies, searchMovies } from "@/lib/movies";
+import { type PersonCard } from "@/lib/people";
 import {
   BORDER_STYLES,
   PROFILE_THEMES,
   type BorderStyleId,
   type ProfileThemeId,
 } from "@/lib/profile-themes";
-import type { Movie } from "@/lib/types";
+import type { FavoritePerson, Movie } from "@/lib/types";
 
 type Props = {
   initial: {
@@ -20,6 +21,7 @@ type Props = {
     borderStyle?: string;
     accentColor?: string;
     favoriteMovieIds?: string[];
+    favoritePeople?: FavoritePerson[];
   };
   onSaved: () => void;
 };
@@ -40,7 +42,12 @@ export function ProfileCustomizePanel({ initial, onSaved }: Props) {
   const [favorites, setFavorites] = useState<string[]>(
     initial.favoriteMovieIds || []
   );
+  const [people, setPeople] = useState<FavoritePerson[]>(
+    initial.favoritePeople || []
+  );
   const [q, setQ] = useState("");
+  const [peopleQ, setPeopleQ] = useState("");
+  const [peopleHits, setPeopleHits] = useState<PersonCard[]>([]);
   const [status, setStatus] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -51,11 +58,44 @@ export function ProfileCustomizePanel({ initial, onSaved }: Props) {
     return pool;
   }, [q]);
 
+  useEffect(() => {
+    const q = peopleQ.trim();
+    if (q.length < 2) {
+      setPeopleHits([]);
+      return;
+    }
+    const t = window.setTimeout(() => {
+      void fetch(`/api/catalog/people?q=${encodeURIComponent(q)}`)
+        .then((r) => r.json())
+        .then((d) => setPeopleHits((d.people || []).slice(0, 8)))
+        .catch(() => setPeopleHits([]));
+    }, 300);
+    return () => window.clearTimeout(t);
+  }, [peopleQ]);
+
   function toggleFavorite(id: string) {
     setFavorites((prev) => {
       if (prev.includes(id)) return prev.filter((x) => x !== id);
       if (prev.length >= 8) return prev;
       return [...prev, id];
+    });
+  }
+
+  function togglePerson(p: PersonCard) {
+    setPeople((prev) => {
+      if (prev.some((x) => x.id === p.id)) {
+        return prev.filter((x) => x.id !== p.id);
+      }
+      if (prev.length >= 8) return prev;
+      return [
+        ...prev,
+        {
+          id: p.id,
+          name: p.name,
+          department: p.department,
+          profilePath: p.profilePath,
+        },
+      ];
     });
   }
 
@@ -76,6 +116,7 @@ export function ProfileCustomizePanel({ initial, onSaved }: Props) {
           borderStyle: border,
           accentColor: accent,
           favoriteMovieIds: favorites,
+          favoritePeople: people,
         }),
       });
       const data = await res.json();
@@ -276,6 +317,57 @@ export function ProfileCustomizePanel({ initial, onSaved }: Props) {
                 <span className="line-clamp-1 max-w-[140px]">{m.title}</span>
                 <span className="mt-0.5 block text-[10px] text-mist/60">
                   {m.year}
+                  {on ? " · selected" : ""}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div>
+        <p className="text-xs font-medium text-mist">
+          Favorite actors & directors ({people.length}/8)
+        </p>
+        <input
+          value={peopleQ}
+          onChange={(e) => setPeopleQ(e.target.value)}
+          placeholder="Search people (needs TMDB)…"
+          className="auth-field mt-2 w-full rounded-xl border border-line bg-ink px-3 py-2 text-sm text-white"
+        />
+        {people.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {people.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() =>
+                  setPeople((prev) => prev.filter((x) => x.id !== p.id))
+                }
+                className="rounded-full border border-teal/40 bg-teal/15 px-3 py-1 text-xs text-white"
+              >
+                {p.name} · {p.department === "Directing" ? "Director" : "Actor"} ×
+              </button>
+            ))}
+          </div>
+        )}
+        <div className="mt-2 flex flex-wrap gap-2">
+          {peopleHits.map((p) => {
+            const on = people.some((x) => x.id === p.id);
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => togglePerson(p)}
+                className={`rounded-xl border px-2.5 py-1.5 text-left text-xs ${
+                  on
+                    ? "border-teal/50 bg-teal/15 text-white"
+                    : "border-line text-mist hover:border-teal/30"
+                }`}
+              >
+                {p.name}
+                <span className="mt-0.5 block text-[10px] text-mist/60">
+                  {p.department}
                   {on ? " · selected" : ""}
                 </span>
               </button>

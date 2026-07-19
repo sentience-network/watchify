@@ -28,6 +28,8 @@ model User {
   accentColor              String    @default("#2dd4bf")
   /// JSON string[] of catalog movie ids (favorites shelf, max 8)
   favoriteMovieIdsJson     String    @default("[]")
+  /// JSON FavoritePerson[] — actors/directors for taste + profile (max 8)
+  favoritePeopleJson       String    @default("[]")
   plan                     String    @default("free")
   stripeCustomerId         String?
   stripeSubscriptionId     String?
