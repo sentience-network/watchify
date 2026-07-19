@@ -2,7 +2,8 @@
 FROM node:22-bookworm-slim AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci
+# npm install (not ci): Windows lockfiles can omit Linux optional deps and break npm ci.
+RUN npm install
 
 FROM node:22-bookworm-slim AS builder
 WORKDIR /app
