@@ -7,7 +7,17 @@ import type { StreamingServiceId } from "./streaming";
 import { getCachedMovie, rememberMovies } from "./tmdb";
 
 export function posterUrl(movie: Movie, size: "w342" | "w500" = "w500") {
+  const yt = movie.youtubePlaybackId || movie.trailerYoutubeId;
   const path = resolvePosterPath(movie.id, movie.posterPath);
+  // Prefer YouTube thumbs for free/playable titles — Wikimedia poster hotlinks often 400.
+  if (
+    yt &&
+    (!path ||
+      path.includes("wikimedia.org") ||
+      path.startsWith("https://i.ytimg.com"))
+  ) {
+    return `https://i.ytimg.com/vi/${yt}/hqdefault.jpg`;
+  }
   if (isAbsolutePoster(path)) return path;
   return `https://image.tmdb.org/t/p/${size}${path}`;
 }
