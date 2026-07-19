@@ -380,9 +380,13 @@ function make(
   const { title, slug } = canonicalizeSeries(cleaned);
   const seasonN = Number.isFinite(season) ? season : 0;
   const episodeN = Number.isFinite(episode) ? episode : 0;
+  // Unknown season/episode → end of list (not between S1 and S2)
   const sortKey =
-    (seasonN > 0 ? seasonN : 1) * 10_000 +
-    (episodeN > 0 ? episodeN : 9_999);
+    seasonN > 0 && episodeN > 0
+      ? seasonN * 10_000 + episodeN
+      : seasonN > 0
+        ? seasonN * 10_000 + 9_500
+        : 900_000 + (episodeN > 0 ? episodeN : 9_999);
   return {
     seriesTitle: title,
     seriesSlug: slug,

@@ -494,12 +494,25 @@ function enrichEpisodeSeries(ep: Movie): Movie {
   };
 }
 
+function isJunkSeriesTitle(title: string): boolean {
+  const t = title.trim();
+  if (t.length < 3) return true;
+  if (/^\d{2,4}$/.test(t)) return true;
+  if (/^(classic|tv|misc|various|unknown|pdq)$/i.test(t)) return true;
+  if (/^classic\b/i.test(t) && t.length < 20) return true;
+  return false;
+}
+
 function buildSeriesCache(episodes: Movie[]): SeriesCache {
   const bySlug = new Map<string, Movie[]>();
+  const seenIds = new Set<string>();
 
   for (const raw of episodes) {
+    if (seenIds.has(raw.id)) continue;
+    seenIds.add(raw.id);
     const ep = enrichEpisodeSeries(raw);
     if (!ep.seriesSlug || !ep.seriesTitle) continue;
+    if (isJunkSeriesTitle(ep.seriesTitle)) continue;
     const list = bySlug.get(ep.seriesSlug) || [];
     list.push(ep);
     bySlug.set(ep.seriesSlug, list);
@@ -510,6 +523,7 @@ function buildSeriesCache(episodes: Movie[]): SeriesCache {
     if (list.length < 2) continue; // need at least 2 eps to treat as a series
     list.sort(compareEpisodes);
     const title = list[0].seriesTitle || list[0].title;
+    if (isJunkSeriesTitle(title)) continue;
     let year = 0;
     for (const e of list) {
       if (e.year && (!year || e.year < year)) year = e.year;
