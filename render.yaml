@@ -15,15 +15,17 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: NEXTAUTH_URL
-        value: https://watchify-web.onrender.com
+        value: https://watchify-web-9rx1.onrender.com
       - key: NEXTAUTH_SECRET
         generateValue: true
       - key: NEXT_PUBLIC_APP_URL
-        value: https://watchify-web.onrender.com
+        value: https://watchify-web-9rx1.onrender.com
       - key: NEXT_PUBLIC_REALTIME_URL
         value: https://watchify-realtime.onrender.com
       - key: ALLOWED_ORIGINS
-        value: https://watchify-web.onrender.com
+        value: https://watchify-web-9rx1.onrender.com
+      - key: EMAIL_FROM
+        value: "Watchify <onboarding@resend.dev>"
       - key: REALTIME_SECRET
         generateValue: true
       - key: TOKEN_ENCRYPTION_SECRET
@@ -71,9 +73,9 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: NEXT_PUBLIC_APP_URL
-        value: https://watchify-web.onrender.com
+        value: https://watchify-web-9rx1.onrender.com
       - key: ALLOWED_ORIGINS
-        value: https://watchify-web.onrender.com
+        value: https://watchify-web-9rx1.onrender.com
       - key: REALTIME_SECRET
         fromService:
           type: web
