@@ -48,6 +48,15 @@ export type Movie = {
   attribution?: { creator: string; license: string; licenseUrl: string; sourceUrl: string };
   /** Where to open on paid streamers (deep links / search — not piracy) */
   providers?: MovieProvider[];
+  /** Classic TV: parent series (when parsed from Archive title). */
+  seriesTitle?: string;
+  seriesSlug?: string;
+  season?: number;
+  episode?: number;
+  /** Episode label for UI (e.g. "Lost City"); sort uses season/episode. */
+  episodeTitle?: string;
+  /** Internal sort key: season*10000 + episode */
+  sortKey?: number;
 };
 
 export type Watchlist = {

@@ -29,6 +29,8 @@ function WatchInner() {
   const [buyOffers, setBuyOffers] = useState<MovieProvider[]>([]);
   const [watchPageUrl, setWatchPageUrl] = useState<string | null>(null);
   const [providerNote, setProviderNote] = useState<string | null>(null);
+  const [nextEpisode, setNextEpisode] = useState<Movie | null>(null);
+  const [seriesHref, setSeriesHref] = useState<string | null>(null);
 
   useEffect(() => {
     const local = getMovie(params.id);
@@ -62,6 +64,31 @@ function WatchInner() {
       cancelled = true;
     };
   }, [params.id]);
+
+  useEffect(() => {
+    setNextEpisode(null);
+    setSeriesHref(null);
+    if (!movie?.seriesSlug) return;
+    let cancelled = false;
+    void fetch(
+      `/api/catalog/free/series/${encodeURIComponent(movie.seriesSlug)}?after=${encodeURIComponent(movie.id)}`
+    )
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return;
+        if (data.series?.slug) {
+          setSeriesHref(`/library/series/${encodeURIComponent(data.series.slug)}`);
+        }
+        if (data.nextEpisode) {
+          rememberCatalogMovies([data.nextEpisode as Movie]);
+          setNextEpisode(data.nextEpisode as Movie);
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [movie]);
 
   useEffect(() => {
     if (
@@ -134,8 +161,26 @@ function WatchInner() {
         </p>
         <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
           <div>
+            {movie.seriesTitle && (
+              <p className="mb-1 text-sm text-mist/70">
+                {seriesHref ? (
+                  <Link href={seriesHref} className="text-teal-soft hover:underline">
+                    {movie.seriesTitle}
+                  </Link>
+                ) : (
+                  movie.seriesTitle
+                )}
+                {movie.season && movie.episode
+                  ? ` · S${String(movie.season).padStart(2, "0")}E${String(movie.episode).padStart(2, "0")}`
+                  : movie.episode
+                    ? ` · Ep ${movie.episode}`
+                    : ""}
+              </p>
+            )}
             <h1 className="font-display text-3xl font-bold text-white">
-              {movie.title}
+              {movie.episodeTitle && movie.seriesTitle
+                ? movie.episodeTitle
+                : movie.title}
             </h1>
             <p className="mt-1 text-sm text-mist/75">
               {movie.year} · {movie.genres.join(" · ")}
@@ -276,6 +321,48 @@ function WatchInner() {
             >
               source
             </a>
+          </p>
+        )}
+
+        {free && nextEpisode && (
+          <div className="mt-6 rounded-2xl border border-teal/30 bg-teal/10 p-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-teal-soft">
+              Up next
+            </p>
+            <p className="mt-1 font-display text-lg font-semibold text-white">
+              {nextEpisode.episodeTitle || nextEpisode.title}
+            </p>
+            <p className="text-xs text-mist/70">
+              {nextEpisode.season && nextEpisode.episode
+                ? `S${String(nextEpisode.season).padStart(2, "0")}E${String(nextEpisode.episode).padStart(2, "0")}`
+                : nextEpisode.episode
+                  ? `Episode ${nextEpisode.episode}`
+                  : "Next episode"}
+              {nextEpisode.year ? ` · ${nextEpisode.year}` : ""}
+            </p>
+            <Link
+              href={`/watch/${nextEpisode.id}${partyId ? `?party=${encodeURIComponent(partyId)}` : ""}`}
+              className="mt-3 inline-flex rounded-xl bg-teal px-4 py-2 text-sm font-semibold text-ink hover:bg-teal-soft"
+            >
+              Play next episode
+            </Link>
+            {seriesHref && (
+              <Link
+                href={seriesHref}
+                className="ml-3 text-sm text-teal-soft hover:underline"
+              >
+                All episodes
+              </Link>
+            )}
+          </div>
+        )}
+
+        {free && !nextEpisode && seriesHref && (
+          <p className="mt-6 text-sm text-mist/75">
+            End of available episodes.{" "}
+            <Link href={seriesHref} className="text-teal-soft hover:underline">
+              Back to series
+            </Link>
           </p>
         )}
 

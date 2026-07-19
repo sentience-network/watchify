@@ -22,17 +22,22 @@ export async function GET(req: Request) {
 
   const browse = await browseArchiveFreeMovies({ page, pageSize, q, kind });
 
+  const curatedSorted =
+    includeCurated && page === 1 && !q.trim() && kind !== "tv"
+      ? [...FREE_LIBRARY].sort((a, b) =>
+          a.title.localeCompare(b.title, undefined, { sensitivity: "base" })
+        )
+      : [];
+
   return NextResponse.json({
     ...browse,
-    curated:
-      includeCurated && page === 1 && !q.trim() && kind !== "tv"
-        ? FREE_LIBRARY
-        : [],
+    curated: curatedSorted,
     curatedCount: FREE_LIBRARY.length,
     countsHint: {
       curated: FREE_LIBRARY.length,
       archiveKind: kind,
       archiveTotal: browse.total,
     },
+    sort: "title-asc",
   });
 }

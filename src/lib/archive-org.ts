@@ -1,3 +1,8 @@
+import {
+  compareEpisodes,
+  parseSeriesEpisode,
+  slugifySeries,
+} from "./series-parse";
 import type { Movie } from "./types";
 import { rememberMovies } from "./tmdb";
 
@@ -117,6 +122,24 @@ export function archiveEmbedUrl(identifier: string, autoplay = false): string {
   return `https://archive.org/embed/${encodeURIComponent(identifier)}${q}`;
 }
 
+function applySeriesFields(movie: Movie, identifier: string): Movie {
+  const parsed = parseSeriesEpisode(movie.title, identifier);
+  if (!parsed) return movie;
+  return {
+    ...movie,
+    seriesTitle: parsed.seriesTitle,
+    seriesSlug: parsed.seriesSlug,
+    season: parsed.season || undefined,
+    episode: parsed.episode || undefined,
+    episodeTitle: parsed.episodeTitle,
+    sortKey: parsed.sortKey,
+    mediaType: "tv",
+    genres: movie.genres.includes("TV")
+      ? movie.genres
+      : Array.from(new Set([...movie.genres.filter((g) => g !== "Movie"), "TV"])),
+  };
+}
+
 function docToMovie(doc: IaSearchDoc, kind: FreeCatalogKind): Movie | null {
   const identifier = asString(doc.identifier).trim();
   if (!identifier) return null;
@@ -133,7 +156,7 @@ function docToMovie(doc: IaSearchDoc, kind: FreeCatalogKind): Movie | null {
     kind === "tv" ||
     /classic_tv|television|episode|series/i.test(identifier + " " + title);
 
-  return {
+  const movie: Movie = {
     id: archiveCatalogId(identifier),
     title,
     year,
@@ -159,6 +182,8 @@ function docToMovie(doc: IaSearchDoc, kind: FreeCatalogKind): Movie | null {
       sourceUrl: archiveItemUrl(identifier),
     },
   };
+
+  return isTv ? applySeriesFields(movie, identifier) : movie;
 }
 
 function pickMp4File(files: IaFile[]): string | null {
@@ -227,6 +252,8 @@ export async function browseArchiveFreeMovies(opts: {
     rows: String(pageSize),
     page: String(page),
   });
+  // A–Z by title (Archive titleSorter); fallback client sort if missing
+  params.append("sort[]", "titleSorter+asc");
   for (const fl of [
     "identifier",
     "title",
@@ -263,7 +290,10 @@ export async function browseArchiveFreeMovies(opts: {
   const total = data.response?.numFound || 0;
   const movies = (data.response?.docs || [])
     .map((d) => docToMovie(d, kind))
-    .filter((m): m is Movie => Boolean(m));
+    .filter((m): m is Movie => Boolean(m))
+    .sort((a, b) =>
+      a.title.localeCompare(b.title, undefined, { sensitivity: "base" })
+    );
 
   rememberMovies(movies);
 
@@ -323,7 +353,12 @@ export async function fetchArchiveTitle(
         .join("/")}`
     : undefined;
 
-  const movie: Movie = {
+  const collection = asString(meta.collection);
+  const isTv =
+    /classic_tv|television/i.test(collection + " " + identifier) ||
+    Boolean(parseSeriesEpisode(title, identifier));
+
+  let movie: Movie = {
     id: archiveCatalogId(identifier),
     title,
     year,
@@ -332,9 +367,10 @@ export async function fetchArchiveTitle(
       "Public-domain / libre title hosted on Internet Archive.",
     posterPath: poster,
     backdropPath: poster,
-    genres: ["Free", "Archive"],
+    genres: isTv ? ["Free", "TV", "Archive"] : ["Free", "Movie", "Archive"],
     runtime: asRuntimeMinutes(meta.runtime),
     rating: Number(asString(meta.avg_rating) || 0) || 0,
+    mediaType: isTv ? "tv" : "movie",
     freePlaybackUrl,
     archiveOrgId: identifier,
     licenseKind: licenseKindFromUrl(license),
@@ -346,6 +382,174 @@ export async function fetchArchiveTitle(
     },
   };
 
+  if (isTv) movie = applySeriesFields(movie, identifier);
+
   rememberMovies([movie]);
   return movie;
+}
+
+export type FreeSeriesSummary = {
+  slug: string;
+  title: string;
+  episodeCount: number;
+  year: number;
+  posterPath: string;
+  /** First episode catalog id for quick play */
+  firstEpisodeId: string;
+};
+
+export type FreeSeriesDetail = FreeSeriesSummary & {
+  episodes: Movie[];
+};
+
+type SeriesCache = {
+  at: number;
+  series: FreeSeriesSummary[];
+  bySlug: Map<string, Movie[]>;
+};
+
+let seriesCache: SeriesCache | null = null;
+const SERIES_CACHE_MS = 60 * 60 * 1000;
+
+async function fetchAllTvDocs(): Promise<Movie[]> {
+  const pageSize = 100;
+  const first = await browseArchiveFreeMovies({
+    page: 1,
+    pageSize,
+    kind: "tv",
+  });
+  const all = [...first.movies];
+  const pages = Math.min(first.totalPages || 1, 20);
+  for (let page = 2; page <= pages; page++) {
+    const next = await browseArchiveFreeMovies({
+      page,
+      pageSize,
+      kind: "tv",
+    });
+    all.push(...next.movies);
+  }
+  return all;
+}
+
+function buildSeriesCache(episodes: Movie[]): SeriesCache {
+  const bySlug = new Map<string, Movie[]>();
+  const orphans: Movie[] = [];
+
+  for (const ep of episodes) {
+    if (ep.seriesSlug && ep.seriesTitle) {
+      const list = bySlug.get(ep.seriesSlug) || [];
+      list.push(ep);
+      bySlug.set(ep.seriesSlug, list);
+    } else {
+      orphans.push(ep);
+    }
+  }
+
+  // Group loose classics that share a leading "Show Name - …" pattern
+  for (const ep of orphans) {
+    const m = ep.title.match(/^(.{4,60}?)\s[-–:]\s.+/);
+    if (!m) continue;
+    const title = m[1].replace(/^["']|["']$/g, "").trim();
+    if (title.length < 4) continue;
+    const slug = slugifySeries(title);
+    const episodeTitle = ep.title
+      .slice(m[1].length)
+      .replace(/^\s*[-–:]\s*/, "")
+      .trim();
+    const enriched: Movie = {
+      ...ep,
+      seriesTitle: title,
+      seriesSlug: slug,
+      episodeTitle: episodeTitle || ep.title,
+      sortKey: ep.sortKey || 99999,
+    };
+    const list = bySlug.get(slug) || [];
+    list.push(enriched);
+    bySlug.set(slug, list);
+  }
+
+  const series: FreeSeriesSummary[] = [];
+  for (const [slug, list] of Array.from(bySlug.entries())) {
+    if (list.length < 2) continue; // need at least 2 eps to treat as a series
+    list.sort(compareEpisodes);
+    const title = list[0].seriesTitle || list[0].title;
+    let year = 0;
+    for (const e of list) {
+      if (e.year && (!year || e.year < year)) year = e.year;
+    }
+    series.push({
+      slug,
+      title,
+      episodeCount: list.length,
+      year,
+      posterPath: list[0].posterPath,
+      firstEpisodeId: list[0].id,
+    });
+    bySlug.set(slug, list);
+  }
+
+  series.sort((a, b) =>
+    a.title.localeCompare(b.title, undefined, { sensitivity: "base" })
+  );
+
+  return { at: Date.now(), series, bySlug };
+}
+
+async function ensureSeriesCache(): Promise<SeriesCache> {
+  if (seriesCache && Date.now() - seriesCache.at < SERIES_CACHE_MS) {
+    return seriesCache;
+  }
+  const episodes = await fetchAllTvDocs();
+  seriesCache = buildSeriesCache(episodes);
+  return seriesCache;
+}
+
+export async function listArchiveFreeSeries(): Promise<{
+  series: FreeSeriesSummary[];
+  totalEpisodes: number;
+  note: string;
+}> {
+  const cache = await ensureSeriesCache();
+  let totalEpisodes = 0;
+  for (const list of Array.from(cache.bySlug.values())) {
+    if (list.length >= 2) totalEpisodes += list.length;
+  }
+  return {
+    series: cache.series,
+    totalEpisodes,
+    note: `${cache.series.length} classic TV series (A–Z), episodes ordered ep1 → last.`,
+  };
+}
+
+export async function getArchiveFreeSeries(
+  slug: string
+): Promise<FreeSeriesDetail | null> {
+  const cache = await ensureSeriesCache();
+  const episodes = cache.bySlug.get(slug);
+  if (!episodes || episodes.length < 2) return null;
+  const summary = cache.series.find((s) => s.slug === slug);
+  if (!summary) {
+    const sorted = [...episodes].sort(compareEpisodes);
+    return {
+      slug,
+      title: sorted[0].seriesTitle || sorted[0].title,
+      episodeCount: sorted.length,
+      year: sorted[0].year || 0,
+      posterPath: sorted[0].posterPath,
+      firstEpisodeId: sorted[0].id,
+      episodes: sorted,
+    };
+  }
+  rememberMovies(episodes);
+  return { ...summary, episodes };
+}
+
+export function nextEpisodeInSeries(
+  episodes: Movie[],
+  currentId: string
+): Movie | null {
+  const sorted = [...episodes].sort(compareEpisodes);
+  const idx = sorted.findIndex((e) => e.id === currentId);
+  if (idx < 0 || idx >= sorted.length - 1) return null;
+  return sorted[idx + 1];
 }
