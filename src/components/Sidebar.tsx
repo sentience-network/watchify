@@ -72,28 +72,30 @@ export function Sidebar() {
           >
             Settings
           </Link>
-          <Link
-            href="/soft-launch"
-            className={`rounded-lg px-3 py-2.5 text-sm font-medium transition ${
-              pathname === "/soft-launch"
-                ? "bg-teal/15 text-teal-soft"
-                : "text-mist hover:bg-white/5 hover:text-white"
-            }`}
-          >
-            Soft-launch script
-          </Link>
           {(session?.user?.role === "admin" ||
             session?.user?.role === "mod") && (
-            <Link
-              href="/admin/analytics"
-              className={`rounded-lg px-3 py-2.5 text-sm font-medium transition ${
-                pathname.startsWith("/admin")
-                  ? "bg-teal/15 text-teal-soft"
-                  : "text-mist hover:bg-white/5 hover:text-white"
-              }`}
-            >
-              Launch admin
-            </Link>
+            <>
+              <Link
+                href="/soft-launch"
+                className={`rounded-lg px-3 py-2.5 text-sm font-medium transition ${
+                  pathname === "/soft-launch"
+                    ? "bg-teal/15 text-teal-soft"
+                    : "text-mist hover:bg-white/5 hover:text-white"
+                }`}
+              >
+                Soft-launch script
+              </Link>
+              <Link
+                href="/admin/analytics"
+                className={`rounded-lg px-3 py-2.5 text-sm font-medium transition ${
+                  pathname.startsWith("/admin")
+                    ? "bg-teal/15 text-teal-soft"
+                    : "text-mist hover:bg-white/5 hover:text-white"
+                }`}
+              >
+                Launch admin
+              </Link>
+            </>
           )}
         </nav>
         <div className="mt-auto space-y-2 text-xs text-mist/60">

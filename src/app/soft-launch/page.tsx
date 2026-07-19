@@ -74,8 +74,8 @@ export default function SoftLaunchPage() {
             Tester script
           </h1>
           <p className="mt-2 text-sm text-mist/80">
-            Run these in order. Record device, network, and whether you would invite a
-            friend. Full ops checklist:{" "}
+            Internal tester checklist (not linked in the public app nav). Run in order;
+            record device, network, and whether you would invite a friend. Ops doc:{" "}
             <code className="text-teal-soft">docs/LAUNCH_2_WEEKS.md</code>
           </p>
           {session?.user ? (

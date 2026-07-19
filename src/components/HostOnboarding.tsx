@@ -105,12 +105,15 @@ export function HostOnboarding() {
         ))}
       </ol>
       <div className="mt-3 flex flex-wrap gap-2">
-        <Link
-          href="/soft-launch"
-          className="rounded-lg border border-line px-3 py-1.5 text-xs text-mist hover:text-white"
-        >
-          Soft-launch script
-        </Link>
+        {(session?.user?.role === "admin" ||
+          session?.user?.role === "mod") && (
+          <Link
+            href="/soft-launch"
+            className="rounded-lg border border-line px-3 py-1.5 text-xs text-mist hover:text-white"
+          >
+            Soft-launch script
+          </Link>
+        )}
         <Link
           href="/tv"
           className="rounded-lg border border-line px-3 py-1.5 text-xs text-mist hover:text-white"

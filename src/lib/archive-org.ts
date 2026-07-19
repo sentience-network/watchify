@@ -1,7 +1,7 @@
 import {
+  canonicalizeSeries,
   compareEpisodes,
   parseSeriesEpisode,
-  slugifySeries,
 } from "./series-parse";
 import type { Movie } from "./types";
 import { rememberMovies } from "./tmdb";
@@ -431,41 +431,63 @@ async function fetchAllTvDocs(): Promise<Movie[]> {
   return all;
 }
 
-function buildSeriesCache(episodes: Movie[]): SeriesCache {
-  const bySlug = new Map<string, Movie[]>();
-  const orphans: Movie[] = [];
-
-  for (const ep of episodes) {
-    if (ep.seriesSlug && ep.seriesTitle) {
-      const list = bySlug.get(ep.seriesSlug) || [];
-      list.push(ep);
-      bySlug.set(ep.seriesSlug, list);
-    } else {
-      orphans.push(ep);
-    }
+function enrichEpisodeSeries(ep: Movie): Movie {
+  // Re-parse every title so aliases/canonical names always apply
+  const parsed = parseSeriesEpisode(ep.title, ep.archiveOrgId || "");
+  if (!parsed && ep.seriesTitle) {
+    const c = canonicalizeSeries(ep.seriesTitle);
+    return {
+      ...ep,
+      seriesTitle: c.title,
+      seriesSlug: c.slug,
+      episodeTitle: ep.episodeTitle || ep.title,
+      sortKey: ep.sortKey || 99999,
+      mediaType: "tv",
+    };
   }
 
-  // Group loose classics that share a leading "Show Name - …" pattern
-  for (const ep of orphans) {
-    const m = ep.title.match(/^(.{4,60}?)\s[-–:]\s.+/);
-    if (!m) continue;
-    const title = m[1].replace(/^["']|["']$/g, "").trim();
-    if (title.length < 4) continue;
-    const slug = slugifySeries(title);
-    const episodeTitle = ep.title
-      .slice(m[1].length)
-      .replace(/^\s*[-–:]\s*/, "")
-      .trim();
-    const enriched: Movie = {
+  if (!parsed) {
+    // Last resort: "Name - something" / quoted name
+    const m =
+      ep.title.match(/^["'“”‘’]([^"'“”‘’]{2,80})["'“”‘’]/) ||
+      ep.title.match(/^(.{4,60}?)\s[-–:]\s.+/);
+    if (!m) return ep;
+    const { title, slug } = canonicalizeSeries(m[1]);
+    return {
       ...ep,
       seriesTitle: title,
       seriesSlug: slug,
-      episodeTitle: episodeTitle || ep.title,
+      episodeTitle:
+        ep.title
+          .replace(/^["'“”‘’][^"'“”‘’]+["'“”‘’]\s*[-–:]?\s*/, "")
+          .replace(/^.{4,60}?\s[-–:]\s*/, "")
+          .trim() || ep.title,
       sortKey: ep.sortKey || 99999,
+      mediaType: "tv",
     };
-    const list = bySlug.get(slug) || [];
-    list.push(enriched);
-    bySlug.set(slug, list);
+  }
+
+  return {
+    ...ep,
+    seriesTitle: parsed.seriesTitle,
+    seriesSlug: parsed.seriesSlug,
+    season: parsed.season || ep.season || undefined,
+    episode: parsed.episode || ep.episode || undefined,
+    episodeTitle: parsed.episodeTitle || ep.episodeTitle,
+    sortKey: parsed.sortKey || ep.sortKey,
+    mediaType: "tv",
+  };
+}
+
+function buildSeriesCache(episodes: Movie[]): SeriesCache {
+  const bySlug = new Map<string, Movie[]>();
+
+  for (const raw of episodes) {
+    const ep = enrichEpisodeSeries(raw);
+    if (!ep.seriesSlug || !ep.seriesTitle) continue;
+    const list = bySlug.get(ep.seriesSlug) || [];
+    list.push(ep);
+    bySlug.set(ep.seriesSlug, list);
   }
 
   const series: FreeSeriesSummary[] = [];
