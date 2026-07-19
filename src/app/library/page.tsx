@@ -9,6 +9,8 @@ import { freeMovies, posterUrl, rememberCatalogMovies } from "@/lib/movies";
 import { STREAMING_HONEST_COPY } from "@/lib/streaming";
 import type { Movie } from "@/lib/types";
 
+type FreeKind = "all" | "movies" | "tv";
+
 type FreeCatalogResponse = {
   movies: Movie[];
   curated?: Movie[];
@@ -16,8 +18,10 @@ type FreeCatalogResponse = {
   pageSize: number;
   total: number;
   totalPages: number;
+  kind?: FreeKind;
   note?: string;
   curatedCount?: number;
+  countsHint?: { curated: number; archiveKind: FreeKind; archiveTotal: number };
 };
 
 function TitleCard({ m }: { m: Movie }) {
@@ -63,51 +67,65 @@ export default function LibraryPage() {
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [note, setNote] = useState<string | null>(null);
+  const [kind, setKind] = useState<FreeKind>("all");
   const [q, setQ] = useState("");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const load = useCallback(async (nextPage: number, nextQ: string) => {
-    setLoading(true);
-    setError("");
-    try {
-      const params = new URLSearchParams({
-        page: String(nextPage),
-        pageSize: "24",
-      });
-      if (nextQ.trim()) params.set("q", nextQ.trim());
-      const res = await fetch(`/api/catalog/free?${params.toString()}`);
-      const data = (await res.json()) as FreeCatalogResponse & { error?: string };
-      if (!res.ok) {
-        setError(data.error || "Could not load free catalog");
-        return;
+  const load = useCallback(
+    async (nextPage: number, nextQ: string, nextKind: FreeKind) => {
+      setLoading(true);
+      setError("");
+      try {
+        const params = new URLSearchParams({
+          page: String(nextPage),
+          pageSize: "24",
+          kind: nextKind,
+        });
+        if (nextQ.trim()) params.set("q", nextQ.trim());
+        const res = await fetch(`/api/catalog/free?${params.toString()}`);
+        const data = (await res.json()) as FreeCatalogResponse & {
+          error?: string;
+        };
+        if (!res.ok) {
+          setError(data.error || "Could not load free catalog");
+          return;
+        }
+        if (data.curated?.length) {
+          setCurated(data.curated);
+          rememberCatalogMovies(data.curated);
+        } else if (nextKind === "tv") {
+          setCurated([]);
+        }
+        setMovies(data.movies || []);
+        rememberCatalogMovies(data.movies || []);
+        setPage(data.page || nextPage);
+        setTotal(data.total || 0);
+        setTotalPages(data.totalPages || 0);
+        setNote(data.note || null);
+      } catch {
+        setError("Could not reach the free catalog. Retry in a moment.");
+      } finally {
+        setLoading(false);
       }
-      if (data.curated?.length) {
-        setCurated(data.curated);
-        rememberCatalogMovies(data.curated);
-      }
-      setMovies(data.movies || []);
-      rememberCatalogMovies(data.movies || []);
-      setPage(data.page || nextPage);
-      setTotal(data.total || 0);
-      setTotalPages(data.totalPages || 0);
-      setNote(data.note || null);
-    } catch {
-      setError("Could not reach the free catalog. Retry in a moment.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    },
+    []
+  );
 
   useEffect(() => {
-    void load(1, "");
+    void load(1, "", "all");
   }, [load]);
 
   function onSearch(e: FormEvent) {
     e.preventDefault();
     setSearch(q);
-    void load(1, q);
+    void load(1, q, kind);
+  }
+
+  function onKind(next: FreeKind) {
+    setKind(next);
+    void load(1, search, next);
   }
 
   return (
@@ -121,23 +139,53 @@ export default function LibraryPage() {
             Free & licensed on Watchify
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-mist/80">
-            Thousands of public-domain feature films from Internet Archive, plus
-            curated Creative Commons shorts. Play in-app — not Netflix scrapes.
+            Thousands of public-domain movies and classic TV episodes from
+            Internet Archive, plus curated Creative Commons shorts. Play in-app —
+            not Netflix scrapes.
           </p>
           <p className="mt-2 text-xs text-mist/60">{STREAMING_HONEST_COPY}</p>
           {note && (
             <p className="mt-3 text-xs text-teal-soft">
               {note}
-              {total ? ` · Showing page ${page} of ${totalPages.toLocaleString()}` : ""}
+              {total
+                ? ` · Showing page ${page} of ${totalPages.toLocaleString()}`
+                : ""}
             </p>
           )}
         </header>
+
+        <div className="mb-4 flex flex-wrap gap-2">
+          {(
+            [
+              ["all", "All free"],
+              ["movies", "Movies"],
+              ["tv", "TV / episodes"],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => onKind(id)}
+              className={
+                kind === id
+                  ? "rounded-xl bg-teal/20 px-3 py-1.5 text-xs font-semibold text-teal-soft"
+                  : "rounded-xl border border-line px-3 py-1.5 text-xs text-mist hover:text-white"
+              }
+            >
+              {label}
+            </button>
+          ))}
+        </div>
 
         <form onSubmit={onSearch} className="mb-8 flex flex-wrap gap-2">
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search free Archive titles…"
+            placeholder={
+              kind === "tv"
+                ? "Search free classic TV…"
+                : "Search free Archive titles…"
+            }
             className="auth-field min-w-[220px] flex-1 rounded-xl border border-line bg-ink/80 px-4 py-2.5 text-sm text-white outline-none focus:ring-2 focus:ring-teal/40"
           />
           <button
@@ -152,7 +200,7 @@ export default function LibraryPage() {
               onClick={() => {
                 setQ("");
                 setSearch("");
-                void load(1, "");
+                void load(1, "", kind);
               }}
               className="rounded-xl border border-line px-4 py-2.5 text-sm text-mist hover:text-white"
             >
@@ -161,13 +209,14 @@ export default function LibraryPage() {
           )}
         </form>
 
-        {!search && curated.length > 0 && (
+        {!search && kind !== "tv" && curated.length > 0 && (
           <section className="mb-10">
             <h2 className="font-display text-lg font-semibold text-white">
               Curated picks
             </h2>
             <p className="mt-1 text-xs text-mist/65">
-              Hand-checked CC / PD titles with reliable playback.
+              {curated.length} hand-checked CC / PD titles with reliable
+              playback.
             </p>
             <div className="mt-4 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {curated.map((m) => (
@@ -179,11 +228,17 @@ export default function LibraryPage() {
 
         <section>
           <h2 className="font-display text-lg font-semibold text-white">
-            {search ? `Results for “${search}”` : "Internet Archive library"}
+            {search
+              ? `Results for “${search}”`
+              : kind === "tv"
+                ? "Classic TV (Internet Archive)"
+                : kind === "movies"
+                  ? "Feature films (Internet Archive)"
+                  : "Internet Archive library"}
           </h2>
           <p className="mt-1 text-xs text-mist/65">
             {total
-              ? `${total.toLocaleString()} public-domain MPEG4 feature films indexed`
+              ? `${total.toLocaleString()} public-domain MPEG4 titles in this filter`
               : "Loading Archive catalog…"}
           </p>
 
@@ -209,7 +264,7 @@ export default function LibraryPage() {
               <button
                 type="button"
                 disabled={page <= 1 || loading}
-                onClick={() => void load(page - 1, search)}
+                onClick={() => void load(page - 1, search, kind)}
                 className="rounded-xl border border-line px-4 py-2 text-sm text-mist hover:text-white disabled:opacity-40"
               >
                 Previous
@@ -220,7 +275,7 @@ export default function LibraryPage() {
               <button
                 type="button"
                 disabled={page >= totalPages || loading}
-                onClick={() => void load(page + 1, search)}
+                onClick={() => void load(page + 1, search, kind)}
                 className="rounded-xl border border-line px-4 py-2 text-sm text-mist hover:text-white disabled:opacity-40"
               >
                 Next

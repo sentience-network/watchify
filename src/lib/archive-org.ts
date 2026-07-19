@@ -6,12 +6,26 @@ export const IA_ID_PREFIX = "ia-";
 
 const SEARCH_URL = "https://archive.org/advancedsearch.php";
 
+export type FreeCatalogKind = "all" | "movies" | "tv";
+
 /**
- * Public-domain / libre feature films with MPEG4 on Internet Archive.
- * ~6k+ with publicdomain licenseurl; broader CC queries available later.
+ * Public-domain MPEG4 items on Internet Archive (licenseurl:*publicdomain*).
+ * Counts move over time; typically ~6k features + ~5k TV/classic_tv.
  */
-const FREE_FEATURE_QUERY =
+const FREE_MOVIE_QUERY =
   "collection:feature_films AND mediatype:movies AND format:MPEG4 AND licenseurl:*publicdomain*";
+
+const FREE_TV_QUERY =
+  "(collection:classic_tv OR collection:television) AND mediatype:movies AND format:MPEG4 AND licenseurl:*publicdomain* AND NOT title:Commercial AND NOT title:Credits";
+
+const FREE_ALL_QUERY =
+  "(collection:feature_films OR collection:classic_tv OR collection:television) AND mediatype:movies AND format:MPEG4 AND licenseurl:*publicdomain*";
+
+function queryForKind(kind: FreeCatalogKind): string {
+  if (kind === "tv") return FREE_TV_QUERY;
+  if (kind === "movies") return FREE_MOVIE_QUERY;
+  return FREE_ALL_QUERY;
+}
 
 type IaSearchDoc = {
   identifier?: string;
@@ -102,7 +116,7 @@ export function archiveEmbedUrl(identifier: string, autoplay = false): string {
   return `https://archive.org/embed/${encodeURIComponent(identifier)}${q}`;
 }
 
-function docToMovie(doc: IaSearchDoc): Movie | null {
+function docToMovie(doc: IaSearchDoc, kind: FreeCatalogKind): Movie | null {
   const identifier = asString(doc.identifier).trim();
   if (!identifier) return null;
   const license = asString(doc.licenseurl);
@@ -114,17 +128,25 @@ function docToMovie(doc: IaSearchDoc): Movie | null {
   const ratingRaw = Number(asString(doc.avg_rating) || 0);
   const rating = Number.isFinite(ratingRaw) && ratingRaw > 0 ? ratingRaw : 0;
   const poster = archivePosterUrl(identifier);
+  const isTv =
+    kind === "tv" ||
+    /classic_tv|television|episode|series/i.test(identifier + " " + title);
 
   return {
     id: archiveCatalogId(identifier),
     title,
     year,
-    overview: overview.slice(0, 600) || "Public-domain / libre title from Internet Archive.",
+    overview:
+      overview.slice(0, 600) ||
+      (isTv
+        ? "Public-domain TV / classic episode from Internet Archive."
+        : "Public-domain / libre title from Internet Archive."),
     posterPath: poster,
     backdropPath: poster,
-    genres: ["Free", "Archive"],
+    genres: isTv ? ["Free", "TV", "Archive"] : ["Free", "Movie", "Archive"],
     runtime: asRuntimeMinutes(doc.runtime),
     rating,
+    mediaType: isTv ? "tv" : "movie",
     archiveOrgId: identifier,
     licenseKind: licenseKindFromUrl(license),
     attribution: {
@@ -171,6 +193,7 @@ export type ArchiveBrowseResult = {
   pageSize: number;
   total: number;
   totalPages: number;
+  kind: FreeCatalogKind;
   query: string;
   source: "archive.org";
   note: string;
@@ -180,15 +203,21 @@ export async function browseArchiveFreeMovies(opts: {
   page?: number;
   pageSize?: number;
   q?: string;
+  kind?: FreeCatalogKind;
 }): Promise<ArchiveBrowseResult> {
   const page = Math.max(1, opts.page || 1);
   const pageSize = Math.min(48, Math.max(6, opts.pageSize || 24));
   const userQ = (opts.q || "").trim();
+  const kind: FreeCatalogKind =
+    opts.kind === "tv" || opts.kind === "movies" || opts.kind === "all"
+      ? opts.kind
+      : "all";
 
-  let query = FREE_FEATURE_QUERY;
+  const base = queryForKind(kind);
+  let query = base;
   if (userQ) {
     const safe = userQ.replace(/[:"()]/g, " ").slice(0, 80);
-    query = `(${FREE_FEATURE_QUERY}) AND (${safe})`;
+    query = `(${base}) AND (${safe})`;
   }
 
   const params = new URLSearchParams({
@@ -220,6 +249,7 @@ export async function browseArchiveFreeMovies(opts: {
       pageSize,
       total: 0,
       totalPages: 0,
+      kind,
       query,
       source: "archive.org",
       note: `Internet Archive search returned ${res.status}.`,
@@ -231,10 +261,17 @@ export async function browseArchiveFreeMovies(opts: {
   };
   const total = data.response?.numFound || 0;
   const movies = (data.response?.docs || [])
-    .map(docToMovie)
+    .map((d) => docToMovie(d, kind))
     .filter((m): m is Movie => Boolean(m));
 
   rememberMovies(movies);
+
+  const kindLabel =
+    kind === "tv"
+      ? "classic TV / television"
+      : kind === "movies"
+        ? "feature films"
+        : "movies + classic TV";
 
   return {
     movies,
@@ -242,9 +279,10 @@ export async function browseArchiveFreeMovies(opts: {
     pageSize,
     total,
     totalPages: total ? Math.ceil(total / pageSize) : 0,
+    kind,
     query,
     source: "archive.org",
-    note: `Live Internet Archive public-domain feature films (${total.toLocaleString()} with MPEG4 + publicdomain license).`,
+    note: `Live Internet Archive public-domain ${kindLabel} (${total.toLocaleString()} with MPEG4 + publicdomain license).`,
   };
 }
 
