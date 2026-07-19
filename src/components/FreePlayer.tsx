@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { getMovie } from "@/lib/movies";
 import { isFreePlayable } from "@/lib/free-content";
 import { useWatchify } from "@/lib/store";
@@ -19,7 +19,6 @@ type YtPlayer = {
   pauseVideo: () => void;
   getCurrentTime: () => number;
   getPlayerState: () => number;
-  destroy: () => void;
 };
 
 declare global {
@@ -27,7 +26,7 @@ declare global {
     YT?: {
       Player: new (
         el: HTMLElement | string,
-        opts: Record<string, unknown>
+        opts?: Record<string, unknown>
       ) => YtPlayer;
       PlayerState: { PLAYING: number; PAUSED: number; BUFFERING: number };
     };
@@ -35,30 +34,36 @@ declare global {
   }
 }
 
-function loadYouTubeApi(): Promise<void> {
-  if (typeof window === "undefined") return Promise.resolve();
-  if (window.YT?.Player) return Promise.resolve();
+function loadYouTubeApi(): Promise<boolean> {
+  if (typeof window === "undefined") return Promise.resolve(false);
+  if (window.YT?.Player) return Promise.resolve(true);
   return new Promise((resolve) => {
+    let settled = false;
+    const done = (ok: boolean) => {
+      if (settled) return;
+      settled = true;
+      resolve(ok);
+    };
     const prev = window.onYouTubeIframeAPIReady;
     window.onYouTubeIframeAPIReady = () => {
       prev?.();
-      resolve();
+      done(Boolean(window.YT?.Player));
     };
     if (!document.querySelector('script[src*="youtube.com/iframe_api"]')) {
       const s = document.createElement("script");
       s.src = "https://www.youtube.com/iframe_api";
       s.async = true;
+      s.onerror = () => done(false);
       document.body.appendChild(s);
     }
-    // Already loading / race: poll briefly
     const start = Date.now();
     const t = window.setInterval(() => {
       if (window.YT?.Player) {
         window.clearInterval(t);
-        resolve();
-      } else if (Date.now() - start > 12000) {
+        done(true);
+      } else if (Date.now() - start > 8000) {
         window.clearInterval(t);
-        resolve();
+        done(false);
       }
     }, 100);
   });
@@ -79,6 +84,18 @@ export function FreePlayer({ movieId, partyId, autoplay }: Props) {
   const lastBroadcast = useRef(0);
   const useYoutube = Boolean(movie?.youtubePlaybackId);
 
+  const youtubeEmbedSrc = useMemo(() => {
+    if (!movie?.youtubePlaybackId) return "";
+    const params = new URLSearchParams({
+      rel: "0",
+      modestbranding: "1",
+      playsinline: "1",
+      enablejsapi: "1",
+    });
+    if (autoplay) params.set("autoplay", "1");
+    return `https://www.youtube.com/embed/${movie.youtubePlaybackId}?${params.toString()}`;
+  }, [movie?.youtubePlaybackId, autoplay]);
+
   usePartyRealtime(partyId || "", Boolean(ready && partyId));
 
   useEffect(() => {
@@ -87,63 +104,47 @@ export function FreePlayer({ movieId, partyId, autoplay }: Props) {
     }
   }, [movie, movieId, setCurrentlyWatching]);
 
-  // YouTube player lifecycle
+  // Optional IFrame API for party sync — plain iframe already plays without it.
   useEffect(() => {
-    if (!useYoutube || !movie?.youtubePlaybackId) return;
+    if (!useYoutube || !movie?.youtubePlaybackId || !partyId) return;
     let cancelled = false;
-    let player: YtPlayer | null = null;
 
-    void loadYouTubeApi().then(() => {
-      if (cancelled || !window.YT?.Player) return;
+    void loadYouTubeApi().then((ok) => {
+      if (cancelled || !ok || !window.YT?.Player) return;
       const el = document.getElementById(ytElementId);
       if (!el) return;
-      player = new window.YT.Player(ytElementId, {
-        videoId: movie.youtubePlaybackId,
-        width: "100%",
-        height: "100%",
-        playerVars: {
-          autoplay: autoplay ? 1 : 0,
-          rel: 0,
-          modestbranding: 1,
-          playsinline: 1,
-          origin:
-            typeof window !== "undefined" ? window.location.origin : undefined,
-        },
-        events: {
-          onStateChange: (e: { data: number }) => {
-            if (!partyId || applyingRemote.current || !player) return;
-            const playing =
-              e.data === window.YT!.PlayerState.PLAYING ||
-              e.data === window.YT!.PlayerState.BUFFERING;
-            const paused = e.data === window.YT!.PlayerState.PAUSED;
-            if (!playing && !paused) return;
-            const now = Date.now();
-            if (now - lastBroadcast.current < 400) return;
-            lastBroadcast.current = now;
-            updatePartyPlayback(partyId, player.getCurrentTime(), playing);
+      try {
+        const player = new window.YT.Player(ytElementId, {
+          events: {
+            onStateChange: (e: { data: number }) => {
+              if (applyingRemote.current || !ytPlayerRef.current) return;
+              const playing =
+                e.data === window.YT!.PlayerState.PLAYING ||
+                e.data === window.YT!.PlayerState.BUFFERING;
+              const paused = e.data === window.YT!.PlayerState.PAUSED;
+              if (!playing && !paused) return;
+              const now = Date.now();
+              if (now - lastBroadcast.current < 400) return;
+              lastBroadcast.current = now;
+              updatePartyPlayback(
+                partyId,
+                ytPlayerRef.current.getCurrentTime(),
+                playing
+              );
+            },
           },
-        },
-      });
-      ytPlayerRef.current = player;
+        });
+        ytPlayerRef.current = player;
+      } catch {
+        ytPlayerRef.current = null;
+      }
     });
 
     return () => {
       cancelled = true;
-      try {
-        player?.destroy();
-      } catch {
-        /* ignore */
-      }
       ytPlayerRef.current = null;
     };
-  }, [
-    useYoutube,
-    movie?.youtubePlaybackId,
-    ytElementId,
-    autoplay,
-    partyId,
-    updatePartyPlayback,
-  ]);
+  }, [useYoutube, movie?.youtubePlaybackId, ytElementId, partyId, updatePartyPlayback]);
 
   // Apply remote sync — HTML5
   useEffect(() => {
@@ -163,7 +164,7 @@ export function FreePlayer({ movieId, partyId, autoplay }: Props) {
     return () => window.clearTimeout(t);
   }, [sync, partyId, state.currentUserId, useYoutube]);
 
-  // Apply remote sync — YouTube
+  // Apply remote sync — YouTube (when API attached)
   useEffect(() => {
     if (!useYoutube) return;
     const player = ytPlayerRef.current;
@@ -186,7 +187,6 @@ export function FreePlayer({ movieId, partyId, autoplay }: Props) {
     return () => window.clearTimeout(t);
   }, [sync, partyId, state.currentUserId, useYoutube]);
 
-  // Periodic YouTube playhead broadcast while playing
   useEffect(() => {
     if (!useYoutube || !partyId) return;
     const id = window.setInterval(() => {
@@ -233,7 +233,15 @@ export function FreePlayer({ movieId, partyId, autoplay }: Props) {
     <div className="space-y-3">
       {useYoutube ? (
         <div className="aspect-video w-full overflow-hidden rounded-2xl bg-black">
-          <div id={ytElementId} className="h-full w-full" />
+          <iframe
+            id={ytElementId}
+            title={`${movie.title} — free on Watchify`}
+            className="h-full w-full border-0"
+            src={youtubeEmbedSrc}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+            referrerPolicy="strict-origin-when-cross-origin"
+          />
         </div>
       ) : (
         <video
