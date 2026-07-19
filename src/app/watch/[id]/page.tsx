@@ -32,13 +32,19 @@ function WatchInner() {
 
   useEffect(() => {
     const local = getMovie(params.id);
+    const needsLive =
+      params.id.startsWith("ia-") ||
+      params.id.startsWith("tmdb-") ||
+      !local;
     if (local) {
       setMovie(local);
-      setLoadingTitle(false);
-      return;
+      if (!needsLive) {
+        setLoadingTitle(false);
+        return;
+      }
     }
     let cancelled = false;
-    setLoadingTitle(true);
+    if (!local) setLoadingTitle(true);
     void fetch(`/api/catalog/title/${encodeURIComponent(params.id)}`)
       .then((r) => r.json())
       .then((data) => {
@@ -58,7 +64,15 @@ function WatchInner() {
   }, [params.id]);
 
   useEffect(() => {
-    if (!movie || movie.freePlaybackUrl || movie.youtubePlaybackId) return;
+    if (
+      !movie ||
+      movie.freePlaybackUrl ||
+      movie.youtubePlaybackId ||
+      movie.archiveOrgId ||
+      movie.id.startsWith("ia-")
+    ) {
+      return;
+    }
     let cancelled = false;
     void fetch(`/api/catalog/providers?movieId=${encodeURIComponent(movie.id)}`)
       .then((r) => r.json())

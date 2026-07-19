@@ -499,12 +499,23 @@ export function rememberCatalogMovies(movies: Movie[]): void {
 
 export function freeMovies(): Movie[] {
   return CATALOG.filter((m) =>
-    Boolean(m.youtubePlaybackId || m.freePlaybackUrl)
+    Boolean(
+      m.youtubePlaybackId ||
+        m.freePlaybackUrl ||
+        m.archiveOrgId ||
+        m.id.startsWith("ia-")
+    )
   );
 }
 
 export function catalogMovies(): Movie[] {
-  return CATALOG.filter((m) => !m.youtubePlaybackId && !m.freePlaybackUrl);
+  return CATALOG.filter(
+    (m) =>
+      !m.youtubePlaybackId &&
+      !m.freePlaybackUrl &&
+      !m.archiveOrgId &&
+      !m.id.startsWith("ia-")
+  );
 }
 
 export function moviesByProvider(providerId: StreamingServiceId | "free"): Movie[] {

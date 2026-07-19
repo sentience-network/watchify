@@ -40,10 +40,10 @@ export default function ContentPage() {
               own legal login.
             </li>
             <li>
-              <strong className="text-white">Free on Watchify</strong> — public
-              domain / Creative Commons titles with attribution, in-app playback
-              (YouTube embeds or direct files), and synced parties. Trailers for
-              catalog titles are YouTube embeds only.
+              <strong className="text-white">Free on Watchify</strong> — curated
+              CC shorts plus thousands of Internet Archive public-domain feature
+              films (MPEG4 + publicdomain license), with attribution and in-app
+              playback. Trailers for paid catalog titles are YouTube embeds only.
             </li>
             <li>
               <strong className="text-white">Deep links to your services</strong> —

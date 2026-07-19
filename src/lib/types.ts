@@ -41,6 +41,8 @@ export type Movie = {
    * Prefer over broken hotlinks; party sync uses the IFrame API.
    */
   youtubePlaybackId?: string;
+  /** Internet Archive item id for free embed/download playback. */
+  archiveOrgId?: string;
   /** How this title may be played on Watchify */
   licenseKind?: "catalog" | "trailer" | "public_domain" | "creative_commons" | "avod_sample";
   attribution?: { creator: string; license: string; licenseUrl: string; sourceUrl: string };

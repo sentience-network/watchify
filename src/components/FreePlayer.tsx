@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef } from "react";
+import { archiveEmbedUrl } from "@/lib/archive-org";
 import { getMovie } from "@/lib/movies";
 import { isFreePlayable } from "@/lib/free-content";
 import { useWatchify } from "@/lib/store";
@@ -83,6 +84,15 @@ export function FreePlayer({ movieId, partyId, autoplay }: Props) {
   const applyingRemote = useRef(false);
   const lastBroadcast = useRef(0);
   const useYoutube = Boolean(movie?.youtubePlaybackId);
+  const mp4Url =
+    movie?.freePlaybackUrl &&
+    !movie.freePlaybackUrl.includes("archive.org/embed/")
+      ? movie.freePlaybackUrl
+      : undefined;
+  const archiveId =
+    movie?.archiveOrgId ||
+    (movie?.id?.startsWith("ia-") ? movie.id.slice(3) : undefined);
+  const useArchiveEmbed = Boolean(!useYoutube && !mp4Url && archiveId);
 
   const youtubeEmbedSrc = useMemo(() => {
     if (!movie?.youtubePlaybackId) return "";
@@ -95,6 +105,11 @@ export function FreePlayer({ movieId, partyId, autoplay }: Props) {
     if (autoplay) params.set("autoplay", "1");
     return `https://www.youtube.com/embed/${movie.youtubePlaybackId}?${params.toString()}`;
   }, [movie?.youtubePlaybackId, autoplay]);
+
+  const archiveEmbedSrc = useMemo(() => {
+    if (!archiveId) return "";
+    return archiveEmbedUrl(archiveId, Boolean(autoplay));
+  }, [archiveId, autoplay]);
 
   usePartyRealtime(partyId || "", Boolean(ready && partyId));
 
@@ -148,7 +163,7 @@ export function FreePlayer({ movieId, partyId, autoplay }: Props) {
 
   // Apply remote sync — HTML5
   useEffect(() => {
-    if (useYoutube) return;
+    if (useYoutube || useArchiveEmbed) return;
     const el = videoRef.current;
     if (!el || !sync || !partyId) return;
     if (sync.updatedBy === state.currentUserId) return;
@@ -162,7 +177,7 @@ export function FreePlayer({ movieId, partyId, autoplay }: Props) {
       applyingRemote.current = false;
     }, 150);
     return () => window.clearTimeout(t);
-  }, [sync, partyId, state.currentUserId, useYoutube]);
+  }, [sync, partyId, state.currentUserId, useYoutube, useArchiveEmbed]);
 
   // Apply remote sync — YouTube (when API attached)
   useEffect(() => {
@@ -243,11 +258,22 @@ export function FreePlayer({ movieId, partyId, autoplay }: Props) {
             referrerPolicy="strict-origin-when-cross-origin"
           />
         </div>
+      ) : useArchiveEmbed ? (
+        <div className="aspect-video w-full overflow-hidden rounded-2xl bg-black">
+          <iframe
+            title={`${movie.title} — Internet Archive`}
+            className="h-full w-full border-0"
+            src={archiveEmbedSrc}
+            allow="fullscreen; encrypted-media; picture-in-picture"
+            allowFullScreen
+            referrerPolicy="strict-origin-when-cross-origin"
+          />
+        </div>
       ) : (
         <video
           ref={videoRef}
           className="aspect-video w-full rounded-2xl bg-black"
-          src={movie.freePlaybackUrl}
+          src={mp4Url}
           controls
           playsInline
           autoPlay={autoplay}
@@ -264,9 +290,16 @@ export function FreePlayer({ movieId, partyId, autoplay }: Props) {
       <p className="text-xs text-mist/70">
         Free on Watchify · License:{" "}
         {movie.licenseKind?.replace("_", " ") || "free sample"}
-        {useYoutube ? " · YouTube embed" : ""} ·{" "}
+        {useYoutube
+          ? " · YouTube embed"
+          : useArchiveEmbed
+            ? " · Internet Archive embed"
+            : " · Direct file"}{" "}
+        ·{" "}
         {partyId
-          ? "Joining a party auto-seeks to the live playhead."
+          ? useArchiveEmbed
+            ? "Archive embeds play in-party chat; scrub sync is limited vs MP4/YouTube free titles."
+            : "Joining a party auto-seeks to the live playhead."
           : "Party sync works for Watchify free titles only — not Netflix or other paid apps."}
       </p>
       {movie.attribution && (

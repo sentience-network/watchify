@@ -472,7 +472,10 @@ export function WatchifyProvider({ children }: { children: ReactNode }) {
       const movie = getMovie(input.movieId);
       const syncMode =
         input.syncMode ||
-        (movie?.youtubePlaybackId || movie?.freePlaybackUrl
+        (movie?.youtubePlaybackId ||
+        movie?.freePlaybackUrl ||
+        movie?.archiveOrgId ||
+        movie?.id?.startsWith("ia-")
           ? "watchify_free"
           : "own_account");
       const result = await apiJson<{ party: WatchParty }>("/api/parties", {

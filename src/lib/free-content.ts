@@ -492,7 +492,12 @@ export const TRAILER_IDS: Record<string, string> = {
 };
 
 export function isFreePlayable(movie: Movie | undefined): boolean {
-  return Boolean(movie?.youtubePlaybackId || movie?.freePlaybackUrl);
+  return Boolean(
+    movie?.youtubePlaybackId ||
+      movie?.freePlaybackUrl ||
+      movie?.archiveOrgId ||
+      (movie?.id && movie.id.startsWith("ia-"))
+  );
 }
 
 export function paidStreamerBlocked(label: string): boolean {
