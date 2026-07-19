@@ -134,7 +134,7 @@ export function ProfileCustomizePanel({ initial, onSaved }: Props) {
     }
   }
 
-  async function useGeneratedAvatar() {
+  async function generateCartoonAvatar() {
     setSaving(true);
     try {
       const res = await fetch("/api/me", {
@@ -284,7 +284,7 @@ export function ProfileCustomizePanel({ initial, onSaved }: Props) {
       </div>
       <button
         type="button"
-        onClick={() => void useGeneratedAvatar()}
+        onClick={() => void generateCartoonAvatar()}
         className="rounded-lg border border-line px-3 py-1.5 text-xs text-mist hover:text-white"
       >
         Generate cartoon avatar
