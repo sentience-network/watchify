@@ -66,7 +66,7 @@ function SignInForm() {
         setError(
           res.error === "ACCOUNT_BANNED"
             ? "This account has been suspended."
-            : "Invalid email or password. Demo accounts are not seeded on production — create an account or use one you already made."
+            : "Invalid email or password. Check the address and try again — or use Forgot password."
         );
         return;
       }
