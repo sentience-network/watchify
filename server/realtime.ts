@@ -325,6 +325,51 @@ io.on("connection", (socket) => {
     });
   });
 
+  /** Host 3–2–1 Go for own-account sync nights (ephemeral fan-out). */
+  socket.on(
+    "countdown",
+    async (
+      payload: { seconds?: number; scrubSec?: number },
+      ack?
+    ) => {
+      try {
+        const party = await assertMember(userId, partyId);
+        if (!party) {
+          ack?.({ ok: false, error: "Not a member" });
+          return;
+        }
+        let coHosts: string[] = [];
+        try {
+          coHosts = JSON.parse(party.coHostIdsJson) as string[];
+        } catch {
+          coHosts = [];
+        }
+        const isHost =
+          party.hostId === userId || coHosts.includes(userId);
+        if (!isHost) {
+          ack?.({ ok: false, error: "Host only" });
+          return;
+        }
+        const seconds = Math.min(10, Math.max(1, Number(payload?.seconds) || 3));
+        const scrubSec = Math.max(0, Number(payload?.scrubSec) || 0);
+        const event = {
+          partyId,
+          seconds,
+          scrubSec,
+          startedAt: new Date().toISOString(),
+          startedBy: userId,
+        };
+        io.to(roomKey(partyId)).emit("countdown", event);
+        ack?.({ ok: true, event });
+      } catch (e) {
+        ack?.({
+          ok: false,
+          error: e instanceof Error ? e.message : "Failed",
+        });
+      }
+    }
+  );
+
   socket.on("video_join", async (payload: { camera?: boolean; microphone?: boolean }, ack?) => {
     const party = await assertMember(userId, partyId);
     if (!party) return ack?.({ ok: false, error: "Not a party member" });

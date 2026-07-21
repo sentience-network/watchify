@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Bricolage_Grotesque, Figtree } from "next/font/google";
 import { AuthProvider } from "@/components/AuthProvider";
+import { ToastProvider } from "@/components/ToastStack";
 import { WatchifyProvider } from "@/lib/store";
 import { SITE_DESCRIPTION, SITE_NAME, absoluteUrl } from "@/lib/site";
 import { LaunchAnalytics } from "@/components/LaunchAnalytics";
@@ -78,9 +79,11 @@ export default function RootLayout({
       <body className={`${display.variable} ${body.variable} antialiased`}>
         <AuthProvider>
           <WatchifyProvider>
-            <LaunchAnalytics />
-            <PwaRegister />
-            {children}
+            <ToastProvider>
+              <LaunchAnalytics />
+              <PwaRegister />
+              {children}
+            </ToastProvider>
           </WatchifyProvider>
         </AuthProvider>
       </body>

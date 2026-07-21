@@ -6,24 +6,57 @@ import { signOut, useSession } from "next-auth/react";
 import { useWatchify } from "@/lib/store";
 
 const baseLinks = [
-  { href: "/discover", label: "Discover" },
-  { href: "/library", label: "Free" },
-  { href: "/parties", label: "Parties" },
-  { href: "/feed", label: "Friends" },
-  { href: "/messages", label: "Messages" },
-  { href: "/tv", label: "TV mode" },
-  { href: "/watchlists", label: "Lists" },
+  { href: "/discover", label: "Discover", badgeKey: null as string | null },
+  { href: "/library", label: "Free", badgeKey: null },
+  { href: "/parties", label: "Parties", badgeKey: "joins" },
+  { href: "/feed", label: "Friends", badgeKey: "friends" },
+  { href: "/messages", label: "Messages", badgeKey: "dms" },
+  { href: "/tv", label: "TV mode", badgeKey: null },
+  { href: "/watchlists", label: "Lists", badgeKey: null },
 ];
+
+function Badge({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <span className="ml-1.5 inline-flex min-w-[1.15rem] items-center justify-center rounded-md bg-amber px-1 py-0.5 text-[10px] font-bold leading-none text-ink">
+      {count > 99 ? "99+" : count}
+    </span>
+  );
+}
 
 export function Sidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
-  const { currentUserId } = useWatchify();
+  const {
+    currentUserId,
+    unreadDmCount,
+    myHostedJoinRequests,
+    incomingFriendRequests,
+  } = useWatchify();
+
+  const joinCount = myHostedJoinRequests.length;
+  const friendCount = incomingFriendRequests.length;
+
+  function badgeFor(key: string | null) {
+    if (key === "dms") return unreadDmCount;
+    if (key === "joins") return joinCount;
+    if (key === "friends") return friendCount;
+    return 0;
+  }
+
   const links = [
     ...baseLinks,
     ...(currentUserId
-      ? [{ href: `/profile/${currentUserId}`, label: "Profile" }]
-      : [{ href: "/auth/signin", label: "Profile" }]),
+      ? [{ href: `/profile/${currentUserId}`, label: "Profile", badgeKey: null }]
+      : [{ href: "/auth/signin", label: "Profile", badgeKey: null }]),
+  ];
+
+  const mobileLinks = [
+    { href: "/discover", label: "Discover", badgeKey: null as string | null },
+    { href: "/library", label: "Free", badgeKey: null },
+    { href: "/parties", label: "Parties", badgeKey: "joins" },
+    { href: "/messages", label: "Messages", badgeKey: "dms" },
+    { href: "/feed", label: "Friends", badgeKey: "friends" },
   ];
 
   return (
@@ -38,17 +71,19 @@ export function Sidebar() {
           {links.map((link) => {
             const active =
               pathname === link.href || pathname.startsWith(link.href + "/");
+            const count = badgeFor(link.badgeKey);
             return (
               <Link
                 key={link.href}
                 href={link.href}
-                className={`rounded-lg px-3 py-2.5 text-sm font-medium transition ${
+                className={`flex items-center rounded-lg px-3 py-2.5 text-sm font-medium transition ${
                   active
                     ? "bg-teal/15 text-teal-soft"
                     : "text-mist hover:bg-white/5 hover:text-white"
                 }`}
               >
-                {link.label}
+                <span>{link.label}</span>
+                <Badge count={count} />
               </Link>
             );
           })}
@@ -124,25 +159,27 @@ export function Sidebar() {
         </div>
       </aside>
 
-      <nav className="fixed bottom-[72px] left-0 right-0 z-30 flex border-t border-line bg-ink/95 px-1 py-2 backdrop-blur md:hidden">
-        {[
-          { href: "/discover", label: "Discover" },
-          { href: "/parties", label: "Parties" },
-          { href: "/messages", label: "Messages" },
-          { href: "/feed", label: "Friends" },
-          { href: "/settings", label: "More" },
-        ].map((link) => {
+      <nav className="fixed bottom-[72px] left-0 right-0 z-30 flex border-t border-line bg-ink/95 px-0.5 py-2 backdrop-blur md:hidden">
+        {mobileLinks.map((link) => {
           const active =
             pathname === link.href || pathname.startsWith(link.href + "/");
+          const count = badgeFor(link.badgeKey);
           return (
             <Link
               key={link.href}
               href={link.href}
-              className={`flex-1 rounded-md py-2 text-center text-[11px] font-medium ${
+              className={`relative flex flex-1 flex-col items-center rounded-md py-1.5 text-center text-[10px] font-medium ${
                 active ? "text-teal-soft" : "text-mist/80"
               }`}
             >
-              {link.label}
+              <span className="relative inline-flex items-center">
+                {link.label}
+                {count > 0 ? (
+                  <span className="absolute -right-3 -top-1.5 inline-flex h-3.5 min-w-[0.875rem] items-center justify-center rounded-full bg-amber px-0.5 text-[9px] font-bold text-ink">
+                    {count > 9 ? "9+" : count}
+                  </span>
+                ) : null}
+              </span>
             </Link>
           );
         })}

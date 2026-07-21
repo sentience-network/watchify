@@ -847,6 +847,38 @@ export async function createPartyDb(
   return { ok: true, value: mapParty(row) };
 }
 
+/** Host flips a scheduled room to live now. */
+export async function goLivePartyDb(userId: string, partyId: string) {
+  const party = await prisma.party.findUnique({
+    where: { id: partyId },
+    include: { members: true },
+  });
+  if (!party || party.status !== "open") return { error: "Party not open" };
+  const coHosts = parseJson<string[]>(party.coHostIdsJson, []);
+  if (party.hostId !== userId && !coHosts.includes(userId)) {
+    return { error: "Forbidden" };
+  }
+  const row = await prisma.party.update({
+    where: { id: partyId },
+    data: { isLive: true, startsAt: null },
+    include: { members: true },
+  });
+  return { ok: true as const, party: mapParty(row) };
+}
+
+/**
+ * RSVP “I’m in” for a scheduled party — joins as member via invite path.
+ */
+export async function rsvpPartyDb(userId: string, partyId: string) {
+  const party = await prisma.party.findUnique({
+    where: { id: partyId },
+    include: { members: true },
+  });
+  if (!party || party.status !== "open") return { error: "Party not open" };
+  const invite = party.inviteCode || party.id;
+  return joinPartyByInviteDb(userId, invite);
+}
+
 export async function endPartyDb(userId: string, partyId: string) {
   const party = await prisma.party.findUnique({ where: { id: partyId } });
   if (!party) return { error: "Not found" };

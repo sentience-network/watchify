@@ -25,6 +25,8 @@ import { ServiceBadge } from "./ServiceBadge";
 import { InviteFriendsInApp } from "./InviteFriendsInApp";
 import { ShareMenu } from "./ShareMenu";
 import { partyInviteUrl } from "@/lib/social-graph";
+import { HostLobbyChecklist } from "./HostLobbyChecklist";
+import { PartyCountdownOverlay } from "./PartyCountdownOverlay";
 
 const REACTIONS = ["🔥", "😂", "😱", "👏", "❤️"];
 
@@ -37,11 +39,15 @@ export function PartySocialPanel({ partyId }: { partyId: string }) {
     startPartyWatchTracker,
     ready,
     currentUserId,
+    refreshFromServer,
   } = useWatchify();
   const [text, setText] = useState("");
   const [fly, setFly] = useState<string | null>(null);
   const [joinTick, setJoinTick] = useState(0);
+  const [countdownLeft, setCountdownLeft] = useState(0);
+  const [countdownScrub, setCountdownScrub] = useState(0);
   const typingTimer = useRef<number | null>(null);
+  const countdownFired = useRef(false);
 
   const party = state.parties.find((p) => p.id === partyId);
   const isMember = Boolean(
@@ -51,7 +57,10 @@ export function PartySocialPanel({ partyId }: { partyId: string }) {
         party.coHostIds?.includes(currentUserId))
   );
 
-  const { presence, live } = usePartyRealtime(partyId, ready && isMember);
+  const { presence, live, countdown, clearCountdown } = usePartyRealtime(
+    partyId,
+    ready && isMember
+  );
 
   const movie = party ? getMovie(party.movieId) : undefined;
   const host = party ? getUser(party.hostId) : undefined;
@@ -78,6 +87,61 @@ export function PartySocialPanel({ partyId }: { partyId: string }) {
     const id = window.setInterval(() => setJoinTick((n) => n + 1), 1000);
     return () => window.clearInterval(id);
   }, [sync?.watchStartedAt, sync?.playing]);
+
+  // Own-account Ready? 3–2–1 Go overlay
+  useEffect(() => {
+    if (!countdown) {
+      setCountdownLeft(0);
+      countdownFired.current = false;
+      return;
+    }
+    countdownFired.current = false;
+    const started = new Date(countdown.startedAt).getTime();
+    setCountdownScrub(countdown.scrubSec);
+    const tick = () => {
+      const elapsed = Math.floor((Date.now() - started) / 1000);
+      const left = Math.max(0, countdown.seconds - elapsed);
+      setCountdownLeft(left);
+      if (left <= 0 && !countdownFired.current) {
+        countdownFired.current = true;
+        clearCountdown();
+        if (isHostOrCo && mode === "own_account") {
+          startPartyWatchTracker(partyId, countdown.scrubSec);
+        }
+      }
+    };
+    tick();
+    const id = window.setInterval(tick, 200);
+    return () => window.clearInterval(id);
+  }, [
+    countdown,
+    clearCountdown,
+    isHostOrCo,
+    mode,
+    partyId,
+    startPartyWatchTracker,
+  ]);
+
+  async function startReadyGo() {
+    const scrub = joinCueSec || positionSec || 0;
+    const rt = getPartyRealtime(partyId);
+    if (rt?.connected) {
+      const event = await rt.sendCountdown(3, scrub);
+      if (event) return;
+    }
+    // HTTP-less fallback: local overlay + start tracker after 3s
+    setCountdownScrub(scrub);
+    setCountdownLeft(3);
+    let n = 3;
+    const id = window.setInterval(() => {
+      n -= 1;
+      setCountdownLeft(n);
+      if (n <= 0) {
+        window.clearInterval(id);
+        startPartyWatchTracker(partyId, scrub);
+      }
+    }, 1000);
+  }
 
   const preferredDeepLink = useMemo(() => {
     if (!movie) return null;
@@ -155,6 +219,13 @@ export function PartySocialPanel({ partyId }: { partyId: string }) {
 
   return (
     <div className="mt-3 rounded-xl border border-line/80 bg-ink/40 p-3">
+      <PartyCountdownOverlay count={countdownLeft} scrubSec={countdownScrub} />
+      {isHostOrCo && party ? (
+        <HostLobbyChecklist
+          party={party}
+          onGoLive={() => void refreshFromServer()}
+        />
+      ) : null}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-[11px] font-medium uppercase tracking-wider text-teal">
           {mode === "watchify_free"
@@ -281,6 +352,14 @@ export function PartySocialPanel({ partyId }: { partyId: string }) {
           )}
           {isHostOrCo ? (
             <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                className="rounded-md bg-amber px-3 py-1.5 font-semibold text-ink"
+                onClick={() => void startReadyGo()}
+                disabled={countdownLeft > 0}
+              >
+                Ready? 3–2–1 Go
+              </button>
               <button
                 type="button"
                 className="rounded-md bg-teal px-3 py-1.5 font-semibold text-ink"

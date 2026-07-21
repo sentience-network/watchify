@@ -8,6 +8,14 @@ import type {
   PartyReaction,
 } from "./types";
 
+export type PartyCountdownEvent = {
+  partyId: string;
+  seconds: number;
+  scrubSec: number;
+  startedAt: string;
+  startedBy: string;
+};
+
 export type PartySocketHandlers = {
   onJoined?: (data: {
     partyId: string;
@@ -19,6 +27,7 @@ export type PartySocketHandlers = {
   onPlayback?: (sync: PartyPlaybackSync) => void;
   onPresence?: (members: PartyPresenceMember[]) => void;
   onTyping?: (userId: string, typing: boolean) => void;
+  onCountdown?: (event: PartyCountdownEvent) => void;
   onConnectionChange?: (connected: boolean) => void;
   onError?: (message: string) => void;
   onVideoPeerJoined?: (peer: VideoPeer) => void;
@@ -201,6 +210,9 @@ export class PartyRealtimeClient {
       socket.on("typing", (payload: { userId: string; typing: boolean }) => {
         this.emitAll("onTyping", payload.userId, payload.typing);
       });
+      socket.on("countdown", (payload: PartyCountdownEvent) => {
+        if (payload?.partyId) this.emitAll("onCountdown", payload);
+      });
       socket.on("video_peer_joined", (payload: { peer: VideoPeer }) => {
         if (payload?.peer) this.emitAll("onVideoPeerJoined", payload.peer);
       });
@@ -262,6 +274,33 @@ export class PartyRealtimeClient {
 
   setTyping(typing: boolean) {
     this.socket?.emit("typing", { typing });
+  }
+
+  /** Host own-account 3–2–1 Go. */
+  sendCountdown(
+    seconds: number,
+    scrubSec: number
+  ): Promise<PartyCountdownEvent | null> {
+    const socket = this.socket;
+    if (!socket?.connected) return Promise.resolve(null);
+    return new Promise((resolve) => {
+      socket
+        .timeout(5000)
+        .emit(
+          "countdown",
+          { seconds, scrubSec },
+          (
+            err: Error | null,
+            res?: { ok?: boolean; event?: PartyCountdownEvent }
+          ) => {
+            if (err || !res?.ok || !res.event) {
+              resolve(null);
+              return;
+            }
+            resolve(res.event);
+          }
+        );
+    });
   }
 
   joinVideo(camera: boolean, microphone: boolean): Promise<VideoPeer[]> {

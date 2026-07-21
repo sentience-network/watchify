@@ -22,6 +22,11 @@ import { getUser } from "@/lib/users";
 import type { StreamingServiceId } from "@/lib/streaming";
 import type { Movie, WatchParty } from "@/lib/types";
 import { track } from "@/lib/analytics-client";
+import { downloadPartyIcs, googleCalendarUrl } from "@/lib/calendar-ics";
+import {
+  PartyRecapCard,
+  type PartyRecap,
+} from "@/components/PartyRecapCard";
 
 function formatStart(startsAt: string | null, isLive: boolean) {
   if (isLive || !startsAt) return "Live now";
@@ -70,6 +75,7 @@ function PartiesInner() {
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [promptPartyId, setPromptPartyId] = useState<string | null>(null);
   const [createExpanded, setCreateExpanded] = useState(false);
+  const [recap, setRecap] = useState<PartyRecap | null>(null);
   const inviteHandled = useRef<string | null>(null);
   const prefillsHandled = useRef(false);
 
@@ -220,6 +226,31 @@ function PartiesInner() {
     if (!response.ok) return setError(data.error || "Could not update invite");
     await refreshFromServer();
     setError(action === "revoke_invite" ? "Invite revoked." : "New seven-day invite created.");
+  }
+
+  async function rsvpImIn(party: WatchParty) {
+    const response = await fetch("/api/parties", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "rsvp", partyId: party.id }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      setError(data.error || "Could not RSVP");
+      return;
+    }
+    track("party_rsvp", { partyId: party.id });
+    await refreshFromServer();
+    setHighlightId(party.id);
+    setError("");
+  }
+
+  function addToCalendar(party: WatchParty, movieTitle: string) {
+    const url = partyInviteUrl(party.id, undefined, {
+      inviteCode: party.inviteCode,
+    });
+    downloadPartyIcs({ party, movieTitle, url });
+    track("party_calendar_ics", { partyId: party.id });
   }
 
   return (
@@ -527,6 +558,31 @@ function PartiesInner() {
                             title={`Join ${party.name} on Watchify`}
                             text={`Join ${host.name}'s Watchify party for ${movie.title} — 1 tap`}
                           />
+                          {party.startsAt && !party.isLive ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => addToCalendar(party, movie.title)}
+                                className="rounded-lg border border-line px-3 py-1.5 text-xs text-mist"
+                              >
+                                Add to calendar (.ics)
+                              </button>
+                              <a
+                                href={googleCalendarUrl({
+                                  party,
+                                  movieTitle: movie.title,
+                                  url: partyInviteUrl(party.id, undefined, {
+                                    inviteCode: party.inviteCode,
+                                  }),
+                                })}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="rounded-lg border border-line px-3 py-1.5 text-xs text-mist hover:text-white"
+                              >
+                                Google Calendar
+                              </a>
+                            </>
+                          ) : null}
                           {isHost || isCoHost ? (
                             <>
                               {isHost && <button type="button" onClick={() => manageInvite(party.id, "refresh_invite")} className="rounded-lg border border-line px-3 py-1.5 text-xs text-mist">New invite</button>}
@@ -534,12 +590,15 @@ function PartiesInner() {
                               <button
                                 type="button"
                                 onClick={async () => {
+                                  const snapshot: PartyRecap = {
+                                    party: { ...party },
+                                    endedAt: new Date().toISOString(),
+                                  };
                                   const next = await endParty(party.id);
-                                  if (next?.nextStartsAt) {
-                                    window.alert(
-                                      `Weekly room ended. Next occurrence scheduled for ${new Date(next.nextStartsAt).toLocaleString()}.`
-                                    );
-                                  }
+                                  setRecap({
+                                    ...snapshot,
+                                    nextStartsAt: next?.nextStartsAt,
+                                  });
                                 }}
                                 className="rounded-lg border border-line px-3 py-1.5 text-xs text-mist"
                               >
@@ -549,7 +608,16 @@ function PartiesInner() {
                           ) : isMember ? (
                             <span className="rounded-lg bg-teal/15 px-3 py-1.5 text-xs font-medium text-teal-soft">
                               You&apos;re in
+                              {party.startsAt && !party.isLive ? " · RSVP’d" : ""}
                             </span>
+                          ) : party.startsAt && !party.isLive ? (
+                            <button
+                              type="button"
+                              onClick={() => void rsvpImIn(party)}
+                              className="rounded-lg bg-teal px-3 py-1.5 text-xs font-semibold text-ink hover:bg-teal-soft"
+                            >
+                              I&apos;m in
+                            </button>
                           ) : pending ? (
                             <span className="rounded-lg border border-line px-3 py-1.5 text-xs text-mist">
                               Request pending
@@ -597,6 +665,9 @@ function PartiesInner() {
                 />
               );
             })()}
+            {recap ? (
+              <PartyRecapCard recap={recap} onClose={() => setRecap(null)} />
+            ) : null}
           </>
         )}
       </div>

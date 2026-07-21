@@ -3,8 +3,10 @@ import { requireUserId } from "@/lib/server/session";
 import {
   createPartyDb,
   endPartyDb,
+  goLivePartyDb,
   joinPartyByInviteDb,
   requestJoinPartyDb,
+  rsvpPartyDb,
 } from "@/lib/server/social-db";
 import { prisma } from "@/lib/db";
 import type { StreamingServiceId } from "@/lib/streaming";
@@ -83,7 +85,13 @@ export async function POST(req: Request) {
     syncMode?: WatchParty["syncMode"];
     coHostIds?: string[];
     recurringWeekly?: boolean;
-    action?: "join" | "join_invite" | "refresh_invite" | "revoke_invite";
+    action?:
+      | "join"
+      | "join_invite"
+      | "refresh_invite"
+      | "revoke_invite"
+      | "go_live"
+      | "rsvp";
     partyId?: string;
     invite?: string;
     endPartyId?: string;
@@ -133,6 +141,28 @@ export async function POST(req: Request) {
     const result = await requestJoinPartyDb(auth.userId, body.partyId);
     if ("error" in result) {
       return NextResponse.json({ error: result.error }, { status: 400 });
+    }
+    return NextResponse.json(result);
+  }
+
+  if (body.action === "go_live" && body.partyId) {
+    const result = await goLivePartyDb(auth.userId, body.partyId);
+    if ("error" in result) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
+    }
+    return NextResponse.json(result);
+  }
+
+  if (body.action === "rsvp" && body.partyId) {
+    const result = await rsvpPartyDb(auth.userId, body.partyId);
+    if ("error" in result) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
+    }
+    if (!result.alreadyMember) {
+      await recordEvent("party_joined", {
+        userId: auth.userId,
+        properties: { partyId: result.party.id, source: "rsvp" },
+      });
     }
     return NextResponse.json(result);
   }

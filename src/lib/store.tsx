@@ -36,6 +36,12 @@ type CreateResult<T> = { ok: true; value: T } | { ok: false; error: string };
 
 type Store = {
   ready: boolean;
+  /** True after the first successful /api/me/state for this session. */
+  serverHydrated: boolean;
+  /** True when signed-in hydrate has been running > ~3s (Render wake). */
+  hydratingSlow: boolean;
+  /** Unread DM count for nav badges (polled). */
+  unreadDmCount: number;
   state: AppState;
   directoryUsers: User[];
   currentUserId: string;
@@ -181,9 +187,13 @@ export function WatchifyProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AppState>(defaultState);
   const [directoryUsers, setDirectoryUsers] = useState<User[]>([]);
   const [ready, setReady] = useState(false);
+  const [serverHydrated, setServerHydrated] = useState(false);
+  const [hydratingSlow, setHydratingSlow] = useState(false);
+  const [unreadDmCount, setUnreadDmCount] = useState(0);
   const [realtimeConnected, setRealtimeConnectedState] = useState(false);
   const hydrating = useRef(false);
   const realtimeConnectedRef = useRef(false);
+  const slowTimer = useRef<number | null>(null);
 
   const currentUserId = sessionUserId || state.currentUserId;
 
@@ -205,15 +215,23 @@ export function WatchifyProvider({ children }: { children: ReactNode }) {
     if (!sessionUserId) return;
     if (hydrating.current) return;
     hydrating.current = true;
+    if (slowTimer.current) window.clearTimeout(slowTimer.current);
+    slowTimer.current = window.setTimeout(() => setHydratingSlow(true), 3000);
     try {
       const result = await apiJson<{ state: AppState; users: User[] }>(
         "/api/me/state"
       );
       if (result.ok) {
         applyServerState(result.data.state, result.data.users);
+        setServerHydrated(true);
       }
     } finally {
       hydrating.current = false;
+      if (slowTimer.current) {
+        window.clearTimeout(slowTimer.current);
+        slowTimer.current = null;
+      }
+      setHydratingSlow(false);
     }
   }, [sessionUserId, applyServerState]);
 
@@ -227,6 +245,8 @@ export function WatchifyProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (sessionStatus === "loading") return;
     if (!sessionUserId) {
+      setServerHydrated(false);
+      setUnreadDmCount(0);
       // Guest: load public directory + parties for browse
       Promise.all([
         apiJson<{ users: User[] }>("/api/users"),
@@ -253,6 +273,28 @@ export function WatchifyProvider({ children }: { children: ReactNode }) {
     }, ms);
     return () => window.clearInterval(id);
   }, [sessionUserId, refreshFromServer, realtimeConnected]);
+
+  // Unread DMs for nav badges (faster than full state hydrate)
+  useEffect(() => {
+    if (!sessionUserId) return;
+    let cancelled = false;
+    async function pollUnread() {
+      try {
+        const res = await fetch("/api/messages");
+        if (!res.ok || cancelled) return;
+        const data = (await res.json()) as { unread?: number };
+        if (typeof data.unread === "number") setUnreadDmCount(data.unread);
+      } catch {
+        /* ignore */
+      }
+    }
+    void pollUnread();
+    const id = window.setInterval(() => void pollUnread(), 8000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [sessionUserId]);
 
   const setRealtimeConnected = useCallback((connected: boolean) => {
     realtimeConnectedRef.current = connected;
@@ -963,6 +1005,9 @@ export function WatchifyProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       ready,
+      serverHydrated,
+      hydratingSlow,
+      unreadDmCount,
       state,
       directoryUsers,
       currentUserId,
@@ -1020,6 +1065,9 @@ export function WatchifyProvider({ children }: { children: ReactNode }) {
     }),
     [
       ready,
+      serverHydrated,
+      hydratingSlow,
+      unreadDmCount,
       state,
       directoryUsers,
       currentUserId,

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   acquirePartyRealtime,
   releasePartyRealtime,
+  type PartyCountdownEvent,
   type PartySocketHandlers,
 } from "@/lib/party-realtime";
 import { useWatchify } from "@/lib/store";
@@ -22,6 +23,7 @@ export function usePartyRealtime(partyId: string, enabled: boolean) {
   } = useWatchify();
   const [presence, setPresence] = useState<PartyPresenceMember[]>([]);
   const [live, setLive] = useState(false);
+  const [countdown, setCountdown] = useState<PartyCountdownEvent | null>(null);
 
   const handlers = useMemo<PartySocketHandlers>(
     () => ({
@@ -33,6 +35,7 @@ export function usePartyRealtime(partyId: string, enabled: boolean) {
       onReaction: (reaction) => applyPartyReaction(reaction),
       onPlayback: (sync) => applyPartyPlayback(sync),
       onPresence: (members) => setPresence(members),
+      onCountdown: (event) => setCountdown(event),
       onTyping: (userId, typing) => {
         setPresence((prev) =>
           prev.map((m) => (m.userId === userId ? { ...m, typing } : m))
@@ -55,6 +58,7 @@ export function usePartyRealtime(partyId: string, enabled: boolean) {
     if (!enabled || !partyId) {
       setLive(false);
       setPresence([]);
+      setCountdown(null);
       return;
     }
 
@@ -68,11 +72,14 @@ export function usePartyRealtime(partyId: string, enabled: boolean) {
       releasePartyRealtime(partyId, handlers);
       setLive(false);
       setPresence([]);
+      setCountdown(null);
     };
   }, [partyId, enabled, handlers]);
 
   return {
     presence,
     live,
+    countdown,
+    clearCountdown: () => setCountdown(null),
   };
 }
