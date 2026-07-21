@@ -133,27 +133,21 @@ export default async function LandingPage() {
                 <>
                   <Link
                     href="/auth/signup"
-                    className="rounded-xl bg-teal px-5 py-3 text-sm font-semibold text-ink transition hover:bg-teal-soft animate-party-pulse"
+                    className="relative z-20 rounded-xl bg-teal px-5 py-3 text-sm font-semibold text-ink transition hover:bg-teal-soft animate-party-pulse"
                   >
-                    Sign up free
-                  </Link>
-                  <Link
-                    href="/discover"
-                    className="rounded-xl border border-line bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:border-amber/40 hover:text-amber-soft"
-                  >
-                    See who&apos;s watching
-                  </Link>
-                  <Link
-                    href="/parties"
-                    className="rounded-xl border border-line bg-white/5 px-5 py-3 text-sm font-semibold text-mist transition hover:border-white/30 hover:text-white"
-                  >
-                    Join a party
+                    Sign up
                   </Link>
                   <Link
                     href="/auth/signin"
-                    className="rounded-xl px-5 py-3 text-sm font-semibold text-mist/80 transition hover:text-white"
+                    className="relative z-20 rounded-xl border border-white/35 bg-white/10 px-5 py-3 text-sm font-semibold text-white transition hover:border-teal/50 hover:bg-white/15 hover:text-teal-soft"
                   >
                     Sign in
+                  </Link>
+                  <Link
+                    href="/discover"
+                    className="relative z-20 rounded-xl border border-line bg-white/5 px-5 py-3 text-sm font-semibold text-mist transition hover:border-white/30 hover:text-white"
+                  >
+                    See who&apos;s watching
                   </Link>
                 </>
               )}

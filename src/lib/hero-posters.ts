@@ -8,7 +8,7 @@ export type HeroPoster = {
   src: string;
 };
 
-const HERO_POSTER_LIMIT = 32;
+const HERO_POSTER_LIMIT = 40;
 
 function toHeroPoster(movie: Movie): HeroPoster | null {
   if (!movie.posterPath) return null;
@@ -46,9 +46,23 @@ function mergeUnique(batches: Movie[][]): HeroPoster[] {
   return out;
 }
 
+function padWithFallback(primary: HeroPoster[], fallback: HeroPoster[]): HeroPoster[] {
+  if (primary.length >= HERO_POSTER_LIMIT) return primary.slice(0, HERO_POSTER_LIMIT);
+  const seen = new Set(primary.flatMap((p) => [p.id, p.src]));
+  const out = [...primary];
+  for (const poster of fallback) {
+    if (seen.has(poster.id) || seen.has(poster.src)) continue;
+    seen.add(poster.id);
+    seen.add(poster.src);
+    out.push(poster);
+    if (out.length >= HERO_POSTER_LIMIT) break;
+  }
+  return out;
+}
+
 /**
  * Latest / top-rated TMDB posters for the landing spiral wall.
- * Falls back to curated CATALOG when TMDB is unavailable.
+ * Always pads with curated CATALOG so the wall stays full if TMDB is thin/down.
  */
 export async function loadHeroPosters(): Promise<HeroPoster[]> {
   const fallback = curatedFallback();
@@ -67,14 +81,7 @@ export async function loadHeroPosters(): Promise<HeroPoster[]> {
       nowPlaying.movies,
     ]);
 
-    if (merged.length < 12) {
-      const extras = fallback.filter(
-        (p) => !merged.some((m) => m.id === p.id || m.src === p.src)
-      );
-      return [...merged, ...extras].slice(0, HERO_POSTER_LIMIT);
-    }
-
-    return merged;
+    return padWithFallback(merged, fallback);
   } catch {
     return fallback;
   }

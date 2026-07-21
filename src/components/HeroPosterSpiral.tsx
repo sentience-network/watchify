@@ -25,9 +25,9 @@ function buildSlots(posters: HeroPoster[]): SpiralSlot[] {
   return posters.map((poster, i) => {
     const t = i / Math.max(n - 1, 1);
     const angle = i * GOLDEN_ANGLE;
-    // Archimedean spiral — denser center, wall-like outer ring
-    const radius = 42 + t * 210;
-    const size = 72 + (1 - t) * 36;
+    // Wide Archimedean spiral — fills the viewport as a poster wall
+    const radius = 28 + t * 340;
+    const size = 110 + (1 - t) * 48;
     const depth = Math.round((1 - t) * 40);
     return { poster, angle, radius, size, depth };
   });
@@ -80,9 +80,9 @@ export function HeroPosterSpiral({ posters }: Props) {
                   width={Math.round(slot.size)}
                   height={Math.round(slot.size * 1.5)}
                   className="hero-spiral__img"
-                  sizes="(max-width: 768px) 64px, 100px"
-                  priority={i < 6}
-                  loading={i < 6 ? "eager" : "lazy"}
+                  sizes="(max-width: 768px) 96px, 160px"
+                  priority={i < 12}
+                  loading={i < 12 ? "eager" : "lazy"}
                 />
               </div>
             </div>

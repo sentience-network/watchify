@@ -219,7 +219,7 @@ textarea::placeholder {
     rgba(12, 16, 28, 0.88);
 }
 
-/* Landing hero — spiral wall of posters */
+/* Landing hero — spiral wall of posters (must read clearly on first paint) */
 .hero-spiral {
   pointer-events: none;
   position: absolute;
@@ -230,28 +230,28 @@ textarea::placeholder {
 
 .hero-spiral__glow {
   position: absolute;
-  inset: -10% -5% -20% 20%;
+  inset: -10% -5% -20% 10%;
   background:
     radial-gradient(
-      55% 50% at 68% 42%,
-      rgba(45, 212, 191, 0.16),
-      transparent 62%
+      60% 55% at 70% 40%,
+      rgba(45, 212, 191, 0.22),
+      transparent 65%
     ),
     radial-gradient(
-      40% 35% at 78% 70%,
-      rgba(240, 180, 41, 0.08),
+      45% 40% at 80% 72%,
+      rgba(240, 180, 41, 0.12),
       transparent 70%
     );
 }
 
 .hero-spiral__wheel {
   position: absolute;
-  left: 58%;
-  top: 48%;
-  width: min(920px, 140vw);
-  height: min(920px, 140vw);
+  left: 62%;
+  top: 46%;
+  width: min(1100px, 160vw);
+  height: min(1100px, 160vw);
   transform: translate(-50%, -50%);
-  animation: spiral-spin 96s linear infinite;
+  animation: spiral-spin 72s linear infinite;
 }
 
 .hero-spiral__arm {
@@ -259,12 +259,12 @@ textarea::placeholder {
   left: 50%;
   top: 50%;
   z-index: var(--spiral-z, 1);
-  width: var(--spiral-size, 80px);
-  height: calc(var(--spiral-size, 80px) * 1.5);
-  margin-left: calc(var(--spiral-size, 80px) / -2);
-  margin-top: calc(var(--spiral-size, 80px) * -0.75);
+  width: var(--spiral-size, 120px);
+  height: calc(var(--spiral-size, 120px) * 1.5);
+  margin-left: calc(var(--spiral-size, 120px) / -2);
+  margin-top: calc(var(--spiral-size, 120px) * -0.75);
   transform: rotate(var(--spiral-angle, 0deg))
-    translateX(var(--spiral-radius, 120px));
+    translateX(var(--spiral-radius, 160px));
 }
 
 .hero-spiral__upright {
@@ -278,14 +278,14 @@ textarea::placeholder {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  border-radius: 6px;
+  border-radius: 8px;
   box-shadow:
-    0 10px 28px rgba(0, 0, 0, 0.55),
-    0 0 0 1px rgba(197, 212, 206, 0.08);
+    0 14px 36px rgba(0, 0, 0, 0.65),
+    0 0 0 1px rgba(255, 255, 255, 0.14);
   transform-origin: center center;
   /* Counter wheel spin + gentle float */
   animation:
-    spiral-counter 96s linear infinite,
+    spiral-counter 72s linear infinite,
     spiral-float 5.5s ease-in-out infinite;
   animation-delay: 0s, var(--spiral-delay, 0s);
 }
@@ -295,16 +295,31 @@ textarea::placeholder {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  filter: brightness(1.05) saturate(1.08);
   animation: spiral-breathe 7s ease-in-out infinite;
   animation-delay: var(--spiral-delay, 0s);
 }
 
+/* Light veil: keep copy readable on the left, posters loud on the right */
 .hero-spiral__veil {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(90deg, var(--ink) 0%, rgba(11, 18, 16, 0.92) 34%, rgba(11, 18, 16, 0.35) 62%, rgba(11, 18, 16, 0.55) 100%),
-    linear-gradient(180deg, rgba(11, 18, 16, 0.7) 0%, transparent 28%, transparent 62%, var(--ink) 100%);
+    linear-gradient(
+      90deg,
+      rgba(11, 18, 16, 0.88) 0%,
+      rgba(11, 18, 16, 0.55) 28%,
+      rgba(11, 18, 16, 0.12) 52%,
+      rgba(11, 18, 16, 0.08) 78%,
+      rgba(11, 18, 16, 0.28) 100%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(11, 18, 16, 0.45) 0%,
+      transparent 22%,
+      transparent 68%,
+      rgba(11, 18, 16, 0.75) 100%
+    );
 }
 
 .hero-spiral--static .hero-spiral__wheel,
@@ -344,33 +359,43 @@ textarea::placeholder {
 @keyframes spiral-breathe {
   0%,
   100% {
-    filter: brightness(0.92);
+    filter: brightness(1.02) saturate(1.05);
   }
   50% {
-    filter: brightness(1.06);
+    filter: brightness(1.12) saturate(1.12);
   }
 }
 
 @media (max-width: 767px) {
   .hero-spiral__wheel {
-    left: 72%;
-    top: 38%;
-    width: min(640px, 165vw);
-    height: min(640px, 165vw);
+    left: 55%;
+    top: 42%;
+    width: min(820px, 195vw);
+    height: min(820px, 195vw);
   }
 
   .hero-spiral__arm {
-    /* Slightly smaller on phones so the wall still reads */
-    width: calc(var(--spiral-size, 80px) * 0.72);
-    height: calc(var(--spiral-size, 80px) * 1.08);
-    margin-left: calc(var(--spiral-size, 80px) * -0.36);
-    margin-top: calc(var(--spiral-size, 80px) * -0.54);
+    width: calc(var(--spiral-size, 120px) * 0.78);
+    height: calc(var(--spiral-size, 120px) * 1.17);
+    margin-left: calc(var(--spiral-size, 120px) * -0.39);
+    margin-top: calc(var(--spiral-size, 120px) * -0.585);
   }
 
   .hero-spiral__veil {
     background:
-      linear-gradient(180deg, rgba(11, 18, 16, 0.55) 0%, rgba(11, 18, 16, 0.2) 35%, rgba(11, 18, 16, 0.75) 78%, var(--ink) 100%),
-      linear-gradient(90deg, var(--ink) 0%, rgba(11, 18, 16, 0.7) 48%, rgba(11, 18, 16, 0.35) 100%);
+      linear-gradient(
+        180deg,
+        rgba(11, 18, 16, 0.35) 0%,
+        rgba(11, 18, 16, 0.08) 28%,
+        rgba(11, 18, 16, 0.35) 62%,
+        rgba(11, 18, 16, 0.88) 100%
+      ),
+      linear-gradient(
+        90deg,
+        rgba(11, 18, 16, 0.72) 0%,
+        rgba(11, 18, 16, 0.28) 42%,
+        rgba(11, 18, 16, 0.1) 100%
+      );
   }
 }
 
