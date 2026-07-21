@@ -1,8 +1,10 @@
 ﻿import Image from "next/image";
 import Link from "next/link";
+import { getServerSession } from "next-auth";
 import { SafePosterImage } from "@/components/SafePosterImage";
 import { CATALOG, backdropUrl } from "@/lib/movies";
 import { SiteFooter } from "@/components/SiteFooter";
+import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { funnelCounts } from "@/lib/server/analytics";
 
@@ -27,7 +29,11 @@ async function loadPulse() {
 }
 
 export default async function LandingPage() {
-  const pulse = await loadPulse();
+  const [pulse, session] = await Promise.all([
+    loadPulse(),
+    getServerSession(authOptions),
+  ]);
+  const signedIn = Boolean(session?.user?.id);
   const joins = pulse?.partyJoinsThisWeek ?? 0;
   const open = pulse?.openParties ?? 0;
   const pulseLine =
@@ -63,12 +69,29 @@ export default async function LandingPage() {
               >
                 Pricing
               </Link>
-              <Link
-                href="/discover"
-                className="rounded-lg border border-white/20 px-3 py-1.5 text-sm text-mist transition hover:border-teal/50 hover:text-teal-soft"
-              >
-                Open app
-              </Link>
+              {signedIn ? (
+                <Link
+                  href="/discover"
+                  className="rounded-lg border border-white/20 px-3 py-1.5 text-sm text-mist transition hover:border-teal/50 hover:text-teal-soft"
+                >
+                  Open app
+                </Link>
+              ) : (
+                <>
+                  <Link
+                    href="/auth/signin"
+                    className="rounded-lg border border-white/20 px-3 py-1.5 text-sm text-mist transition hover:border-teal/50 hover:text-teal-soft"
+                  >
+                    Sign in
+                  </Link>
+                  <Link
+                    href="/auth/signup"
+                    className="rounded-lg bg-teal px-3 py-1.5 text-sm font-semibold text-ink transition hover:bg-teal-soft"
+                  >
+                    Sign up
+                  </Link>
+                </>
+              )}
             </div>
           </div>
 
