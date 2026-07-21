@@ -593,8 +593,9 @@ export function PartySocialPanel({
             providers={movie.providers.filter(
               (p) => !p.kind || p.kind === "stream"
             )}
-            label="Open on service"
+            label="Watch on your services"
             mode="stream"
+            linkedServices={state.linkedServices}
           />
         </div>
       ) : null}

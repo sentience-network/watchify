@@ -128,3 +128,10 @@ export const STREAMING_HONEST_COPY =
 
 export const NO_CREDENTIAL_COPY =
   "Never share your streaming passwords with Watchify or friends. Linking a service only marks that you subscribe — it does not sign into Netflix (or any other streamer) and cannot open your paid library.";
+
+/** Settings + title-page honesty: what “Link” actually does. */
+export const LINK_ACCOUNTS_LEAD =
+  "Link the services you already pay for. Watchify remembers them for Discover matching and shows Watch on [service] deep links — you stay signed into Netflix (etc.) in your own browser or app, not inside Watchify.";
+
+export const LINK_ACCOUNTS_WHY =
+  "Major streamers do not offer public OAuth for third-party apps to play licensed video. Stay signed in on netflix.com / disneyplus.com in this browser, then Watchify opens the right title page when you tap Watch on…";

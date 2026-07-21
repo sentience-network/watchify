@@ -19,7 +19,7 @@ import type { Movie, MovieProvider } from "@/lib/types";
 function WatchInner() {
   const params = useParams<{ id: string }>();
   const search = useSearchParams();
-  const { setCurrentlyWatching, openParties } = useWatchify();
+  const { setCurrentlyWatching, openParties, state } = useWatchify();
   const [movie, setMovie] = useState<Movie | undefined>(() => getMovie(params.id));
   const [loadingTitle, setLoadingTitle] = useState(!getMovie(params.id));
   const partyId = search.get("party") || undefined;
@@ -273,10 +273,25 @@ function WatchInner() {
             {providers.length > 0 && (
               <ProviderDeepLinks
                 providers={providers}
-                label="Stream with your subscription"
+                label={
+                  state.linkedServices.length
+                    ? "Watch with your linked services (opens in a new tab)"
+                    : "Stream with your own subscription (opens in a new tab)"
+                }
                 mode="stream"
+                linkedServices={state.linkedServices}
               />
             )}
+            {state.linkedServices.length === 0 && providers.length > 0 ? (
+              <p className="text-[11px] leading-relaxed text-mist/60">
+                Tip:{" "}
+                <Link href="/settings" className="text-teal-soft hover:underline">
+                  Link the services you subscribe to
+                </Link>{" "}
+                so Watch on… is highlighted here. Stay signed into those apps in
+                this browser — Watchify cannot log you into Netflix/Disney+.
+              </p>
+            ) : null}
             {(rentList.length > 0 || buyList.length > 0) && (
               <div className="space-y-2 border-t border-line/60 pt-3">
                 {rentList.length > 0 && (

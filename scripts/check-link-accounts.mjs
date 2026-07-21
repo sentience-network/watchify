@@ -125,8 +125,13 @@ if (!un.ok || unJson.linkedServices?.includes(service)) {
 
 console.log("OK: streaming link/unlink persists via /api/me and /api/me/state");
 console.log(`  linked ${service} → verified → unlinked`);
+console.log(
+  "NOTE: Link Accounts = subscribe badges only (not Netflix OAuth). Real OAuth = Trakt history when TRAKT_* is set."
+);
 if (!config.traktConfigured) {
   console.log(
     "NOTE: Trakt Connect still blocked until Render has TRAKT_* + TOKEN_ENCRYPTION_SECRET"
   );
+} else {
+  console.log("NOTE: Trakt configured on this host — Connect works after Watchify sign-in.");
 }

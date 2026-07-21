@@ -9,10 +9,13 @@ import { ShareFromServicePanel } from "@/components/ShareFromServicePanel";
 import { getPlan } from "@/lib/plans";
 import { validateSocialUrl } from "@/lib/share";
 import {
+  LINK_ACCOUNTS_LEAD,
+  LINK_ACCOUNTS_WHY,
   NO_CREDENTIAL_COPY,
   STREAMING_HONEST_COPY,
   STREAMING_SERVICES,
 } from "@/lib/streaming";
+import { rememberOpenedService } from "@/lib/service-prefs";
 import { useWatchify } from "@/lib/store";
 import { getUser } from "@/lib/users";
 import {
@@ -228,9 +231,9 @@ export default function SettingsPage() {
         </section>
 
         <section className="mb-8 rounded-2xl border border-line bg-panel/50 p-5" aria-labelledby="trakt-heading">
-          <h2 id="trakt-heading" className="font-display text-lg font-semibold text-white">Trakt history</h2>
+          <h2 id="trakt-heading" className="font-display text-lg font-semibold text-white">Trakt history (real OAuth)</h2>
           <p className="mt-1 text-xs leading-relaxed text-mist/75">
-            Optional OAuth import of recent Trakt history. Trakt does not provide reliable live playback presence, so manual “Share what I’m watching” remains the live-presence path.
+            Optional OAuth import of recent Trakt history — the only streamer-adjacent sign-in Watchify supports. Trakt does not unlock Netflix/Disney playback and does not provide reliable live presence, so manual “Share what I’m watching” remains the live path.
           </p>
           {!session?.user ? (
             <p className="mt-3 text-sm text-mist"><Link href="/auth/signin" className="text-teal-soft">Sign in</Link> to connect Trakt.</p>
@@ -428,10 +431,10 @@ export default function SettingsPage() {
             Linked streaming services
           </h2>
           <p className="mt-1 text-xs leading-relaxed text-mist/80">
-            Mark the platforms you subscribe to. Watchify saves them on your
-            profile for Discover filters, friend matching, and watching badges —
-            this is not a Netflix/Disney login. We never ask for streaming
-            passwords.
+            {LINK_ACCOUNTS_LEAD}
+          </p>
+          <p className="mt-2 text-[11px] leading-relaxed text-mist/55">
+            {LINK_ACCOUNTS_WHY}
           </p>
           {!session?.user ? (
             <p className="mt-4 text-sm text-mist">
@@ -452,53 +455,68 @@ export default function SettingsPage() {
                 {STREAMING_SERVICES.map((s) => {
                   const linked = state.linkedServices.includes(s.id);
                   return (
-                    <button
+                    <div
                       key={s.id}
-                      type="button"
-                      disabled={linkBusy === s.id}
-                      onClick={async () => {
-                        setMsg("");
-                        setLinkBusy(s.id);
-                        try {
-                          if (linked) {
-                            const result = await unlinkStreamingService(s.id);
+                      className={`rounded-xl border px-3 py-3 transition ${
+                        linked
+                          ? "border-teal/40 bg-teal/10 text-white"
+                          : "border-line bg-ink/40 text-mist"
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        disabled={linkBusy === s.id}
+                        onClick={async () => {
+                          setMsg("");
+                          setLinkBusy(s.id);
+                          try {
+                            if (linked) {
+                              const result = await unlinkStreamingService(s.id);
+                              if (!result.ok) {
+                                setMsg(result.error);
+                                return;
+                              }
+                              setMsg(`Removed ${s.name} from your linked services.`);
+                              return;
+                            }
+                            const result = await linkStreamingService(s.id);
                             if (!result.ok) {
                               setMsg(result.error);
                               return;
                             }
-                            setMsg(`Removed ${s.name} from your linked services.`);
-                            return;
+                            setMsg(
+                              `Linked ${s.name}. Title pages will highlight Watch on ${s.name} when that service has the film — stay signed in on ${s.name} in this browser.`
+                            );
+                          } finally {
+                            setLinkBusy(null);
                           }
-                          const result = await linkStreamingService(s.id);
-                          if (!result.ok) {
-                            setMsg(result.error);
-                            return;
-                          }
-                          setMsg(
-                            `Linked ${s.name} to your Watchify profile. Discover will prefer titles on this service.`
-                          );
-                        } finally {
-                          setLinkBusy(null);
-                        }
-                      }}
-                      className={`flex items-center justify-between rounded-xl border px-3 py-3 text-left text-sm transition disabled:opacity-60 ${
-                        linked
-                          ? "border-teal/40 bg-teal/10 text-white"
-                          : "border-line bg-ink/40 text-mist hover:border-teal/30"
-                      }`}
-                    >
-                      <span className="flex items-center gap-2">
-                        <ServiceBadge serviceId={s.id} size="md" />
-                        {s.name}
-                      </span>
-                      <span className="text-xs">
-                        {linkBusy === s.id
-                          ? "Saving…"
-                          : linked
-                            ? "Linked"
-                            : "Link"}
-                      </span>
-                    </button>
+                        }}
+                        className="flex w-full items-center justify-between text-left text-sm transition disabled:opacity-60"
+                      >
+                        <span className="flex items-center gap-2">
+                          <ServiceBadge serviceId={s.id} size="md" />
+                          {s.name}
+                        </span>
+                        <span className="text-xs">
+                          {linkBusy === s.id
+                            ? "Saving…"
+                            : linked
+                              ? "Linked"
+                              : "I subscribe"}
+                        </span>
+                      </button>
+                      {linked ? (
+                        <a
+                          href={s.homeUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={() => rememberOpenedService(s.id)}
+                          className="mt-2 inline-flex text-[11px] font-medium text-teal-soft hover:underline"
+                        >
+                          Open {s.name} to stay signed in →
+                        </a>
+                      ) : null}
+                    </div>
                   );
                 })}
               </div>
