@@ -4,6 +4,7 @@ import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
 import { FormEvent, useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { PartyTrialStatus } from "@/components/PartyTrialStatus";
 import { ServiceBadge } from "@/components/ServiceBadge";
 import { ShareFromServicePanel } from "@/components/ShareFromServicePanel";
 import { getPlan } from "@/lib/plans";
@@ -296,6 +297,13 @@ export default function SettingsPage() {
             Current plan:{" "}
             <span className="font-semibold text-teal-soft">{plan.name}</span>
           </p>
+          <PartyTrialStatus
+            className="mt-2"
+            plan={state.plan}
+            partyTrialEndsAt={state.partyTrialEndsAt}
+            freeHostsRemaining={state.freeHostsRemaining}
+            stripeSubscriptionId={state.stripeSubscriptionId}
+          />
           {state.stripeCustomerId && (
             <p className="mt-1 text-xs text-mist/60">
               Stripe customer: {state.stripeCustomerId}

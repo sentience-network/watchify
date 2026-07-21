@@ -45,6 +45,11 @@ model User {
   /// JSON FavoritePerson[] — actors/directors for taste + profile (max 8)
   favoritePeopleJson       String    @default("[]")
   plan                     String    @default("free")
+  /// When set and in the future, user is on a complimentary Party trial (plan=party).
+  /// Null = no trial (seeded comps, Stripe subs). Past date = trial ended (kept for history).
+  partyTrialEndsAt         DateTime?
+  /// Lifetime free host credits for Free plan (consumed when creating a party without Party).
+  freeHostsRemaining       Int       @default(1)
   stripeCustomerId         String?
   stripeSubscriptionId     String?
   /// user | mod | admin

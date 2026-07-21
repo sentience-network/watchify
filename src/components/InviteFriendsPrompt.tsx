@@ -6,7 +6,7 @@ import { ShareMenu } from "@/components/ShareMenu";
 
 /**
  * After joining/creating a party, push the viral loop: invite two friends.
- * Only shows when `active` — caller passes the exact party just joined/created.
+ * External share is primary (cold graph); in-app friends are secondary.
  */
 export function InviteFriendsPrompt({
   inviteUrl,
@@ -61,16 +61,10 @@ export function InviteFriendsPrompt({
         Invite 2 friends
       </p>
       <p className="mt-1 text-xs text-mist/80">
-        Share the preview link — they see the party first, then sign in to join.{" "}
-        {movieTitle} is better with people.
+        Share the preview link first — they see the party, then sign in to join.
+        Works even if they&apos;re not on Watchify yet. {movieTitle} is better
+        with people.
       </p>
-      <div className="mt-3">
-        <InviteFriendsInApp
-          inviteUrl={inviteUrl}
-          partyName={partyName}
-          movieTitle={movieTitle}
-        />
-      </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <ShareMenu
           url={inviteUrl}
@@ -85,6 +79,16 @@ export function InviteFriendsPrompt({
         >
           Later
         </button>
+      </div>
+      <div className="mt-3 border-t border-line/50 pt-3">
+        <p className="mb-2 text-[11px] text-mist/60">
+          Already on Watchify? Message them in-app:
+        </p>
+        <InviteFriendsInApp
+          inviteUrl={inviteUrl}
+          partyName={partyName}
+          movieTitle={movieTitle}
+        />
       </div>
     </div>
   );

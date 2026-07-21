@@ -4,8 +4,10 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { PartyTrialStatus } from "@/components/PartyTrialStatus";
 import { PLANS, type PlanId } from "@/lib/plans";
 import { useWatchify } from "@/lib/store";
+import { formatPartyTrialLabel } from "@/lib/party-trial";
 
 type Config = {
   stripeReady: boolean;
@@ -88,10 +90,19 @@ export default function PricingPage() {
             Host the night. Grow the graph.
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-mist/80">
-            Free forever for joining friends. Party unlocks unlimited live rooms —
-            the monetization of social leadership. Cancel anytime via Stripe when
-            configured.
+            New accounts get <strong className="text-white">30 days of Party free</strong>.
+            Free forever for joining friends — plus one free hosted party after
+            trial. Party unlocks unlimited live rooms. Cancel anytime via Stripe
+            when configured.
           </p>
+          <div className="mt-3">
+            <PartyTrialStatus
+              plan={state.plan}
+              partyTrialEndsAt={state.partyTrialEndsAt}
+              freeHostsRemaining={state.freeHostsRemaining}
+              stripeSubscriptionId={state.stripeSubscriptionId}
+            />
+          </div>
         </header>
 
         {config?.demoCheckout && (
@@ -120,6 +131,10 @@ export default function PricingPage() {
         <div className="grid gap-4 md:grid-cols-3">
           {PLANS.map((plan) => {
             const current = state.plan === plan.id;
+            const trialLabel =
+              plan.id === "party" && current
+                ? formatPartyTrialLabel(state.partyTrialEndsAt)
+                : null;
             return (
               <article
                 key={plan.id}
@@ -138,6 +153,11 @@ export default function PricingPage() {
                     : `$${plan.priceMonthly.toFixed(2)}`}
                   <span className="text-sm font-normal text-mist/70">/mo</span>
                 </p>
+                {trialLabel && (
+                  <p className="mt-2 text-xs font-medium text-teal-soft">
+                    {trialLabel}
+                  </p>
+                )}
                 <p className="mt-2 text-sm text-mist">{plan.blurb}</p>
                 <ul className="mt-4 space-y-2 text-sm text-mist/90">
                   {plan.features.map((f) => (

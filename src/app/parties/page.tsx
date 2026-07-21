@@ -351,13 +351,22 @@ function PartiesInner() {
               </div>
               {!canHostParties && (
                 <p className="mt-2 text-sm text-amber-soft">
-                  Hosting needs the Party plan.{" "}
+                  Hosting needs the Party plan (or a free host credit).{" "}
                   <Link href="/pricing" className="underline">
                     Upgrade
                   </Link>{" "}
-                  — you can still jump into open rooms below.
+                  — you can still jump into open rooms below. New accounts get a
+                  30-day Party trial.
                 </p>
               )}
+              {canHostParties &&
+                state.plan !== "party" &&
+                (state.freeHostsRemaining ?? 0) > 0 && (
+                  <p className="mt-2 text-sm text-teal-soft">
+                    Free host credit: {state.freeHostsRemaining} party left
+                    without upgrading.
+                  </p>
+                )}
               {(createExpanded || movieId) && (
               <form onSubmit={handleCreate} className="mt-4 space-y-3">
                 <div>

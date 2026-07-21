@@ -266,6 +266,10 @@ export type AppState = {
   partyPlaybackSync: PartyPlaybackSync[];
   /** Local plan mirror — maps to Stripe customer/subscription when configured */
   plan: PlanId;
+  /** ISO — complimentary Party trial end; null if none / paid / seeded comp */
+  partyTrialEndsAt: string | null;
+  /** Free-plan lifetime host credits remaining */
+  freeHostsRemaining: number;
   stripeCustomerId: string | null;
   stripeSubscriptionId: string | null;
   socialLinks: SocialLinks;

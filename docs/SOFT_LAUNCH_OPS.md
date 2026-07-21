@@ -95,6 +95,25 @@ Trakt developer OAuth apps are **free**. VIP is not required. Watchify uses Trak
 
 Do **not** commit secrets. Local redirect URI values (non-secret) may already be in `.env*`.
 
+## Party trial (new signups)
+
+New credential + OAuth signups get **`plan=party`** for **30 days** (`partyTrialEndsAt`).
+Expiry is applied on auth / `/api/me` / hydrate reads (no cron). Stripe subscriptions clear the trial.
+Seeded tester comps keep `partyTrialEndsAt = null` and are never auto-downgraded.
+After trial, Free users keep **`freeHostsRemaining`** (default 1) for one lifetime host.
+
+## Amazon Associates (optional, free)
+
+Rent/Buy and Prime Video deep links call `withAmazonAffiliate()` when a tag is set.
+Sign up at https://affiliate-program.amazon.com/ (free), then set on **watchify-web**:
+
+| Variable | Purpose |
+|----------|---------|
+| `AMAZON_AFFILIATE_TAG` | Associates tracking tag (server) |
+| `NEXT_PUBLIC_AMAZON_AFFILIATE_TAG` | Optional client-side fallback |
+
+Do **not** invent a fake tag. Links work without it — they just won't attribute.
+
 ## Related docs
 
 - [SOFT_LAUNCH.md](./SOFT_LAUNCH.md) — product soft-launch checklist  

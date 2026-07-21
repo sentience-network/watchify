@@ -3,6 +3,8 @@ import { prisma } from "../db";
 import type { PlanId } from "../plans";
 import { sanitizeEmail, sanitizeHandle, sanitizeText } from "../sanitize";
 import type { UserRole } from "../roles";
+import { partyTrialEndsAtFromNow } from "../party-trial";
+import { syncUserPlanEntitlements } from "./plan-entitlements";
 
 export type AuthUserRecord = {
   id: string;
@@ -18,6 +20,8 @@ export type AuthUserRecord = {
   warnedAt: string | null;
   stripeCustomerId?: string | null;
   stripeSubscriptionId?: string | null;
+  partyTrialEndsAt: string | null;
+  freeHostsRemaining: number;
   createdAt: string;
 };
 
@@ -35,6 +39,8 @@ function toAuthUser(row: {
   warnedAt: Date | null;
   stripeCustomerId: string | null;
   stripeSubscriptionId: string | null;
+  partyTrialEndsAt: Date | null;
+  freeHostsRemaining: number;
   createdAt: Date;
 }): AuthUserRecord {
   return {
@@ -51,23 +57,46 @@ function toAuthUser(row: {
     warnedAt: row.warnedAt?.toISOString() ?? null,
     stripeCustomerId: row.stripeCustomerId,
     stripeSubscriptionId: row.stripeSubscriptionId,
+    partyTrialEndsAt: row.partyTrialEndsAt?.toISOString() ?? null,
+    freeHostsRemaining: row.freeHostsRemaining ?? 0,
     createdAt: row.createdAt.toISOString(),
   };
+}
+
+async function loadAuthUser(idOrEmail: {
+  id?: string;
+  email?: string;
+}): Promise<AuthUserRecord | null> {
+  const row = idOrEmail.id
+    ? await prisma.user.findUnique({ where: { id: idOrEmail.id } })
+    : idOrEmail.email
+      ? await prisma.user.findUnique({ where: { email: idOrEmail.email } })
+      : null;
+  if (!row) return null;
+  await syncUserPlanEntitlements(row.id);
+  const fresh = await prisma.user.findUnique({ where: { id: row.id } });
+  return fresh ? toAuthUser(fresh) : null;
 }
 
 export async function findUserByEmail(
   email: string
 ): Promise<AuthUserRecord | null> {
-  const key = sanitizeEmail(email);
-  const row = await prisma.user.findUnique({ where: { email: key } });
-  return row ? toAuthUser(row) : null;
+  return loadAuthUser({ email: sanitizeEmail(email) });
 }
 
 export async function findUserById(
   id: string
 ): Promise<AuthUserRecord | null> {
-  const row = await prisma.user.findUnique({ where: { id } });
-  return row ? toAuthUser(row) : null;
+  return loadAuthUser({ id });
+}
+
+/** New credential / OAuth signups get 30 days of Party. */
+function newSignupTrialFields() {
+  return {
+    plan: "party" as const,
+    partyTrialEndsAt: partyTrialEndsAtFromNow(),
+    freeHostsRemaining: 1,
+  };
 }
 
 export async function createUser(input: {
@@ -97,6 +126,7 @@ export async function createUser(input: {
     return { error: "That handle is taken." };
   }
   const id = `u_${Math.random().toString(36).slice(2, 10)}`;
+  const trial = newSignupTrialFields();
   const row = await prisma.user.create({
     data: {
       id,
@@ -105,7 +135,9 @@ export async function createUser(input: {
       handle,
       passwordHash: await hash(input.password, 10),
       ageVerified: true,
-      plan: "free",
+      plan: trial.plan,
+      partyTrialEndsAt: trial.partyTrialEndsAt,
+      freeHostsRemaining: trial.freeHostsRemaining,
       role: "user",
       emailVerifiedAt: null,
       linkedServicesJson: "[]",
@@ -130,6 +162,7 @@ export async function upsertOAuthUser(input: {
     if (existing.bannedAt) {
       return { error: "This account has been suspended." };
     }
+    await syncUserPlanEntitlements(existing.id);
     if (!existing.emailVerifiedAt) {
       const updated = await prisma.user.update({
         where: { id: existing.id },
@@ -137,7 +170,8 @@ export async function upsertOAuthUser(input: {
       });
       return toAuthUser(updated);
     }
-    return toAuthUser(existing);
+    const fresh = await prisma.user.findUnique({ where: { id: existing.id } });
+    return fresh ? toAuthUser(fresh) : toAuthUser(existing);
   }
   const baseHandle = sanitizeHandle(email.split("@")[0] || "viewer") || "viewer";
   let handle = baseHandle;
@@ -146,6 +180,7 @@ export async function upsertOAuthUser(input: {
     n += 1;
     handle = `${baseHandle}${n}`;
   }
+  const trial = newSignupTrialFields();
   const row = await prisma.user.create({
     data: {
       id: `u_${Math.random().toString(36).slice(2, 10)}`,
@@ -154,7 +189,9 @@ export async function upsertOAuthUser(input: {
       handle,
       passwordHash: null,
       ageVerified: true,
-      plan: "free",
+      plan: trial.plan,
+      partyTrialEndsAt: trial.partyTrialEndsAt,
+      freeHostsRemaining: trial.freeHostsRemaining,
       role: "user",
       emailVerifiedAt: new Date(),
       avatarHue: Math.floor(Math.random() * 360),
@@ -176,6 +213,15 @@ export async function updateUserPlan(
   plan: PlanId,
   stripe?: { customerId?: string; subscriptionId?: string | null }
 ): Promise<void> {
+  const trialPatch =
+    stripe?.subscriptionId
+      ? { partyTrialEndsAt: null as Date | null } // paid sub replaces trial
+      : plan === "free"
+        ? { partyTrialEndsAt: new Date() } // end complimentary trial so sync won't re-upgrade
+        : plan === "party"
+          ? { partyTrialEndsAt: null as Date | null } // local/comp Party (testers / dev grant)
+          : {};
+
   await prisma.user.update({
     where: { id: userId },
     data: {
@@ -186,6 +232,7 @@ export async function updateUserPlan(
       ...(stripe?.subscriptionId !== undefined
         ? { stripeSubscriptionId: stripe.subscriptionId }
         : {}),
+      ...trialPatch,
     },
   });
 }
@@ -209,5 +256,7 @@ export function publicUser(user: AuthUserRecord) {
     plan: user.plan,
     role: user.role,
     emailVerified: Boolean(user.emailVerifiedAt),
+    partyTrialEndsAt: user.partyTrialEndsAt,
+    freeHostsRemaining: user.freeHostsRemaining,
   };
 }

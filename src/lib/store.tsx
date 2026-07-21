@@ -420,7 +420,8 @@ export function WatchifyProvider({ children }: { children: ReactNode }) {
   }, [state, ready]);
 
   const planDef = useMemo(() => getPlan(state.plan), [state.plan]);
-  const canHostParties = planDef.limits.canHostParties;
+  const canHostParties =
+    planDef.limits.canHostParties || (state.freeHostsRemaining ?? 0) > 0;
   const watchlistLimit = planDef.limits.maxWatchlists;
   const linkedServiceLimit = planDef.limits.maxLinkedServices;
 

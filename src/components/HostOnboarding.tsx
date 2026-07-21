@@ -14,10 +14,15 @@ export function HostOnboarding() {
   const { data: session } = useSession();
   const { canHostParties, openParties, currentUserId, state } = useWatchify();
   const [open, setOpen] = useState(false);
+  const [fromTrialSignup, setFromTrialSignup] = useState(false);
 
   useEffect(() => {
     if (!session?.user) return;
     try {
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("trial") === "1") setFromTrialSignup(true);
+      }
       if (localStorage.getItem(KEY)) return;
       setOpen(true);
     } catch {
@@ -29,6 +34,10 @@ export function HostOnboarding() {
 
   const hosted = openParties.some((p) => p.hostId === currentUserId);
   const watching = Boolean(state.currentlyWatchingId);
+  const onTrial =
+    state.plan === "party" &&
+    Boolean(state.partyTrialEndsAt) &&
+    !state.stripeSubscriptionId;
 
   const steps = canHostParties
     ? [
@@ -50,12 +59,16 @@ export function HostOnboarding() {
           done: hosted,
           label: hosted
             ? "You’ve hosted a live party"
-            : "Host a Watchify Free party",
+            : onTrial
+              ? "Host a party (Party trial unlocked)"
+              : state.plan === "party"
+                ? "Host a Watchify Free party"
+                : "Host your free party credit",
           href: "/parties",
         },
         {
           done: false,
-          label: "Invite a friend with the party link (2nd device)",
+          label: "Invite 2 friends with the share link",
           href: "/parties",
         },
       ]
@@ -69,7 +82,7 @@ export function HostOnboarding() {
         },
         {
           done: Boolean(canHostParties),
-          label: "Activate Party plan to host rooms",
+          label: "Upgrade to Party to host more rooms",
           href: "/pricing",
         },
         {
@@ -101,15 +114,19 @@ export function HostOnboarding() {
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-teal">
-            Your first night
+            {fromTrialSignup || onTrial
+              ? "Party trial active"
+              : "Your first night"}
           </p>
           <p className="mt-1 font-display text-lg font-semibold text-white">
             Free → Share → Party → Invite
           </p>
           <p className="mt-1 text-xs text-mist/80">
-            {canHostParties
-              ? "Party plan is ready. Run this once on two devices — that’s the whole product."
-              : "Start free, then unlock hosting when you’re ready for a room."}
+            {onTrial
+              ? "You have 30 days of Party free — host rooms, face video, and Party cosmetics. Run this once on two devices."
+              : canHostParties
+                ? "Hosting is unlocked. Run this once on two devices — that’s the whole product."
+                : "Start free, then unlock hosting when you’re ready for a room."}
           </p>
         </div>
         <button

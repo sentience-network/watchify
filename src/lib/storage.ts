@@ -23,6 +23,8 @@ export function defaultState(): AppState {
     partyReactions: [],
     partyPlaybackSync: [],
     plan: "free",
+    partyTrialEndsAt: null,
+    freeHostsRemaining: 1,
     stripeCustomerId: null,
     stripeSubscriptionId: null,
     socialLinks: { ...EMPTY_SOCIAL_LINKS },

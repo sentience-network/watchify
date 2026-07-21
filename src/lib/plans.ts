@@ -32,6 +32,7 @@ export const PLANS: PlanDefinition[] = [
       "Link up to 2 streaming services",
       "Public watching + basic sharing",
       "Join unlimited watch parties",
+      "1 free hosted party (lifetime)",
       "Friends feed & taste graph",
     ],
     limits: {

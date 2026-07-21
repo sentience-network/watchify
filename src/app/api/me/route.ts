@@ -54,6 +54,8 @@ export async function GET() {
     plan: user.plan,
     role: user.role,
     emailVerified: Boolean(user.emailVerifiedAt),
+    partyTrialEndsAt: user.partyTrialEndsAt,
+    freeHostsRemaining: user.freeHostsRemaining,
     stripeCustomerId: user.stripeCustomerId ?? null,
     stripeSubscriptionId: user.stripeSubscriptionId ?? null,
     ageConfirmed: user.ageConfirmed,
@@ -202,6 +204,8 @@ export async function PATCH(req: Request) {
   return NextResponse.json({
     ok: true,
     plan: user?.plan,
+    partyTrialEndsAt: user?.partyTrialEndsAt ?? null,
+    freeHostsRemaining: user?.freeHostsRemaining ?? 0,
     linkedServices,
   });
 }

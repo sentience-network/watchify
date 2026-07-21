@@ -1,6 +1,10 @@
 import { prisma } from "../db";
 import type { PlanId } from "../plans";
 import { getPlan } from "../plans";
+import {
+  effectiveCanHostParties,
+  syncUserPlanEntitlements,
+} from "./plan-entitlements";
 import { sanitizeText } from "../sanitize";
 import type { StreamingServiceId } from "../streaming";
 import { isStreamingServiceId } from "../streaming";
@@ -241,6 +245,7 @@ function mapParty(row: {
 
 /** Full AppState hydrate for an authenticated user (server is source of truth). */
 export async function loadAppStateForUser(userId: string): Promise<AppState | null> {
+  await syncUserPlanEntitlements(userId);
   const me = await prisma.user.findUnique({ where: { id: userId } });
   if (!me) return null;
 
@@ -372,6 +377,8 @@ export async function loadAppStateForUser(userId: string): Promise<AppState | nu
     ),
     partyPlaybackSync,
     plan: (me.plan as PlanId) || "free",
+    partyTrialEndsAt: me.partyTrialEndsAt?.toISOString() ?? null,
+    freeHostsRemaining: me.freeHostsRemaining ?? 0,
     stripeCustomerId: me.stripeCustomerId,
     stripeSubscriptionId: me.stripeSubscriptionId,
     socialLinks: {
@@ -928,11 +935,20 @@ export async function createPartyDb(
     recurringWeekly?: boolean;
   }
 ): Promise<{ ok: true; value: WatchParty } | { ok: false; error: string }> {
+  await syncUserPlanEntitlements(userId);
   const me = await prisma.user.findUnique({ where: { id: userId } });
   if (!me) return { ok: false, error: "User not found" };
-  if (!getPlan(me.plan as PlanId).limits.canHostParties) {
-    return { ok: false, error: "Hosting watch parties requires the Party plan." };
+  const planId = (me.plan as PlanId) || "free";
+  const freeHosts = me.freeHostsRemaining ?? 0;
+  const onPartyPlan = getPlan(planId).limits.canHostParties;
+  if (!effectiveCanHostParties({ plan: planId, freeHostsRemaining: freeHosts })) {
+    return {
+      ok: false,
+      error:
+        "Hosting watch parties requires the Party plan (or your one free host credit).",
+    };
   }
+  const consumeFreeHost = !onPartyPlan && freeHosts > 0;
   const syncMode = input.syncMode || "own_account";
   const partyId = uid("wp");
   const row = await prisma.party.create({
@@ -969,6 +985,12 @@ export async function createPartyDb(
       progressPercent: 0,
     });
   }
+  if (consumeFreeHost) {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { freeHostsRemaining: Math.max(0, freeHosts - 1) },
+    });
+  }
   await pushActivity(userId, {
     type: "party_created",
     movieId: input.movieId,
@@ -982,7 +1004,7 @@ export async function createPartyDb(
 export async function goLivePartyDb(userId: string, partyId: string) {
   const party = await prisma.party.findUnique({
     where: { id: partyId },
-    include: { members: true },
+    include: { members: true, host: { select: { name: true } } },
   });
   if (!party || party.status !== "open") return { error: "Party not open" };
   const coHosts = parseJson<string[]>(party.coHostIdsJson, []);
@@ -994,7 +1016,62 @@ export async function goLivePartyDb(userId: string, partyId: string) {
     data: { isLive: true, startsAt: null },
     include: { members: true },
   });
+
+  // Low-risk: email members when Resend/SMTP is configured (no cron needed).
+  void notifyPartyMembersGoLive({
+    partyId: row.id,
+    partyName: row.name,
+    movieId: row.movieId,
+    hostName: party.host.name,
+    inviteCode: row.inviteCode || row.id,
+    memberIds: row.members.map((m) => m.userId),
+    hostId: row.hostId,
+  });
+
   return { ok: true as const, party: mapParty(row) };
+}
+
+async function notifyPartyMembersGoLive(input: {
+  partyId: string;
+  partyName: string;
+  movieId: string;
+  hostName: string;
+  inviteCode: string;
+  memberIds: string[];
+  hostId: string;
+}) {
+  try {
+    const { productEmailEnabled, partyLiveEmailContent, sendEmail } =
+      await import("../email");
+    if (!productEmailEnabled()) return;
+    const { getMovie } = await import("../movies");
+    const { absoluteUrl } = await import("../site");
+    const movie = getMovie(input.movieId);
+    const content = partyLiveEmailContent({
+      partyName: input.partyName,
+      movieTitle: movie?.title || "a title",
+      hostName: input.hostName,
+      inviteUrl: absoluteUrl(`/share/party/${input.inviteCode}`),
+    });
+    const recipients = await prisma.user.findMany({
+      where: {
+        id: { in: input.memberIds.filter((id) => id !== input.hostId) },
+        bannedAt: null,
+      },
+      select: { email: true },
+    });
+    for (const r of recipients) {
+      if (!r.email) continue;
+      await sendEmail({
+        to: r.email,
+        subject: content.subject,
+        text: content.text,
+        html: content.html,
+      });
+    }
+  } catch (err) {
+    console.error("[watchify] party live email failed", err);
+  }
 }
 
 /**

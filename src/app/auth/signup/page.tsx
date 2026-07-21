@@ -55,11 +55,13 @@ export default function SignUpPage() {
       router.push(`/auth/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`);
       return;
     }
-    track("signup_completed", { newUser: true });
+    track("signup_completed", { newUser: true, partyTrial: true });
     const next =
       callbackUrl === "/discover"
-        ? "/discover?onboard=1"
-        : callbackUrl;
+        ? "/discover?onboard=1&trial=1"
+        : callbackUrl.includes("?")
+          ? `${callbackUrl}&trial=1`
+          : `${callbackUrl}?trial=1`;
     router.push(next);
   }
 
@@ -71,7 +73,9 @@ export default function SignUpPage() {
           Create account
         </h1>
         <p className="mt-2 text-sm text-mist/80">
-          Join to save queues, report issues, and manage billing securely.
+          Includes <strong className="text-teal-soft">30 days of Party</strong>{" "}
+          free — host live rooms, face video, and Party cosmetics. Then Free
+          (with one free host credit) unless you upgrade.
         </p>
         <form onSubmit={onSubmit} className="mt-6 space-y-3">
           <input

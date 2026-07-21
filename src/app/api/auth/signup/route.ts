@@ -56,6 +56,8 @@ export async function POST(req: Request) {
 
   return NextResponse.json({
     user: publicUser(result),
+    partyTrialEndsAt: result.partyTrialEndsAt,
+    partyTrialDays: 30,
     verificationSent: verify.ok,
     // Only present when email falls back to console (local soft launch)
     verificationPreviewUrl:

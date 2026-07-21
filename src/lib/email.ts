@@ -165,3 +165,23 @@ export function passwordResetEmailContent(token: string) {
     url,
   };
 }
+
+/** Party going live — only used when Resend/SMTP is configured (skips ethereal/console). */
+export function partyLiveEmailContent(input: {
+  partyName: string;
+  movieTitle: string;
+  hostName: string;
+  inviteUrl: string;
+}) {
+  return {
+    subject: `${input.hostName} started “${input.partyName}” on Watchify`,
+    text: `${input.hostName} just went live for ${input.movieTitle}.\n\nJoin: ${input.inviteUrl}\n`,
+    html: `<p><strong>${input.hostName}</strong> started <em>${input.partyName}</em> (${input.movieTitle}).</p><p><a href="${input.inviteUrl}">Join the party</a></p>`,
+  };
+}
+
+/** True when we should send product emails (not local console/ethereal spam). */
+export function productEmailEnabled(): boolean {
+  const t = getEmailTransport();
+  return t === "resend" || t === "smtp";
+}

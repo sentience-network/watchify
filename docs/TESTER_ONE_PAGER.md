@@ -10,7 +10,7 @@ Logins for the Party tester cohort live in the gitignored file `friend-tester-lo
 1. **Cold start** — Free Render may sleep. First open / sign-in can take **~30–60 seconds**. Wait, refresh once, try again. Wrong-password messages after a hang are often wake delays.
 2. **No Netflix (etc.) exact stream** — Watchify does **not** play Netflix/Max/Disney+ video. Parties for those services = chat + presence + “open on your app” + scrub helper. Each person uses their **own** streaming login.
 3. **TMDB ≠ streams** — Catalog metadata/posters come from TMDB. That does **not** mean Watchify hosts the movie.
-4. **Party plan to host** — Hosting live rooms needs the Party plan. Soft-launch **tester01–tester20** accounts already have Party. Free users can **join**, follow friends, and use Watchify Free titles.
+4. **Party plan to host** — Hosting live rooms needs the Party plan (or your one free host credit). Soft-launch **tester01–tester20** already have permanent Party. **New signups** get a **30-day Party trial** automatically. Free users can **join**, follow friends, and use Watchify Free titles.
 5. **Watchify Free = real sync** — Public-domain / allowed free titles can actually play/pause/seek together in-app.
 6. **Instagram = share, not login** — Share menus copy a link for Stories/DMs. Instagram is not an account login for Watchify (unless Meta OAuth is enabled later).
 
