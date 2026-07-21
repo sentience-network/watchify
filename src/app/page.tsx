@@ -91,12 +91,16 @@ export default async function LandingPage() {
               Watch<span className="text-teal">ify</span>
             </p>
             <h1 className="mt-4 font-display text-2xl font-semibold leading-snug tracking-tight text-white/95 md:text-3xl">
-              Watch together across every screen.
+              Social watch parties + shared taste — on the apps you already
+              stream.
             </h1>
             <p className="mt-4 max-w-md text-base leading-relaxed text-mist md:text-lg">
-              Presence, parties, and shared taste across Netflix, Max, Disney+,
-              and Watchify Free — friends follow for free; each person keeps
-              their own login.
+              Sync playheads with friends, share presence, and get picks from
+              favorites. Everyone watches on their own Netflix, Max, or Disney+
+              — Watchify is the social layer, not another streamer.
+            </p>
+            <p className="mt-3 max-w-md text-sm leading-relaxed text-teal-soft/90">
+              Discord has voice. Watchify has playheads + taste across services.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               {signedIn ? (
@@ -135,7 +139,7 @@ export default async function LandingPage() {
                     href="/auth/signup"
                     className="relative z-20 rounded-xl bg-teal px-5 py-3 text-sm font-semibold text-ink transition hover:bg-teal-soft animate-party-pulse"
                   >
-                    Sign up
+                    Start free — 30 days Party
                   </Link>
                   <Link
                     href="/auth/signin"
@@ -143,17 +147,12 @@ export default async function LandingPage() {
                   >
                     Sign in
                   </Link>
-                  <Link
-                    href="/discover"
-                    className="relative z-20 rounded-xl border border-line bg-white/5 px-5 py-3 text-sm font-semibold text-mist transition hover:border-white/30 hover:text-white"
-                  >
-                    See who&apos;s watching
-                  </Link>
                 </>
               )}
             </div>
             <p className="mt-6 text-xs text-mist/55">
-              {pulseLine} · No password sharing · Legal sync only
+              {pulseLine} · Own-account sync · No licensed Netflix playback
+              in-app
             </p>
             <p className="mt-2 max-w-md text-[11px] leading-relaxed text-mist/45">
               Soft launch tip: the free Render host may sleep — first load can
@@ -168,15 +167,15 @@ export default async function LandingPage() {
           {[
             {
               t: "Presence",
-              d: "See friends watching live — jump into chat without needing their streaming plan.",
+              d: "See who's watching what — jump into chat without needing their streaming plan.",
             },
             {
               t: "Parties",
-              d: "Own-account sync for paid apps. Real shared playback for Watchify Free titles.",
+              d: "Synced playheads + deep links for paid apps you already subscribe to. Real shared playback only for Watchify Free titles.",
             },
             {
-              t: "Taste graph",
-              d: "Recommendations from what your friends finish — the moat catalogs can’t copy.",
+              t: "Taste",
+              d: "Recommendations from favorites and friends — a social graph catalogs can't copy.",
             },
           ].map((card) => (
             <div key={card.t} className="animate-fade-up">

@@ -1,0 +1,13 @@
+Captured: 2026-07-21 (local landing + live app screens)
+Live URL: https://watchify-web-9rx1.onrender.com
+
+01-landing.png / 01-landing.jpg — hero with new clarity copy (captured from local before deploy)
+02-discover.png — Discover / For you
+03-party-lobby.png — Parties lobby + create
+04-in-party.png — Live Free party room (Pitch party / Big Buck Bunny)
+05-profile.png — Profile customize (Tester 01)
+06-settings-link.png — Linked streaming services honesty copy
+07-watch-match.png — Watch Match panel on Parties
+
+Re-capture: node scripts/capture-pitch-screenshots.mjs
+In-party only: node scripts/capture-in-party.mjs
