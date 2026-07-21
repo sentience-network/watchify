@@ -53,16 +53,60 @@ button {
   color: #fff;
 }
 
-/* Keep typed / autofilled credentials visible on dark auth fields */
+/*
+ * Typed text must stay black — browsers often paint a light autofill
+ * background, which made the old light-on-dark fill invisible.
+ */
+.auth-field,
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+input[type="url"],
+input[type="tel"],
+input[type="number"],
+input[type="datetime-local"],
+input:not([type]),
+textarea,
+select {
+  color: #0a0a0a !important;
+  caret-color: #0a0a0a !important;
+  -webkit-text-fill-color: #0a0a0a !important;
+}
+
 .auth-field,
 .auth-field:-webkit-autofill,
 .auth-field:-webkit-autofill:hover,
-.auth-field:-webkit-autofill:focus {
-  -webkit-text-fill-color: #eef5f1 !important;
-  caret-color: #eef5f1 !important;
-  color: #eef5f1 !important;
+.auth-field:-webkit-autofill:focus,
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+input[type="url"],
+input[type="tel"],
+input[type="number"],
+input[type="datetime-local"],
+input:not([type]),
+textarea,
+select,
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+  color: #0a0a0a !important;
+  caret-color: #0a0a0a !important;
+  -webkit-text-fill-color: #0a0a0a !important;
+  background-color: #ffffff !important;
   transition: background-color 99999s ease-in-out 0s;
-  box-shadow: 0 0 0 1000px #101a17 inset;
+  box-shadow: 0 0 0 1000px #ffffff inset;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #5b6b64 !important;
+  -webkit-text-fill-color: #5b6b64 !important;
+  opacity: 1;
 }
 
 .film-grain {

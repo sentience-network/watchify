@@ -79,13 +79,13 @@ export default function SignUpPage() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Display name"
-            className="w-full rounded-xl border border-line bg-ink/50 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-teal/40"
+            className="w-full rounded-xl border border-line bg-white px-4 py-3 text-sm text-black outline-none focus:ring-2 focus:ring-teal/40"
           />
           <input
             value={handle}
             onChange={(e) => setHandle(e.target.value)}
             placeholder="Handle (optional)"
-            className="w-full rounded-xl border border-line bg-ink/50 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-teal/40"
+            className="w-full rounded-xl border border-line bg-white px-4 py-3 text-sm text-black outline-none focus:ring-2 focus:ring-teal/40"
           />
           <input
             type="email"
@@ -94,12 +94,7 @@ export default function SignUpPage() {
             onChange={(e) => setEmail(e.target.value)}
             placeholder="Email"
             autoComplete="email"
-            className="auth-field w-full rounded-xl border border-line bg-ink/80 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-teal/40"
-            style={{
-              color: "#eef5f1",
-              WebkitTextFillColor: "#eef5f1",
-              caretColor: "#eef5f1",
-            }}
+            className="auth-field w-full rounded-xl border border-line bg-white px-4 py-3 text-sm text-black outline-none focus:ring-2 focus:ring-teal/40"
           />
           <PasswordInput
             value={password}
