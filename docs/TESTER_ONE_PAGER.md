@@ -27,7 +27,7 @@ Logins for the Party tester cohort live in the gitignored file `friend-tester-lo
 2. Friends → search another tester → confirm Friends or send request  
 3. Parties → create or join a **Watchify Free** room (e.g. Big Buck Bunny)  
 4. Second device joins via invite link → chat / reactions  
-5. Optional: face video (needs TURN configured on Render)
+5. Optional: face video (TURN is configured on live Metered — use two networks to smoke-test)
 
 ## Please don’t
 

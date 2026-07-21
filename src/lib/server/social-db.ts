@@ -383,10 +383,28 @@ export async function searchDirectoryUsers(
       ...(opts?.excludeUserId ? { id: { not: opts.excludeUserId } } : {}),
       OR: [{ handle: handleFilter }, { name: nameFilter }],
     },
-    orderBy: { handle: "asc" },
-    take: limit,
+    take: Math.min(limit * 3, 60),
   });
-  return rows.map(mapPublicUser);
+
+  const needle = raw.toLowerCase();
+  const ranked = rows
+    .map((row) => {
+      const handle = row.handle.toLowerCase();
+      const name = row.name.toLowerCase();
+      let score = 0;
+      if (handle === needle) score += 100;
+      else if (handle.startsWith(needle)) score += 50;
+      else if (handle.includes(needle)) score += 20;
+      if (name === needle) score += 40;
+      else if (name.startsWith(needle)) score += 15;
+      else if (name.includes(needle)) score += 5;
+      return { row, score };
+    })
+    .filter((r) => r.score > 0)
+    .sort((a, b) => b.score - a.score || a.row.handle.localeCompare(b.row.handle))
+    .slice(0, limit);
+
+  return ranked.map((r) => mapPublicUser(r.row));
 }
 
 export async function pushActivity(

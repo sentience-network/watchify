@@ -8,30 +8,42 @@ Code can ship social-graph density and honest CTAs. These items need a human in 
 ## Postgres (Neon)
 
 - **Status (local `.env.production`):** `DATABASE_URL` is Neon Postgres (`*.neon.tech`), not SQLite.
-- **Schema:** Keep deploying with `prisma migrate deploy` / your existing Render build prep (`db:prepare-postgres` + generate). After schema changes, confirm `/api/health` returns `"db":"ok"`.
-- **Backups:** Neon free/launch tiers include point-in-time recovery on paid plans; on free, use Neon dashboard → **Branches / Backups** (or export with `pg_dump` on a schedule). Document restore owner (you).
+- **Live health:** `/api/health` → `"db":"ok"`.
+- **Schema:** Keep deploying with `prisma migrate deploy` / Render build prep (`db:prepare-postgres` + generate).
+- **Backups:** Neon dashboard → Branches / Backups (or scheduled `pg_dump`). Document restore owner (you).
 - **Do not** point production at `file:./dev.db`.
 
-## TURN / ICE (face video)
+## TURN / ICE (face video) — VERIFIED PASS
 
-App path: `GET /api/realtime/ice` (auth required). Prefers Metered credential API, then static `TURN_*`, then optional Open Relay.
+App path: `GET /api/realtime/ice` (auth required). Prefers Metered credential API, then static `TURN_*`, then optional Open Relay. Public `/api/config` exposes `turnEnvConfigured` (boolean only — no secrets).
 
 | Variable | Purpose |
 |----------|---------|
-| `METERED_DOMAIN` | Metered subdomain (no `https://`) |
-| `METERED_TURN_API_KEY` | Metered TURN REST key |
-| `TURN_URL` / `TURN_USER` / `TURN_PASS` | Static TURN fallback |
-| `WATCHIFY_OPEN_RELAY_TURN` | Dev-only public relay; keep `false` in prod |
+| `METERED_DOMAIN` | Metered subdomain (no `https://`) — Blueprint: `watchify.metered.live` |
+| `METERED_TURN_API_KEY` | Metered TURN REST key (`sync: false` in `render.yaml` → dashboard secret) |
+| `TURN_URL` / `TURN_USER` / `TURN_PASS` | Static TURN fallback (optional while Metered works) |
+| `WATCHIFY_OPEN_RELAY_TURN` | Keep `false` in prod |
 
-**Local `.env`:** Metered + TURN keys are present.  
-**Local `.env.production`:** historically Stripe/DB/email only — TURN was **not** mirrored.  
-**Render:** Confirm the **web** service env includes Metered or `TURN_*`. If missing, face video falls back to STUN (or Open Relay only if enabled) and fails on strict NATs.
+### Live verification (2026-07-20)
 
-Checklist:
+| Check | Result |
+|-------|--------|
+| Metered REST credentials API | **PASS** — HTTP 200, TURN+STUN URLs, usernames present |
+| Live ICE (anonymous) | **401** Sign in required (expected) |
+| Live ICE (tester01 session) | **PASS** — `turnConfigured: true`, `provider: "metered"`, `turn`/`turns` servers |
+| Local `.env` / `.env.production` | Metered + static `TURN_*` present |
+| `watchify-realtime` | Signaling only — **no TURN env needed** |
 
-1. Render → watchify-web → Environment → add Metered (or TURN_*) from local `.env`.
-2. Redeploy web (or restart).
-3. Sign in → open a Party room with face video on two networks → confirm no “TURN is not configured” warning.
+**Verdict: TURN is working on production.** No purchase required. Optional hardening: also set static `TURN_*` on Render as Metered fallback.
+
+If ICE ever regresses to `provider: "stun-only"`:
+
+1. Render → **watchify-web** → **Environment**
+2. Confirm `METERED_DOMAIN` = `watchify.metered.live` (no `https://`)
+3. Confirm `METERED_TURN_API_KEY` matches local `.env.production` (paste values from that file — do not commit)
+4. Optional: add `TURN_URL`, `TURN_USER`, `TURN_PASS` from the same file
+5. Keep `WATCHIFY_OPEN_RELAY_TURN` = `false`
+6. Manual Deploy / restart **watchify-web**, then re-check signed-in `/api/realtime/ice`
 
 ## Cold start / domain (no purchase in this pass)
 
@@ -49,14 +61,16 @@ In-app copy already warns on landing + sign-in. Upgrading Render is **not** done
 - Signed-in Free/Plus: See who’s watching + Join; host CTA points at Pricing.
 - Party plan (incl. seeded testers): Start a party available.
 
-## Social graph scripts
+## Social graph (shipped)
+
+- Friends / Discover: `@handle` / name search + empty-state CTAs
+- Prod seed: `npm run db:seed-tester-friends:prod` — tester01–20 mutual friends (19 each)
+- Regular users still send/accept friend requests
 
 ```bash
-npm run db:seed-testers:prod          # Party seats tester01–20
-npm run db:seed-tester-friends:prod   # Mutual friends among those testers only
+npm run db:seed-testers:prod
+npm run db:seed-tester-friends:prod
 ```
-
-Regular users still send/accept friend requests. Testers can also search `@handle` in Friends / Discover.
 
 ## Related docs
 

@@ -8,23 +8,31 @@ type IceServer = {
   credential?: string;
 };
 
-async function meteredIceServers(): Promise<IceServer[] | null> {
+async function meteredIceServers(): Promise<{
+  servers: IceServer[] | null;
+  error?: string;
+}> {
   const domain = process.env.METERED_DOMAIN?.replace(/^https?:\/\//, "").replace(
     /\/$/,
     ""
   );
   const apiKey = process.env.METERED_TURN_API_KEY;
-  if (!domain || !apiKey) return null;
+  if (!domain || !apiKey) return { servers: null };
   try {
     const res = await fetch(
       `https://${domain}/api/v1/turn/credentials?apiKey=${encodeURIComponent(apiKey)}`,
       { next: { revalidate: 0 } }
     );
-    if (!res.ok) return null;
+    if (!res.ok) {
+      return { servers: null, error: `metered_http_${res.status}` };
+    }
     const data = (await res.json()) as IceServer[];
-    return Array.isArray(data) && data.length ? data : null;
+    if (!Array.isArray(data) || !data.length) {
+      return { servers: null, error: "metered_empty" };
+    }
+    return { servers: data };
   } catch {
-    return null;
+    return { servers: null, error: "metered_fetch_failed" };
   }
 }
 
@@ -33,9 +41,9 @@ export async function GET() {
   if ("error" in auth) return auth.error;
 
   const metered = await meteredIceServers();
-  if (metered) {
+  if (metered.servers) {
     return NextResponse.json({
-      iceServers: metered,
+      iceServers: metered.servers,
       turnConfigured: true,
       provider: "metered",
     });
@@ -70,5 +78,6 @@ export async function GET() {
     iceServers,
     turnConfigured: iceServers.length > 1,
     provider: iceServers.length > 1 ? "static" : "stun-only",
+    ...(metered.error ? { meteredError: metered.error } : {}),
   });
 }
