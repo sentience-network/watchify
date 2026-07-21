@@ -1,16 +1,12 @@
-﻿import Image from "next/image";
-import Link from "next/link";
+﻿import Link from "next/link";
 import { getServerSession } from "next-auth";
-import { SafePosterImage } from "@/components/SafePosterImage";
-import { CATALOG, backdropUrl } from "@/lib/movies";
+import { HeroPosterSpiral } from "@/components/HeroPosterSpiral";
 import { SiteFooter } from "@/components/SiteFooter";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { loadHeroPosters } from "@/lib/hero-posters";
 import { funnelCounts } from "@/lib/server/analytics";
 import { getPlan, type PlanId } from "@/lib/plans";
-
-const hero = CATALOG[0];
-const strip = CATALOG.slice(1, 8);
 
 async function loadPulse() {
   try {
@@ -30,9 +26,10 @@ async function loadPulse() {
 }
 
 export default async function LandingPage() {
-  const [pulse, session] = await Promise.all([
+  const [pulse, session, posters] = await Promise.all([
     loadPulse(),
     getServerSession(authOptions),
+    loadHeroPosters(),
   ]);
   const signedIn = Boolean(session?.user?.id);
   const planId = (session?.user?.plan as PlanId | undefined) || "free";
@@ -49,16 +46,7 @@ export default async function LandingPage() {
   return (
     <div className="film-grain min-h-screen">
       <header className="relative min-h-[100svh] overflow-hidden">
-        <Image
-          src={backdropUrl(hero)}
-          alt=""
-          fill
-          priority
-          className="object-cover scale-105 animate-fade-up"
-          sizes="100vw"
-        />
-        <div className="absolute inset-0 bg-gradient-to-r from-ink via-ink/88 to-ink/35" />
-        <div className="absolute inset-0 bg-gradient-to-t from-ink via-transparent to-ink/55" />
+        <HeroPosterSpiral posters={posters} />
 
         <div className="relative z-10 mx-auto flex min-h-[100svh] max-w-6xl flex-col px-5 py-6 md:px-8">
           <div className="flex items-center justify-between">
@@ -98,20 +86,17 @@ export default async function LandingPage() {
             </div>
           </div>
 
-          <div className="my-auto max-w-2xl animate-fade-up pb-8 pt-16 md:pb-16">
-            <p className="text-xs font-medium uppercase tracking-[0.2em] text-teal">
-              The social layer for everything you watch
+          <div className="my-auto max-w-xl animate-fade-up pb-10 pt-14 md:pb-20 md:pt-20">
+            <p className="font-display text-5xl font-extrabold tracking-tight text-white sm:text-6xl md:text-7xl">
+              Watch<span className="text-teal">ify</span>
             </p>
-            <h1 className="mt-3 font-display text-4xl font-extrabold leading-[1.05] tracking-tight text-white md:text-6xl">
-              Watch together.
-              <br />
-              Across every screen.
+            <h1 className="mt-4 font-display text-2xl font-semibold leading-snug tracking-tight text-white/95 md:text-3xl">
+              Watch together across every screen.
             </h1>
-            <p className="mt-5 max-w-lg text-base leading-relaxed text-mist md:text-lg">
-              Catalogs are commoditized. Watchify is the social graph for
-              movie nights — presence, parties, and shared taste across Netflix,
-              Max, Disney+, and Watchify Free. Friends follow for free; each
-              person keeps their own login.
+            <p className="mt-4 max-w-md text-base leading-relaxed text-mist md:text-lg">
+              Presence, parties, and shared taste across Netflix, Max, Disney+,
+              and Watchify Free — friends follow for free; each person keeps
+              their own login.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               {signedIn ? (
@@ -180,28 +165,6 @@ export default async function LandingPage() {
               Soft launch tip: the free Render host may sleep — first load can
               take ~30–60s. If Sign in hangs, wait and retry.
             </p>
-          </div>
-
-          <div className="relative mb-4 hidden h-28 overflow-hidden md:block">
-            <div className="absolute bottom-0 flex gap-3 opacity-90">
-              {strip.map((m, i) => (
-                <div
-                  key={m.id}
-                  className="relative h-28 w-[76px] overflow-hidden rounded-md shadow-lg"
-                  style={{
-                    transform: `translateY(${(i % 3) * 6}px)`,
-                    animationDelay: `${i * 80}ms`,
-                  }}
-                >
-                  <SafePosterImage
-                    movie={m}
-                    alt={m.title}
-                    size="w342"
-                    sizes="76px"
-                  />
-                </div>
-              ))}
-            </div>
           </div>
         </div>
       </header>
