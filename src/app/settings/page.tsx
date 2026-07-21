@@ -114,15 +114,26 @@ export default function SettingsPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    let dirty = false;
     if (params.get("billing") === "success") {
       // Legacy query — prefer /billing/success?session_id=… which re-fetches Stripe
       void refreshFromServer();
       setMsg(
         "Billing return detected — refreshing plan from your account (server is source of truth)."
       );
-      window.history.replaceState({}, "", "/settings");
+      dirty = true;
     }
-  }, [refreshFromServer]);
+    const traktStatus = params.get("trakt");
+    if (traktStatus === "connected") {
+      setMsg("Trakt connected — watched history imported.");
+      if (session?.user) void loadTrakt();
+      dirty = true;
+    } else if (traktStatus === "error") {
+      setMsg(params.get("reason") || "Trakt connection failed.");
+      dirty = true;
+    }
+    if (dirty) window.history.replaceState({}, "", "/settings");
+  }, [refreshFromServer, session?.user]);
 
   async function openPortal() {
     setMsg("");
