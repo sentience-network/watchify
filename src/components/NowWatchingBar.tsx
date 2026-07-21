@@ -32,7 +32,7 @@ export function NowWatchingBar() {
       : `/share/watching/${uid}`;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-line bg-panel/95 pb-[env(safe-area-inset-bottom,0px)] shadow-bar backdrop-blur-md">
+    <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-line bg-ink pb-[env(safe-area-inset-bottom,0px)] shadow-bar">
       <div className="mx-auto flex max-w-7xl items-center gap-3 px-3 py-2.5 md:px-6">
         {movie ? (
           <>
@@ -40,14 +40,14 @@ export function NowWatchingBar() {
               <SafePosterImage movie={movie} alt="" size="w342" sizes="40px" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-teal animate-pulsebar">
+              <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-teal-soft [text-shadow:0_1px_2px_rgba(0,0,0,0.85)] animate-pulsebar">
                 Now watching
                 {state.watchingPublic ? " · Public" : " · Private"}
               </p>
-              <p className="truncate font-display text-sm font-semibold text-white md:text-base">
+              <p className="truncate font-display text-sm font-semibold text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.65)] md:text-base">
                 {movie.title}
               </p>
-              <p className="truncate text-xs text-mist/70">
+              <p className="truncate text-xs text-mist">
                 {movie.year} · {movie.genres.slice(0, 2).join(" · ")}
               </p>
               {state.currentlyWatchingServiceId && (
@@ -60,7 +60,7 @@ export function NowWatchingBar() {
               {(isFreePlayable(movie) || movie.trailerYoutubeId) && (
                 <Link
                   href={`/watch/${movie.id}`}
-                  className="rounded-lg border border-teal/40 px-2.5 py-2 text-[11px] font-medium text-teal-soft hover:bg-teal/10"
+                  className="rounded-lg border border-teal/50 bg-teal/10 px-2.5 py-2 text-[11px] font-medium text-teal-soft hover:bg-teal/20"
                 >
                   {isFreePlayable(movie) ? "Play" : "Trailer"}
                 </Link>
@@ -68,7 +68,7 @@ export function NowWatchingBar() {
               <button
                 type="button"
                 onClick={() => setWatchingPublic(!state.watchingPublic)}
-                className="rounded-lg border border-line px-2.5 py-2 text-[11px] text-mist hover:text-white"
+                className="rounded-lg border border-line bg-white/5 px-2.5 py-2 text-[11px] text-white/90 hover:bg-white/10 hover:text-white"
                 title="Toggle whether strangers can see what you're watching"
               >
                 {state.watchingPublic ? "Hide" : "Go public"}
@@ -103,7 +103,7 @@ export function NowWatchingBar() {
               <button
                 type="button"
                 onClick={() => setCurrentlyWatching(null)}
-                className="rounded-lg border border-line px-3 py-2 text-xs text-mist hover:text-white"
+                className="rounded-lg border border-line bg-white/5 px-3 py-2 text-xs text-white/90 hover:bg-white/10 hover:text-white"
               >
                 Clear
               </button>
@@ -112,10 +112,10 @@ export function NowWatchingBar() {
         ) : (
           <div className="flex w-full items-center justify-between gap-3 py-1">
             <div>
-              <p className="font-display text-sm font-semibold text-white">
+              <p className="font-display text-sm font-semibold text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.65)]">
                 Nothing queued
               </p>
-              <p className="text-xs text-mist/70">
+              <p className="text-xs text-mist">
                 Pick a title, go public, invite friends — that&apos;s the flywheel.
               </p>
             </div>
@@ -128,7 +128,7 @@ export function NowWatchingBar() {
               </Link>
               <Link
                 href="/parties"
-                className="rounded-lg bg-teal/15 px-3 py-2 text-xs font-medium text-teal-soft"
+                className="rounded-lg border border-teal/40 bg-teal/15 px-3 py-2 text-xs font-medium text-teal-soft"
               >
                 Parties
               </Link>

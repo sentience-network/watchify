@@ -193,7 +193,7 @@ export function Sidebar() {
         </div>
       </aside>
 
-      <nav className="fixed bottom-[72px] left-0 right-0 z-30 flex border-t border-line bg-ink/95 px-0.5 py-2 backdrop-blur md:hidden">
+      <nav className="fixed bottom-[72px] left-0 right-0 z-30 flex border-t border-line bg-ink px-0.5 py-2 md:hidden">
         {mobileLinks.map((link) => {
           const active =
             pathname === link.href || pathname.startsWith(link.href + "/");
@@ -203,7 +203,7 @@ export function Sidebar() {
               key={link.href}
               href={link.href}
               className={`relative flex flex-1 flex-col items-center rounded-md py-1.5 text-center text-[10px] font-medium ${
-                active ? "text-teal-soft" : "text-mist/80"
+                active ? "text-teal-soft" : "text-mist"
               }`}
             >
               <span className="relative inline-flex items-center">
@@ -222,7 +222,7 @@ export function Sidebar() {
             type="button"
             onClick={() => setMoreOpen((o) => !o)}
             className={`relative flex w-full flex-col items-center rounded-md py-1.5 text-center text-[10px] font-medium ${
-              moreOpen || moreActive ? "text-teal-soft" : "text-mist/80"
+              moreOpen || moreActive ? "text-teal-soft" : "text-mist"
             }`}
             aria-expanded={moreOpen}
             aria-haspopup="menu"

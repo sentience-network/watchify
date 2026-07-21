@@ -37,7 +37,7 @@ const config: Config = {
           to: { opacity: "1", transform: "translateX(0)" },
         },
         pulsebar: {
-          "0%, 100%": { opacity: "0.55" },
+          "0%, 100%": { opacity: "0.88" },
           "50%": { opacity: "1" },
         },
         "party-pulse": {
