@@ -7,6 +7,7 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { funnelCounts } from "@/lib/server/analytics";
+import { getPlan, type PlanId } from "@/lib/plans";
 
 const hero = CATALOG[0];
 const strip = CATALOG.slice(1, 8);
@@ -34,6 +35,8 @@ export default async function LandingPage() {
     getServerSession(authOptions),
   ]);
   const signedIn = Boolean(session?.user?.id);
+  const planId = (session?.user?.plan as PlanId | undefined) || "free";
+  const canHost = signedIn && getPlan(planId).limits.canHostParties;
   const joins = pulse?.partyJoinsThisWeek ?? 0;
   const open = pulse?.openParties ?? 0;
   const pulseLine =
@@ -111,21 +114,71 @@ export default async function LandingPage() {
               person keeps their own login.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Link
-                href="/parties"
-                className="rounded-xl bg-teal px-5 py-3 text-sm font-semibold text-ink transition hover:bg-teal-soft animate-party-pulse"
-              >
-                Start a party
-              </Link>
-              <Link
-                href="/discover"
-                className="rounded-xl border border-line bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:border-amber/40 hover:text-amber-soft"
-              >
-                See who&apos;s watching
-              </Link>
+              {signedIn ? (
+                <>
+                  <Link
+                    href="/discover"
+                    className="rounded-xl bg-teal px-5 py-3 text-sm font-semibold text-ink transition hover:bg-teal-soft animate-party-pulse"
+                  >
+                    See who&apos;s watching
+                  </Link>
+                  <Link
+                    href="/parties"
+                    className="rounded-xl border border-line bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:border-amber/40 hover:text-amber-soft"
+                  >
+                    Join a party
+                  </Link>
+                  {canHost ? (
+                    <Link
+                      href="/parties?create=1"
+                      className="rounded-xl border border-teal/40 bg-teal/15 px-5 py-3 text-sm font-semibold text-teal-soft transition hover:bg-teal/25"
+                    >
+                      Start a party
+                    </Link>
+                  ) : (
+                    <Link
+                      href="/pricing"
+                      className="rounded-xl border border-line bg-white/5 px-5 py-3 text-sm font-semibold text-mist transition hover:border-white/30 hover:text-white"
+                    >
+                      Host with Party plan
+                    </Link>
+                  )}
+                </>
+              ) : (
+                <>
+                  <Link
+                    href="/auth/signup"
+                    className="rounded-xl bg-teal px-5 py-3 text-sm font-semibold text-ink transition hover:bg-teal-soft animate-party-pulse"
+                  >
+                    Sign up free
+                  </Link>
+                  <Link
+                    href="/discover"
+                    className="rounded-xl border border-line bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:border-amber/40 hover:text-amber-soft"
+                  >
+                    See who&apos;s watching
+                  </Link>
+                  <Link
+                    href="/parties"
+                    className="rounded-xl border border-line bg-white/5 px-5 py-3 text-sm font-semibold text-mist transition hover:border-white/30 hover:text-white"
+                  >
+                    Join a party
+                  </Link>
+                  <Link
+                    href="/auth/signin"
+                    className="rounded-xl px-5 py-3 text-sm font-semibold text-mist/80 transition hover:text-white"
+                  >
+                    Sign in
+                  </Link>
+                </>
+              )}
             </div>
             <p className="mt-6 text-xs text-mist/55">
               {pulseLine} · No password sharing · Legal sync only
+            </p>
+            <p className="mt-2 max-w-md text-[11px] leading-relaxed text-mist/45">
+              Soft launch tip: the free Render host may sleep — first load can
+              take ~30–60s. If Sign in hangs, wait and retry.
             </p>
           </div>
 

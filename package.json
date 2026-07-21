@@ -16,6 +16,8 @@
     "db:seed": "prisma db seed",
     "db:seed-testers": "tsx scripts/seed-testers.ts",
     "db:seed-testers:prod": "tsx scripts/seed-testers.ts --prod",
+    "db:seed-tester-friends": "tsx scripts/seed-tester-friends.ts",
+    "db:seed-tester-friends:prod": "tsx scripts/seed-tester-friends.ts --prod",
     "db:reset": "prisma migrate reset --force",
     "test": "tsx --test tests/week4.test.ts",
     "launch:check": "node scripts/launch-check.mjs",

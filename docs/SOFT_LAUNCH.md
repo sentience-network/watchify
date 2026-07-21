@@ -1,5 +1,8 @@
 # Watchify soft launch
 
+> **Ops / Render / DNS / TURN / Neon:** see [`SOFT_LAUNCH_OPS.md`](./SOFT_LAUNCH_OPS.md)  
+> **Friend-facing one-pager:** see [`TESTER_ONE_PAGER.md`](./TESTER_ONE_PAGER.md)
+
 ## Production deployment
 
 - Use Postgres: change Prisma datasource provider to `postgresql`, set `DATABASE_URL`, run `prisma migrate deploy`, and test restore procedures before launch.

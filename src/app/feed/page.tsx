@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { ActivityCard } from "@/components/ActivityCard";
+import { FindWatchifyFriends } from "@/components/FindWatchifyFriends";
 import { WatchingNowStrip } from "@/components/WatchingNowStrip";
 import { useWatchify } from "@/lib/store";
 import { getUser } from "@/lib/users";
@@ -16,12 +17,19 @@ export default function FeedPage() {
     declineFriendRequest,
     state,
     openParties,
+    currentUserId,
   } = useWatchify();
 
   const friendPartyCount = openParties.filter(
     (p) =>
-      state.friendIds.includes(p.hostId) || p.memberIds.some((id) => state.friendIds.includes(id))
+      state.friendIds.includes(p.hostId) ||
+      p.memberIds.some((id) => state.friendIds.includes(id))
   ).length;
+  const emptyGraph =
+    ready &&
+    !feedActivities.length &&
+    state.friendIds.length === 0 &&
+    incomingFriendRequests.length === 0;
 
   return (
     <AppShell>
@@ -45,7 +53,9 @@ export default function FeedPage() {
               {friendPartyCount > 0 ? ` · ${friendPartyCount} from friends` : ""}
             </Link>
             <Link
-              href={`/profile/${state.currentUserId}`}
+              href={
+                currentUserId ? `/profile/${currentUserId}` : "/auth/signin"
+              }
               className="rounded-lg border border-line px-3 py-1.5 text-xs text-mist hover:text-white"
             >
               {state.friendIds.length} friends
@@ -57,6 +67,10 @@ export default function FeedPage() {
           <p className="text-mist">Loading feed…</p>
         ) : (
           <>
+            <div className="mb-6">
+              <FindWatchifyFriends />
+            </div>
+
             <WatchingNowStrip />
 
             {incomingFriendRequests.length > 0 && (
@@ -125,9 +139,50 @@ export default function FeedPage() {
               {feedActivities.map((a) => (
                 <ActivityCard key={a.id} activity={a} />
               ))}
-              {!feedActivities.length && (
+              {emptyGraph && (
+                <div className="rounded-2xl border border-dashed border-line bg-panel/40 p-5">
+                  <h2 className="font-display text-xl font-semibold text-white">
+                    Your feed is empty — that&apos;s normal at soft launch
+                  </h2>
+                  <p className="mt-2 text-sm leading-relaxed text-mist/80">
+                    Search for a friend&apos;s @handle above, share your profile
+                    link, or paste a party invite. Friend requests still need an
+                    accept (except pre-linked tester accounts).
+                  </p>
+                  <ul className="mt-4 space-y-2 text-sm text-mist/85">
+                    <li>
+                      · Try{" "}
+                      <code className="text-teal-soft">@tester01</code> …{" "}
+                      <code className="text-teal-soft">@tester20</code> if
+                      you&apos;re in the Party tester cohort
+                    </li>
+                    <li>
+                      ·{" "}
+                      <Link
+                        href="/parties"
+                        className="text-teal-soft hover:underline"
+                      >
+                        Join an open party
+                      </Link>{" "}
+                      or invite friends once you host
+                    </li>
+                    <li>
+                      ·{" "}
+                      <Link
+                        href="/discover"
+                        className="text-teal-soft hover:underline"
+                      >
+                        See who&apos;s watching
+                      </Link>{" "}
+                      on Discover
+                    </li>
+                  </ul>
+                </div>
+              )}
+              {!emptyGraph && !feedActivities.length && (
                 <p className="text-mist">
-                  No friend activity yet — accept a request or start watching.
+                  No friend activity yet — start watching or host a party so
+                  friends see you here.
                 </p>
               )}
             </div>

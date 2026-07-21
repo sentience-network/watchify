@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
+import { FindWatchifyFriends } from "@/components/FindWatchifyFriends";
 import { HostOnboarding } from "@/components/HostOnboarding";
 import { MovieRow } from "@/components/MovieRow";
 import { MovieTile } from "@/components/MovieTile";
@@ -314,6 +315,11 @@ function DiscoverInner() {
     <AppShell>
       <div className="mx-auto max-w-6xl">
         <HostOnboarding />
+        {ready && currentUserId && state.friendIds.length < 3 && (
+          <div className="mb-6 animate-fade-up">
+            <FindWatchifyFriends compact />
+          </div>
+        )}
         <header className="mb-8 animate-fade-up">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>

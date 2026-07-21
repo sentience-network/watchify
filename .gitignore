@@ -52,3 +52,7 @@ prisma/.pg-tmp/
 next-env.d.ts
 
 /src/generated/prisma
+
+demos/
+
+friend-tester-logins.txt

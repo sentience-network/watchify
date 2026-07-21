@@ -58,7 +58,7 @@ function SignInForm() {
       setLoading(false);
       if (!res) {
         setError(
-          "Server is waking up (Render free tier can take ~1 minute). Wait, then try again."
+          "Server is waking up (free Render can take ~30–60s after sleep). Wait, then try again — this is not a wrong password."
         );
         return;
       }
@@ -83,6 +83,11 @@ function SignInForm() {
     <div className="mx-auto w-full max-w-md rounded-2xl border border-line bg-panel/60 p-6">
       <p className="text-xs uppercase tracking-[0.16em] text-teal">Watchify</p>
       <h1 className="mt-2 font-display text-3xl font-bold text-white">Sign in</h1>
+      <p className="mt-2 text-xs leading-relaxed text-mist/60">
+        Soft launch on free Render: first request after sleep can take ~30–60
+        seconds. If this page feels stuck, wait and try again — the server is
+        waking up, not rejecting your password.
+      </p>
       {showDemo && (
         <p className="mt-2 text-sm text-mist/80">
           Soft-launch login: <code className="text-teal-soft">alex@watchify.app</code> /{" "}

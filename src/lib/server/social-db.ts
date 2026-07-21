@@ -358,6 +358,37 @@ export async function listDirectoryUsers(): Promise<User[]> {
   }));
 }
 
+/** Find users by @handle or display name (soft-launch findability). */
+export async function searchDirectoryUsers(
+  query: string,
+  opts?: { limit?: number; excludeUserId?: string }
+): Promise<User[]> {
+  const raw = query.trim().replace(/^@+/, "");
+  if (raw.length < 1) return [];
+  const limit = Math.min(Math.max(opts?.limit ?? 12, 1), 30);
+  const useInsensitive = (process.env.DATABASE_URL || "").startsWith("postgres");
+  const handleNeedle = useInsensitive
+    ? raw
+    : raw.toLowerCase().replace(/[^a-z0-9_]/g, "") || raw.toLowerCase();
+  const handleFilter = useInsensitive
+    ? ({ contains: handleNeedle, mode: "insensitive" } as const)
+    : ({ contains: handleNeedle } as const);
+  const nameFilter = useInsensitive
+    ? ({ contains: raw, mode: "insensitive" } as const)
+    : ({ contains: raw } as const);
+
+  const rows = await prisma.user.findMany({
+    where: {
+      bannedAt: null,
+      ...(opts?.excludeUserId ? { id: { not: opts.excludeUserId } } : {}),
+      OR: [{ handle: handleFilter }, { name: nameFilter }],
+    },
+    orderBy: { handle: "asc" },
+    take: limit,
+  });
+  return rows.map(mapPublicUser);
+}
+
 export async function pushActivity(
   userId: string,
   partial: Omit<Activity, "id" | "userId" | "createdAt">

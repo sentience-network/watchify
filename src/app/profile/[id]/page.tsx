@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { AppShell } from "@/components/AppShell";
+import { FindWatchifyFriends } from "@/components/FindWatchifyFriends";
 import { InviteFriendsInApp } from "@/components/InviteFriendsInApp";
 import { MoviePoster } from "@/components/MoviePoster";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
@@ -349,6 +350,46 @@ export default function ProfilePage() {
             </div>
           </div>
 
+          {isMe && (
+            <div className="mt-5 rounded-2xl border border-teal/25 bg-teal/10 p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-teal-soft">
+                Invite friends to Watchify
+              </p>
+              <p className="mt-1 text-sm text-mist/85">
+                Share this profile so people can add you. They search your
+                @handle or open the link — friend requests still need accept.
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(url);
+                      setReportMsg("Profile link copied — send it to a friend.");
+                    } catch {
+                      setReportMsg("Could not copy — use Share instead.");
+                    }
+                  }}
+                  className="rounded-lg bg-teal px-3 py-2 text-xs font-semibold text-ink hover:bg-teal-soft"
+                >
+                  Copy profile link
+                </button>
+                <Link
+                  href="/feed"
+                  className="rounded-lg border border-line px-3 py-2 text-xs text-mist hover:text-white"
+                >
+                  Find people by @handle
+                </Link>
+                <ShareMenu
+                  url={url}
+                  title={`${user.name} on Watchify`}
+                  text={`Add me on Watchify — @${user.handle}`}
+                  compact
+                />
+              </div>
+            </div>
+          )}
+
           {reportMsg && (
             <p className="mt-4 text-sm text-amber-soft">{reportMsg}</p>
           )}
@@ -623,10 +664,10 @@ export default function ProfilePage() {
             </div>
             {isMe && (
               <Link
-                href="/parties"
+                href="/feed"
                 className="text-xs font-medium text-teal-soft hover:underline"
               >
-                Host a party →
+                Find friends →
               </Link>
             )}
           </div>
@@ -646,9 +687,18 @@ export default function ProfilePage() {
                 <span className="text-xs text-white">{f.name}</span>
               </Link>
             ))}
-            {!friendUsers.length && (
+            {!friendUsers.length && isMe && (
+              <div className="w-full space-y-3">
+                <p className="text-sm text-mist">
+                  No friends yet — search by @handle, share your profile link,
+                  or paste a party invite.
+                </p>
+                <FindWatchifyFriends compact />
+              </div>
+            )}
+            {!friendUsers.length && !isMe && (
               <p className="text-sm text-mist">
-                No friends yet — send a request from someone&apos;s profile.
+                No friends listed yet.
               </p>
             )}
           </div>
