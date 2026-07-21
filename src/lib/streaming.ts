@@ -127,4 +127,4 @@ export const STREAMING_HONEST_COPY =
   "Friends can see what you’re watching and join the party chat — they don’t need your streaming login. To watch the movie itself, each person uses their own account or a free source.";
 
 export const NO_CREDENTIAL_COPY =
-  "Never share your streaming passwords with Watchify or friends. Linking a service only adds a badge for social sharing — it does not connect to your Netflix (or other) account.";
+  "Never share your streaming passwords with Watchify or friends. Linking a service only marks that you subscribe — it does not sign into Netflix (or any other streamer) and cannot open your paid library.";

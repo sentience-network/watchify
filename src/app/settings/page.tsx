@@ -52,6 +52,7 @@ export default function SettingsPage() {
     imported?: { id: string; title: string; year: number | null; catalogId: string | null; watchedAt: string | null }[];
   } | null>(null);
   const [traktBusy, setTraktBusy] = useState(false);
+  const [linkBusy, setLinkBusy] = useState<string | null>(null);
   const [notifyMode, setNotifyMode] = useState<NotifyMode>("all");
   const [browserPerm, setBrowserPerm] = useState<string>("unsupported");
   const plan = getPlan(state.plan);
@@ -424,66 +425,94 @@ export default function SettingsPage() {
 
         <section className="mb-8 rounded-2xl border border-line bg-panel/50 p-5">
           <h2 className="font-display text-lg font-semibold text-white">
-            Connect streaming services
+            Linked streaming services
           </h2>
           <p className="mt-1 text-xs leading-relaxed text-mist/80">
-            Link the platforms you subscribe to. Watchify uses them to filter
-            Discover (&quot;On your linked services&quot;), match compatible friends, and
-            badge your watching share — never your streaming password.
+            Mark the platforms you subscribe to. Watchify saves them on your
+            profile for Discover filters, friend matching, and watching badges —
+            this is not a Netflix/Disney login. We never ask for streaming
+            passwords.
           </p>
-          <p className="mt-2 text-xs text-mist/60">
-            {linkedServiceLimit === null
-              ? "Your plan can link all services."
-              : `Free plan: ${state.linkedServices.length}/${linkedServiceLimit} services linked.`}{" "}
-            Friends can always see your watching activity for free.
-          </p>
-          <div className="mt-4 grid gap-2 sm:grid-cols-2">
-            {STREAMING_SERVICES.map((s) => {
-              const linked = state.linkedServices.includes(s.id);
-              return (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={async () => {
-                    setMsg("");
-                    if (linked) {
-                      unlinkStreamingService(s.id);
-                      setMsg(`Unlinked ${s.name}.`);
-                      return;
-                    }
-                    const result = await linkStreamingService(s.id);
-                    if (!result.ok) {
-                      setMsg(result.error);
-                      return;
-                    }
-                    setMsg(`Linked ${s.name}. Discover will prefer titles on this service.`);
-                  }}
-                  className={`flex items-center justify-between rounded-xl border px-3 py-3 text-left text-sm transition ${
-                    linked
-                      ? "border-teal/40 bg-teal/10 text-white"
-                      : "border-line bg-ink/40 text-mist hover:border-teal/30"
-                  }`}
-                >
-                  <span className="flex items-center gap-2">
-                    <ServiceBadge serviceId={s.id} size="md" />
-                    {s.name}
-                  </span>
-                  <span className="text-xs">
-                    {linked ? "Linked" : "Link"}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-          <p className="mt-3 text-[11px] leading-relaxed text-mist/55">
-            {NO_CREDENTIAL_COPY}
-          </p>
-          <p className="mt-2 text-[11px] leading-relaxed text-mist/55">
-            {STREAMING_HONEST_COPY}
-          </p>
-          <div className="mt-5">
-            <ShareFromServicePanel compact />
-          </div>
+          {!session?.user ? (
+            <p className="mt-4 text-sm text-mist">
+              <Link href="/auth/signin?callbackUrl=/settings" className="text-teal-soft hover:underline">
+                Sign in
+              </Link>{" "}
+              to save linked services to your Watchify account.
+            </p>
+          ) : (
+            <>
+              <p className="mt-2 text-xs text-mist/60">
+                {linkedServiceLimit === null
+                  ? "Your plan can link all services."
+                  : `Free plan: ${state.linkedServices.length}/${linkedServiceLimit} services linked.`}{" "}
+                Friends can always see your watching activity for free.
+              </p>
+              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                {STREAMING_SERVICES.map((s) => {
+                  const linked = state.linkedServices.includes(s.id);
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      disabled={linkBusy === s.id}
+                      onClick={async () => {
+                        setMsg("");
+                        setLinkBusy(s.id);
+                        try {
+                          if (linked) {
+                            const result = await unlinkStreamingService(s.id);
+                            if (!result.ok) {
+                              setMsg(result.error);
+                              return;
+                            }
+                            setMsg(`Removed ${s.name} from your linked services.`);
+                            return;
+                          }
+                          const result = await linkStreamingService(s.id);
+                          if (!result.ok) {
+                            setMsg(result.error);
+                            return;
+                          }
+                          setMsg(
+                            `Linked ${s.name} to your Watchify profile. Discover will prefer titles on this service.`
+                          );
+                        } finally {
+                          setLinkBusy(null);
+                        }
+                      }}
+                      className={`flex items-center justify-between rounded-xl border px-3 py-3 text-left text-sm transition disabled:opacity-60 ${
+                        linked
+                          ? "border-teal/40 bg-teal/10 text-white"
+                          : "border-line bg-ink/40 text-mist hover:border-teal/30"
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <ServiceBadge serviceId={s.id} size="md" />
+                        {s.name}
+                      </span>
+                      <span className="text-xs">
+                        {linkBusy === s.id
+                          ? "Saving…"
+                          : linked
+                            ? "Linked"
+                            : "Link"}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-3 text-[11px] leading-relaxed text-mist/55">
+                {NO_CREDENTIAL_COPY}
+              </p>
+              <p className="mt-2 text-[11px] leading-relaxed text-mist/55">
+                {STREAMING_HONEST_COPY}
+              </p>
+              <div className="mt-5">
+                <ShareFromServicePanel compact />
+              </div>
+            </>
+          )}
         </section>
 
         <section className="mb-8 rounded-2xl border border-line bg-panel/50 p-5">

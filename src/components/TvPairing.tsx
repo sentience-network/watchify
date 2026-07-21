@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 
@@ -20,6 +20,11 @@ export function TvPairHost() {
   const [pair, setPair] = useState<PairState | null>(null);
   const [error, setError] = useState("");
   const [lastCmd, setLastCmd] = useState("");
+  const seenCommandId = useRef<string | null>(null);
+  const remoteUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/tv/remote`
+      : "/tv/remote";
 
   const refresh = useCallback(async (code: string) => {
     const res = await fetch(`/api/tv/pair?code=${encodeURIComponent(code)}`);
@@ -32,9 +37,10 @@ export function TvPairHost() {
     const cmds = (data.pair.commands || []) as PairState["commands"];
     if (cmds?.length) {
       const last = cmds[cmds.length - 1];
+      if (last.id && last.id === seenCommandId.current) return;
+      if (last.id) seenCommandId.current = last.id;
       setLastCmd(`${last.type}${last.payload?.partyId ? ` · ${last.payload.partyId}` : ""}`);
       if (last.type === "open_party" && last.payload?.partyId) {
-        // Soft navigate hint for TV
         window.location.href = `/parties/${last.payload.partyId}`;
       }
     }
@@ -42,6 +48,7 @@ export function TvPairHost() {
 
   async function create() {
     setError("");
+    seenCommandId.current = null;
     const res = await fetch("/api/tv/pair", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -86,7 +93,7 @@ export function TvPairHost() {
           <p className="mt-2 text-xs text-mist/70">
             On your phone open{" "}
             <Link href="/tv/remote" className="text-teal-soft underline">
-              /tv/remote
+              {remoteUrl}
             </Link>{" "}
             and enter this code.
           </p>
@@ -167,8 +174,8 @@ export function TvRemoteClient() {
     <div className="mx-auto max-w-md rounded-2xl border border-line bg-panel/50 p-5">
       <h1 className="font-display text-2xl font-bold text-white">TV remote</h1>
       <p className="mt-1 text-xs text-mist/70">
-        Enter the code on the living-room screen. Cues only — Watchify does not
-        cast paid streams.
+        Enter the code on the living-room screen. This links your phone session
+        to that TV browser — it does not sign into Netflix or other streamers.
       </p>
       {!paired ? (
         <div className="mt-4 flex gap-2">

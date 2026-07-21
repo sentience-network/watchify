@@ -30,17 +30,28 @@ function makeCode() {
   return s;
 }
 
+function kvErrorResponse(error: unknown) {
+  const message =
+    error instanceof Error ? error.message : "TV pairing unavailable";
+  const status = /not ready|SoftKv/i.test(message) ? 503 : 500;
+  return NextResponse.json({ error: message }, { status });
+}
+
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const code = sanitizeText(url.searchParams.get("code") || "", 8).toUpperCase();
   if (!code) {
     return NextResponse.json({ error: "code required" }, { status: 400 });
   }
-  const pair = await softKvGet<TvPair>(pairKey(code));
-  if (!pair) {
-    return NextResponse.json({ error: "Code expired or invalid" }, { status: 404 });
+  try {
+    const pair = await softKvGet<TvPair>(pairKey(code));
+    if (!pair) {
+      return NextResponse.json({ error: "Code expired or invalid" }, { status: 404 });
+    }
+    return NextResponse.json({ pair });
+  } catch (error) {
+    return kvErrorResponse(error);
   }
-  return NextResponse.json({ pair });
 }
 
 export async function POST(req: Request) {
@@ -62,72 +73,82 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  if (body.action === "create") {
-    const code = makeCode();
-    const pair: TvPair = {
-      code,
-      status: "waiting",
-      tvSessionId: `tv_${Math.random().toString(36).slice(2, 10)}`,
-      commands: [],
-      createdAt: new Date().toISOString(),
-    };
-    await softKvSet(pairKey(code), pair, 15 * 60_000);
-    return NextResponse.json({ pair });
-  }
+  try {
+    if (body.action === "create") {
+      const code = makeCode();
+      const pair: TvPair = {
+        code,
+        status: "waiting",
+        tvSessionId: `tv_${Math.random().toString(36).slice(2, 10)}`,
+        commands: [],
+        createdAt: new Date().toISOString(),
+      };
+      await softKvSet(pairKey(code), pair, 15 * 60_000);
+      return NextResponse.json({ pair });
+    }
 
-  const code = sanitizeText(body.code || "", 8).toUpperCase();
-  if (!code) {
-    return NextResponse.json({ error: "code required" }, { status: 400 });
-  }
+    const code = sanitizeText(body.code || "", 8).toUpperCase();
+    if (!code) {
+      return NextResponse.json({ error: "code required" }, { status: 400 });
+    }
 
-  if (body.action === "claim") {
-    const auth = await requireUserId();
-    if ("error" in auth) return auth.error;
-    const pair = await softKvGet<TvPair>(pairKey(code));
-    if (!pair) {
-      return NextResponse.json({ error: "Code expired or invalid" }, { status: 404 });
-    }
-    const user = await findUserById(auth.userId);
-    pair.status = "paired";
-    pair.phoneUserId = auth.userId;
-    pair.phoneName = user?.name || "Phone";
-    await softKvSet(pairKey(code), pair, 15 * 60_000);
-    return NextResponse.json({ pair });
-  }
-
-  if (body.action === "command") {
-    const auth = await requireUserId();
-    if ("error" in auth) return auth.error;
-    const pair = await softKvGet<TvPair>(pairKey(code));
-    if (!pair) {
-      return NextResponse.json({ error: "Code expired or invalid" }, { status: 404 });
-    }
-    if (pair.phoneUserId !== auth.userId) {
-      return NextResponse.json({ error: "Not paired to this phone" }, { status: 403 });
-    }
-    const type = sanitizeText(body.type || "", 40);
-    if (!type) {
-      return NextResponse.json({ error: "type required" }, { status: 400 });
-    }
-    const payload: Record<string, string> = {};
-    if (body.payload) {
-      for (const [k, v] of Object.entries(body.payload)) {
-        if (typeof v === "string") payload[sanitizeText(k, 40)] = sanitizeText(v, 120);
+    if (body.action === "claim") {
+      const auth = await requireUserId();
+      if ("error" in auth) return auth.error;
+      const pair = await softKvGet<TvPair>(pairKey(code));
+      if (!pair) {
+        return NextResponse.json({ error: "Code expired or invalid" }, { status: 404 });
       }
+      if (pair.status === "paired" && pair.phoneUserId && pair.phoneUserId !== auth.userId) {
+        return NextResponse.json(
+          { error: "Code already paired to another phone" },
+          { status: 409 }
+        );
+      }
+      const user = await findUserById(auth.userId);
+      pair.status = "paired";
+      pair.phoneUserId = auth.userId;
+      pair.phoneName = user?.name || "Phone";
+      await softKvSet(pairKey(code), pair, 15 * 60_000);
+      return NextResponse.json({ pair });
     }
-    pair.commands = [
-      ...(pair.commands || []).slice(-19),
-      {
-        id: `c_${Math.random().toString(36).slice(2, 8)}`,
-        type,
-        payload,
-      },
-    ];
-    await softKvSet(pairKey(code), pair, 15 * 60_000);
-    return NextResponse.json({ ok: true, pair });
-  }
 
-  return NextResponse.json({ error: "Unknown action" }, { status: 400 });
+    if (body.action === "command") {
+      const auth = await requireUserId();
+      if ("error" in auth) return auth.error;
+      const pair = await softKvGet<TvPair>(pairKey(code));
+      if (!pair) {
+        return NextResponse.json({ error: "Code expired or invalid" }, { status: 404 });
+      }
+      if (pair.phoneUserId !== auth.userId) {
+        return NextResponse.json({ error: "Not paired to this phone" }, { status: 403 });
+      }
+      const type = sanitizeText(body.type || "", 40);
+      if (!type) {
+        return NextResponse.json({ error: "type required" }, { status: 400 });
+      }
+      const payload: Record<string, string> = {};
+      if (body.payload) {
+        for (const [k, v] of Object.entries(body.payload)) {
+          if (typeof v === "string") payload[sanitizeText(k, 40)] = sanitizeText(v, 120);
+        }
+      }
+      pair.commands = [
+        ...(pair.commands || []).slice(-19),
+        {
+          id: `c_${Math.random().toString(36).slice(2, 8)}`,
+          type,
+          payload,
+        },
+      ];
+      await softKvSet(pairKey(code), pair, 15 * 60_000);
+      return NextResponse.json({ ok: true, pair });
+    }
+
+    return NextResponse.json({ error: "Unknown action" }, { status: 400 });
+  } catch (error) {
+    return kvErrorResponse(error);
+  }
 }
 
 /** Optional cleanup — unused export keeps lint quiet if tree-shaken. */

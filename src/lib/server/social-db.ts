@@ -3,6 +3,7 @@ import type { PlanId } from "../plans";
 import { getPlan } from "../plans";
 import { sanitizeText } from "../sanitize";
 import type { StreamingServiceId } from "../streaming";
+import { isStreamingServiceId } from "../streaming";
 import type {
   Activity,
   ActivityType,
@@ -1439,6 +1440,9 @@ export async function unblockUserDb(blockerId: string, blockedId: string) {
 }
 
 export async function linkServiceDb(userId: string, serviceId: StreamingServiceId) {
+  if (!isStreamingServiceId(serviceId)) {
+    return { error: "Unknown streaming service" };
+  }
   const me = await prisma.user.findUnique({ where: { id: userId } });
   if (!me) return { error: "Not found" };
   const linked = parseJson<StreamingServiceId[]>(me.linkedServicesJson, []);

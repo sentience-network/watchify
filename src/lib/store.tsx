@@ -70,7 +70,9 @@ type Store = {
   linkStreamingService: (
     serviceId: StreamingServiceId
   ) => Promise<{ ok: true } | { ok: false; error: string }>;
-  unlinkStreamingService: (serviceId: StreamingServiceId) => void;
+  unlinkStreamingService: (
+    serviceId: StreamingServiceId
+  ) => Promise<{ ok: true } | { ok: false; error: string }>;
   createParty: (input: {
     name: string;
     movieId: string;
@@ -202,6 +204,7 @@ export function WatchifyProvider({ children }: { children: ReactNode }) {
   const [unreadDmCount, setUnreadDmCount] = useState(0);
   const [realtimeConnected, setRealtimeConnectedState] = useState(false);
   const hydrating = useRef(false);
+  const pendingRefresh = useRef(false);
   const realtimeConnectedRef = useRef(false);
   const slowTimer = useRef<number | null>(null);
 
@@ -221,20 +224,44 @@ export function WatchifyProvider({ children }: { children: ReactNode }) {
     [state.cookieConsent]
   );
 
+  const applyLinkedServices = useCallback(
+    (linkedServices: StreamingServiceId[]) => {
+      setState((s) => {
+        const next = { ...s, linkedServices };
+        cacheState(next);
+        return next;
+      });
+      if (!sessionUserId) return;
+      setDirectoryUsers((users) =>
+        users.map((u) =>
+          u.id === sessionUserId ? { ...u, linkedServices } : u
+        )
+      );
+    },
+    [sessionUserId]
+  );
+
   const refreshFromServer = useCallback(async () => {
     if (!sessionUserId) return;
-    if (hydrating.current) return;
+    if (hydrating.current) {
+      // Don't drop link/unlink refreshes behind an in-flight poll.
+      pendingRefresh.current = true;
+      return;
+    }
     hydrating.current = true;
     if (slowTimer.current) window.clearTimeout(slowTimer.current);
     slowTimer.current = window.setTimeout(() => setHydratingSlow(true), 3000);
     try {
-      const result = await apiJson<{ state: AppState; users: User[] }>(
-        "/api/me/state"
-      );
-      if (result.ok) {
-        applyServerState(result.data.state, result.data.users);
-        setServerHydrated(true);
-      }
+      do {
+        pendingRefresh.current = false;
+        const result = await apiJson<{ state: AppState; users: User[] }>(
+          "/api/me/state"
+        );
+        if (result.ok) {
+          applyServerState(result.data.state, result.data.users);
+          setServerHydrated(true);
+        }
+      } while (pendingRefresh.current);
     } finally {
       hydrating.current = false;
       if (slowTimer.current) {
@@ -544,26 +571,45 @@ export function WatchifyProvider({ children }: { children: ReactNode }) {
       if (!sessionUserId) {
         return { ok: false as const, error: "Sign in required" };
       }
-      const result = await apiJson<{ ok?: boolean; error?: string }>("/api/me", {
+      const result = await apiJson<{
+        ok?: boolean;
+        linkedServices?: StreamingServiceId[];
+        error?: string;
+      }>("/api/me", {
         method: "PATCH",
         body: JSON.stringify({ linkService: serviceId }),
       });
       if (!result.ok) return { ok: false as const, error: result.error };
+      if (result.data.linkedServices) {
+        applyLinkedServices(result.data.linkedServices);
+      }
       await refreshFromServer();
       return { ok: true as const };
     },
-    [sessionUserId, refreshFromServer]
+    [sessionUserId, refreshFromServer, applyLinkedServices]
   );
 
   const unlinkStreamingService = useCallback(
-    (serviceId: StreamingServiceId) => {
-      if (!sessionUserId) return;
-      void apiJson("/api/me", {
+    async (serviceId: StreamingServiceId) => {
+      if (!sessionUserId) {
+        return { ok: false as const, error: "Sign in required" };
+      }
+      const result = await apiJson<{
+        ok?: boolean;
+        linkedServices?: StreamingServiceId[];
+        error?: string;
+      }>("/api/me", {
         method: "PATCH",
         body: JSON.stringify({ unlinkService: serviceId }),
-      }).then(() => refreshFromServer());
+      });
+      if (!result.ok) return { ok: false as const, error: result.error };
+      if (result.data.linkedServices) {
+        applyLinkedServices(result.data.linkedServices);
+      }
+      await refreshFromServer();
+      return { ok: true as const };
     },
-    [sessionUserId, refreshFromServer]
+    [sessionUserId, refreshFromServer, applyLinkedServices]
   );
 
   const createParty = useCallback(

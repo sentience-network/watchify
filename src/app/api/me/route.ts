@@ -9,12 +9,34 @@ import {
 } from "@/lib/server/social-db";
 import type { PlanId } from "@/lib/plans";
 import type { FavoritePerson, SocialLinks } from "@/lib/types";
-import type { StreamingServiceId } from "@/lib/streaming";
+import {
+  isStreamingServiceId,
+  type StreamingServiceId,
+} from "@/lib/streaming";
 import { EMPTY_SOCIAL_LINKS } from "@/lib/types";
 import { devBillingGrantsEnabled } from "@/lib/features";
 import { isStripeReady } from "@/lib/stripe";
+import { prisma } from "@/lib/db";
 
 export const runtime = "nodejs";
+
+async function linkedServicesFor(userId: string): Promise<StreamingServiceId[]> {
+  const row = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { linkedServicesJson: true },
+  });
+  if (!row) return [];
+  try {
+    const parsed = JSON.parse(row.linkedServicesJson) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (id): id is StreamingServiceId =>
+        typeof id === "string" && isStreamingServiceId(id)
+    );
+  } catch {
+    return [];
+  }
+}
 
 export async function GET() {
   const auth = await requireUserId();
@@ -23,6 +45,7 @@ export async function GET() {
   if (!user) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+  const linkedServices = await linkedServicesFor(auth.userId);
   return NextResponse.json({
     id: user.id,
     email: user.email,
@@ -34,6 +57,7 @@ export async function GET() {
     stripeCustomerId: user.stripeCustomerId ?? null,
     stripeSubscriptionId: user.stripeSubscriptionId ?? null,
     ageConfirmed: user.ageConfirmed,
+    linkedServices,
   });
 }
 
@@ -85,12 +109,24 @@ export async function PATCH(req: Request) {
   }
 
   if (body.linkService) {
+    if (!isStreamingServiceId(body.linkService)) {
+      return NextResponse.json(
+        { error: "Unknown streaming service" },
+        { status: 400 }
+      );
+    }
     const result = await linkServiceDb(auth.userId, body.linkService);
     if ("error" in result) {
       return NextResponse.json({ error: result.error }, { status: 400 });
     }
   }
   if (body.unlinkService) {
+    if (!isStreamingServiceId(body.unlinkService)) {
+      return NextResponse.json(
+        { error: "Unknown streaming service" },
+        { status: 400 }
+      );
+    }
     await unlinkServiceDb(auth.userId, body.unlinkService);
   }
 
@@ -138,6 +174,13 @@ export async function PATCH(req: Request) {
     }
   }
 
-  const user = await findUserById(auth.userId);
-  return NextResponse.json({ ok: true, plan: user?.plan });
+  const [user, linkedServices] = await Promise.all([
+    findUserById(auth.userId),
+    linkedServicesFor(auth.userId),
+  ]);
+  return NextResponse.json({
+    ok: true,
+    plan: user?.plan,
+    linkedServices,
+  });
 }
