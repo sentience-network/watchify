@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireUserId } from "@/lib/server/session";
 import { sealToken } from "@/lib/server/sealed-token";
-import { syncTrakt, traktConfigured } from "@/lib/server/trakt";
+import { syncTrakt, traktConfigured, traktRedirectUri } from "@/lib/server/trakt";
 
 export const runtime = "nodejs";
 
@@ -35,11 +35,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: error instanceof Error ? error.message : "Sync failed" }, { status: 502 });
     }
   }
+  if (body.action && body.action !== "connect") {
+    return NextResponse.json({ error: "Unknown Trakt action" }, { status: 400 });
+  }
+  const redirectUri = traktRedirectUri();
+  if (!redirectUri) {
+    return NextResponse.json({ error: "TRAKT_REDIRECT_URI (or NEXT_PUBLIC_APP_URL) is required" }, { status: 503 });
+  }
   const state = sealToken(JSON.stringify({ userId: auth.userId, expiresAt: Date.now() + 10 * 60_000 }));
   const url = new URL("https://trakt.tv/oauth/authorize");
   url.searchParams.set("response_type", "code");
   url.searchParams.set("client_id", process.env.TRAKT_CLIENT_ID!);
-  url.searchParams.set("redirect_uri", process.env.TRAKT_REDIRECT_URI!);
+  url.searchParams.set("redirect_uri", redirectUri);
   url.searchParams.set("state", state);
   return NextResponse.json({ url: url.toString() });
 }

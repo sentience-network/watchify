@@ -190,9 +190,26 @@ export default function SettingsPage() {
           ) : trakt === null ? (
             <p className="mt-3 text-sm text-mist" role="status">Checking Trakt configuration…</p>
           ) : !trakt.configured ? (
-            <p className="mt-3 rounded-xl border border-amber/30 p-3 text-sm text-amber-soft">
-              Trakt is not configured. Add the server credentials and token-encryption secret; no connection is being simulated.
-            </p>
+            <div className="mt-3 rounded-xl border border-amber/30 p-3 text-sm text-amber-soft">
+              <p>
+                Trakt is not configured on this server. Free developer OAuth apps:{" "}
+                <a
+                  href="https://trakt.tv/oauth/applications"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline decoration-amber/50 underline-offset-2 hover:text-white"
+                >
+                  trakt.tv/oauth/applications
+                </a>
+                . Set <code className="text-xs">TRAKT_CLIENT_ID</code>,{" "}
+                <code className="text-xs">TRAKT_CLIENT_SECRET</code>, and matching{" "}
+                <code className="text-xs">TRAKT_REDIRECT_URI</code> (plus{" "}
+                <code className="text-xs">TOKEN_ENCRYPTION_SECRET</code>). No connection is simulated.
+              </p>
+              <p className="mt-2 text-xs text-mist/80">
+                Trakt is free metadata / history sync only — not streaming — and API rate limits apply.
+              </p>
+            </div>
           ) : (
             <>
               <p className="mt-3 text-sm text-mist">

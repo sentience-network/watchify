@@ -72,6 +72,29 @@ npm run db:seed-testers:prod
 npm run db:seed-tester-friends:prod
 ```
 
+## Trakt (free history import — not streaming)
+
+Trakt developer OAuth apps are **free**. VIP is not required. Watchify uses Trakt for optional watched-history import / metadata only — not playback. API rate limits apply.
+
+| Variable | Purpose |
+|----------|---------|
+| `TRAKT_CLIENT_ID` | OAuth app Client ID (`sync: false` on Render) |
+| `TRAKT_CLIENT_SECRET` | OAuth app Client Secret (`sync: false` on Render) |
+| `TRAKT_REDIRECT_URI` | Must match Trakt app Redirect URI exactly — Blueprint sets production callback |
+| `TOKEN_ENCRYPTION_SECRET` | Already required — seals stored Trakt tokens |
+
+### One-time setup
+
+1. Sign in at https://trakt.tv/oauth/applications → **New Application**
+2. Name: `Watchify` (or similar)
+3. Redirect URI (production): `https://watchify-web-9rx1.onrender.com/api/trakt/callback`
+4. Optional second app for local: Redirect URI `http://localhost:3344/api/trakt/callback`
+5. Copy Client ID + Client Secret into gitignored `.env` / `.env.production` and Render → **watchify-web** → Environment
+6. Redeploy / restart **watchify-web**, then Settings → **Connect Trakt**
+7. Confirm live `/api/config` shows `"traktConfigured": true` (boolean only — no secrets)
+
+Do **not** commit secrets. Local redirect URI values (non-secret) may already be in `.env*`.
+
 ## Related docs
 
 - [SOFT_LAUNCH.md](./SOFT_LAUNCH.md) — product soft-launch checklist  

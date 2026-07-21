@@ -56,6 +56,12 @@ services:
         sync: false
       - key: TMDB_API_KEY
         sync: false
+      - key: TRAKT_CLIENT_ID
+        sync: false
+      - key: TRAKT_CLIENT_SECRET
+        sync: false
+      - key: TRAKT_REDIRECT_URI
+        value: https://watchify-web-9rx1.onrender.com/api/trakt/callback
       - key: GOOGLE_CLIENT_ID
         sync: false
       - key: GOOGLE_CLIENT_SECRET
