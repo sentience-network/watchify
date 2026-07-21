@@ -23,6 +23,7 @@ export type AuthUserRecord = {
   partyTrialEndsAt: string | null;
   freeHostsRemaining: number;
   createdAt: string;
+  isGuest?: boolean;
 };
 
 function toAuthUser(row: {
@@ -42,6 +43,7 @@ function toAuthUser(row: {
   partyTrialEndsAt: Date | null;
   freeHostsRemaining: number;
   createdAt: Date;
+  isGuest?: boolean;
 }): AuthUserRecord {
   return {
     id: row.id,
@@ -60,6 +62,8 @@ function toAuthUser(row: {
     partyTrialEndsAt: row.partyTrialEndsAt?.toISOString() ?? null,
     freeHostsRemaining: row.freeHostsRemaining ?? 0,
     createdAt: row.createdAt.toISOString(),
+    isGuest:
+      Boolean(row.isGuest) || row.email.endsWith("@guest.watchify.local"),
   };
 }
 

@@ -38,6 +38,16 @@ export function HostOnboarding() {
     state.plan === "party" &&
     Boolean(state.partyTrialEndsAt) &&
     !state.stripeSubscriptionId;
+  const inviteDone = (() => {
+    try {
+      return (
+        localStorage.getItem("watchify_invite_copied") === "1" ||
+        Number(localStorage.getItem("watchify_invite_share_count") || "0") >= 1
+      );
+    } catch {
+      return false;
+    }
+  })();
 
   const steps = canHostParties
     ? [
@@ -67,8 +77,10 @@ export function HostOnboarding() {
           href: "/parties",
         },
         {
-          done: false,
-          label: "Invite 2 friends with the share link",
+          done: inviteDone,
+          label: inviteDone
+            ? "Invite link shared"
+            : "Invite 2 friends with the share link",
           href: "/parties",
         },
       ]
@@ -91,8 +103,10 @@ export function HostOnboarding() {
           href: "/parties",
         },
         {
-          done: false,
-          label: "Invite 2 friends with the share link",
+          done: inviteDone,
+          label: inviteDone
+            ? "Invite link shared"
+            : "Invite 2 friends with the share link",
           href: "/parties",
         },
       ];

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { useSession } from "next-auth/react";
 import { AppShell } from "@/components/AppShell";
+import { UploadQueueStatus } from "@/components/UploadQueueStatus";
 import { UPLOAD_MAX_SIZE_BYTES } from "@/lib/upload-moderation";
 
 export default function UploadPage() {
@@ -179,6 +180,8 @@ export default function UploadPage() {
             ) : null}
           </p>
         ) : null}
+
+        <UploadQueueStatus />
 
         <p className="mt-6 text-xs text-mist/55">
           By submitting you confirm you have rights to share this media and it

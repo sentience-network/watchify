@@ -10,9 +10,10 @@ import { getUser } from "@/lib/users";
 import { useWatchify } from "@/lib/store";
 import { MoviePoster } from "./MoviePoster";
 import { ServiceBadge } from "./ServiceBadge";
+import { WatchWithUsButton } from "./WatchWithUsButton";
 
 export function WatchingNowStrip() {
-  const { publicWatching, ready } = useWatchify();
+  const { publicWatching, ready, currentUserId } = useWatchify();
 
   if (!ready || !publicWatching.length) return null;
 
@@ -44,16 +45,17 @@ export function WatchingNowStrip() {
           const movie = getMovie(row.movieId);
           if (!user || !movie) return null;
           return (
-            <Link
+            <div
               key={row.userId}
-              href={`/profile/${user.id}`}
-              className="w-[132px] shrink-0 rounded-xl border border-line bg-panel/40 p-2 transition hover:border-teal/35"
+              className="w-[148px] shrink-0 rounded-xl border border-line bg-panel/40 p-2 transition hover:border-teal/35"
             >
-              <MoviePoster movie={movie} size="sm" />
-              <p className="mt-2 truncate text-xs font-semibold text-white">
-                {user.name}
-              </p>
-              <p className="truncate text-[11px] text-mist/70">{movie.title}</p>
+              <Link href={`/profile/${user.id}`} className="block">
+                <MoviePoster movie={movie} size="sm" />
+                <p className="mt-2 truncate text-xs font-semibold text-white">
+                  {user.name}
+                </p>
+                <p className="truncate text-[11px] text-mist/70">{movie.title}</p>
+              </Link>
               <div className="mt-1 flex flex-wrap items-center gap-1">
                 <ServiceBadge serviceId={row.serviceId} />
                 {typeof row.progressPercent === "number" && (
@@ -77,7 +79,16 @@ export function WatchingNowStrip() {
               <p className="mt-1 text-[10px] uppercase tracking-wider text-teal/80">
                 {row.isFriend ? "Friend" : "Open"}
               </p>
-            </Link>
+              {currentUserId && row.userId !== currentUserId ? (
+                <div className="mt-2">
+                  <WatchWithUsButton
+                    movieId={row.movieId}
+                    friendUserId={row.userId}
+                    compact
+                  />
+                </div>
+              ) : null}
+            </div>
           );
         })}
       </div>

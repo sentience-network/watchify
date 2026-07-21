@@ -527,7 +527,10 @@ function PartiesInner() {
                               {party.name}
                               {party.recurringWeekly ? (
                                 <span className="ml-2 text-[10px] font-medium uppercase tracking-wider text-amber-soft">
-                                  Weekly
+                                  Watch Club
+                                  {party.hostClubStreak
+                                    ? ` · ${party.hostClubStreak}wk streak`
+                                    : ""}
                                 </span>
                               ) : null}
                             </p>

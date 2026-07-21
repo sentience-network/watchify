@@ -5,6 +5,9 @@ export const FUNNEL_EVENTS = [
   "landing_view", "signup_started", "signup_completed", "presence_shared",
   "party_created", "invite_copied", "invite_opened", "party_joined",
   "first_message", "return_visit",
+  // Soft-launch depth funnel
+  "video_joined", "ready_status", "scrub_opened", "d1_return", "invite_depth",
+  "guest_joined", "watch_with_us",
 ] as const;
 export type FunnelEvent = (typeof FUNNEL_EVENTS)[number];
 
@@ -12,7 +15,16 @@ export async function recordEvent(
   name: FunnelEvent,
   input: { userId?: string | null; sessionId?: string | null; properties?: Record<string, string | number | boolean | null> } = {}
 ) {
-  const allowed = new Set(["partyId", "source", "mode", "authenticated", "newUser"]);
+  const allowed = new Set([
+    "partyId",
+    "source",
+    "mode",
+    "authenticated",
+    "newUser",
+    "status",
+    "depth",
+    "day",
+  ]);
   const properties = Object.fromEntries(
     Object.entries(input.properties || {}).filter(([key]) => allowed.has(key))
   );

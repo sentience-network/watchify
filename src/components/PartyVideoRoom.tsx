@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePartyVideo } from "@/hooks/usePartyVideo";
+import { track } from "@/lib/analytics-client";
 import { useWatchify } from "@/lib/store";
 import { partyUserLabel } from "@/lib/users";
 
@@ -186,15 +187,19 @@ export function PartyVideoRoom({ partyId }: { partyId: string }) {
         </div>
         <button
           type="button"
-          onClick={() => video.join(camera, microphone)}
+          onClick={() => {
+            track("video_joined", { partyId, source: "party_video_room" });
+            video.join(camera, microphone);
+          }}
           className="mt-3 rounded-lg bg-teal px-3 py-2 text-xs font-semibold text-ink"
         >
           Join video room
         </button>
         {!video.turnConfigured && (
-          <p className="mt-2 text-[11px] text-amber-soft">
-            TURN is not configured; calls may fail on strict corporate/mobile
-            networks.
+          <p className="mt-2 text-[11px] leading-relaxed text-amber-soft">
+            STUN-only mode — no TURN relay configured. Face video often works on
+            home Wi‑Fi, but corporate / carrier NAT may fail ICE. Chat and Ready
+            still work if video cannot connect.
           </p>
         )}
         {video.error && (
@@ -206,8 +211,26 @@ export function PartyVideoRoom({ partyId }: { partyId: string }) {
     );
   }
 
+  const anyFailed = Array.from(video.connectionStates.values()).some(
+    (s) => s === "failed" || s === "disconnected"
+  );
+  const reconnecting = Array.from(video.connectionStates.values()).some(
+    (s) => s === "reconnecting" || s === "connecting"
+  );
+
   return (
     <section className="mt-4 rounded-xl border border-line bg-ink/35 p-3">
+      {anyFailed ? (
+        <p className="mb-2 rounded-lg border border-amber/40 bg-amber/10 px-2.5 py-2 text-[11px] leading-relaxed text-amber-soft" role="status">
+          ICE failed for at least one peer — usually strict NAT without TURN.
+          Leave call and rejoin, or stay on chat. We are not faking a paid stream;
+          this is face video only.
+        </p>
+      ) : reconnecting ? (
+        <p className="mb-2 text-[11px] text-mist/75" role="status">
+          Reconnecting a peer… if it stalls, leave and rejoin video.
+        </p>
+      ) : null}
       {onVideoNames.length > 0 ? (
         <p className="mb-2 text-[11px] text-mist/75">
           <span className="font-medium text-teal-soft">On video:</span>{" "}

@@ -1,6 +1,7 @@
 "use client";
 
 import { ProfileAvatar } from "@/components/ProfileAvatar";
+import { track } from "@/lib/analytics-client";
 import { getPartyRealtime } from "@/lib/party-realtime";
 import type { PartyPresenceMember, PartyReadyStatus, User } from "@/lib/types";
 import { partyUserLabel } from "@/lib/users";
@@ -48,6 +49,7 @@ export function PartyReadyBoard({
 
   function setStatus(status: PartyReadyStatus) {
     getPartyRealtime(partyId)?.setReadyStatus(status);
+    track("ready_status", { partyId, status });
   }
 
   return (

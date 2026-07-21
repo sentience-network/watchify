@@ -101,6 +101,14 @@ export function HostLobbyChecklist({
     const ok = await copyToClipboard(url);
     if (ok) {
       setInviteCopied(true);
+      try {
+        localStorage.setItem("watchify_invite_copied", "1");
+        const n =
+          Number(localStorage.getItem("watchify_invite_share_count") || "0") + 1;
+        localStorage.setItem("watchify_invite_share_count", String(n));
+      } catch {
+        /* ignore */
+      }
       track("invite_copied", { partyId: party.id, source: "lobby_checklist" });
     }
   }

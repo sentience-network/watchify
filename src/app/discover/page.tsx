@@ -11,6 +11,10 @@ import { MovieRow } from "@/components/MovieRow";
 import { MovieTile } from "@/components/MovieTile";
 import { ServiceBadge } from "@/components/ServiceBadge";
 import { WatchingNowStrip } from "@/components/WatchingNowStrip";
+import { TonightAvailabilityPanel } from "@/components/TonightAvailabilityPanel";
+import { TrialHostAgainCta } from "@/components/TrialHostAgainCta";
+import { ShareMenu } from "@/components/ShareMenu";
+import { profileShareUrl } from "@/lib/share";
 import { DEMO_CATALOG_NOTE } from "@/lib/deep-links";
 import { isFreePlayable } from "@/lib/free-content";
 import {
@@ -102,8 +106,16 @@ export default function DiscoverPage() {
 
 function DiscoverInner() {
   const searchParams = useSearchParams();
-  const { state, openParties, publicWatching, ready, directoryUsers, currentUserId, canHostParties } =
-    useWatchify();
+  const {
+    state,
+    openParties,
+    publicWatching,
+    ready,
+    directoryUsers,
+    currentUserId,
+    canHostParties,
+    refreshFromServer,
+  } = useWatchify();
   const [query, setQuery] = useState(searchParams.get("people") || "");
   const [searchMode, setSearchMode] = useState<"titles" | "people">(
     searchParams.get("people") !== null ? "people" : "titles"
@@ -128,6 +140,8 @@ function DiscoverInner() {
   const [searching, setSearching] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [catalogScale, setCatalogScale] = useState(0);
+  const [tasteTick, setTasteTick] = useState(0);
+  const linkedKey = state.linkedServices.join("|");
 
   useEffect(() => {
     fetch("/api/config")
@@ -135,6 +149,18 @@ function DiscoverInner() {
       .then((d) => setTmdbLive(Boolean(d.tmdbConfigured)))
       .catch(() => undefined);
   }, []);
+
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem("watchify_taste_refresh") === "1") {
+        sessionStorage.removeItem("watchify_taste_refresh");
+        setTasteTick((n) => n + 1);
+        void refreshFromServer();
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [refreshFromServer, linkedKey]);
 
   useEffect(() => {
     if (!tmdbLive) return;
@@ -241,7 +267,7 @@ function DiscoverInner() {
     return () => {
       cancelled = true;
     };
-  }, [ready, currentUserId, tmdbLive, directoryUsers]);
+  }, [ready, currentUserId, tmdbLive, directoryUsers, tasteTick]);
 
   const localResults = useMemo(() => {
     let list = searchMovies(query);
@@ -332,11 +358,58 @@ function DiscoverInner() {
     <AppShell>
       <div className="mx-auto max-w-6xl">
         <HostOnboarding />
+        <TrialHostAgainCta />
         {ready && currentUserId && state.friendIds.length < 3 && (
-          <div className="mb-6 animate-fade-up">
+          <div className="mb-6 animate-fade-up space-y-4">
             <FindWatchifyFriends compact />
+            <div className="rounded-2xl border border-amber/30 bg-amber/10 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-amber-soft">
+                Cold graph? Invite offline friends
+              </p>
+              <p className="mt-1 text-sm text-mist/85">
+                Paste a party invite above, or text / WhatsApp your profile link —
+                soft launch works best when two friends install and accept.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <ShareMenu
+                  url={profileShareUrl(currentUserId)}
+                  title="Find me on Watchify"
+                  text="Add me on Watchify — search my handle or open this link"
+                  compact
+                />
+                <a
+                  href={`sms:?&body=${encodeURIComponent(
+                    `Join me on Watchify: ${profileShareUrl(currentUserId)}`
+                  )}`}
+                  className="rounded-lg border border-line px-3 py-1.5 text-xs text-mist hover:text-white"
+                >
+                  SMS invite
+                </a>
+                <a
+                  href={`https://wa.me/?text=${encodeURIComponent(
+                    `Join me on Watchify: ${profileShareUrl(currentUserId)}`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-lg border border-line px-3 py-1.5 text-xs text-mist hover:text-white"
+                >
+                  WhatsApp
+                </a>
+                <Link
+                  href="/auth/signup"
+                  className="rounded-lg bg-teal/20 px-3 py-1.5 text-xs font-semibold text-teal-soft"
+                >
+                  Share signup link
+                </Link>
+              </div>
+            </div>
           </div>
         )}
+        {ready && currentUserId ? (
+          <div className="mb-8 animate-fade-up">
+            <TonightAvailabilityPanel />
+          </div>
+        ) : null}
         <header className="mb-8 animate-fade-up">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>

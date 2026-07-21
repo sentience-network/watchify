@@ -180,6 +180,10 @@ export type WatchParty = {
   coHostIds?: string[];
   /** Soft recurring flag for host tools */
   recurringWeekly?: boolean;
+  /** Prior weekly-club party id */
+  clubParentId?: string | null;
+  /** Consecutive weekly-club host streak */
+  hostClubStreak?: number;
   /** Opaque invite code for one-tap join links */
   inviteCode?: string;
   inviteExpiresAt?: string | null;

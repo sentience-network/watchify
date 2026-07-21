@@ -6,6 +6,7 @@ import { copyToClipboard, nativeShare, partyShareUrl } from "@/lib/share";
 import { getUser } from "@/lib/users";
 import type { WatchParty } from "@/lib/types";
 import { ShareMenu } from "./ShareMenu";
+import { TrialHostAgainCta } from "./TrialHostAgainCta";
 import { track } from "@/lib/analytics-client";
 
 export type PartyRecap = {
@@ -105,6 +106,7 @@ export function PartyRecapCard({
           Shareable wrap-up for friends — chat memories + the title you queued,
           not a paid-app stream recording.
         </p>
+        <TrialHostAgainCta variant="inline" />
         <div className="mt-4 flex flex-wrap gap-2">
           <button
             type="button"

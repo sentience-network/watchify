@@ -1,6 +1,6 @@
 /* Watchify PWA — cache shell assets only; never cache auth/API.
  * HTML navigations are network-first so deploys (e.g. spiral hero) show immediately. */
-const CACHE = "watchify-shell-v4";
+const CACHE = "watchify-shell-v5";
 const PRECACHE = [
   "/manifest.webmanifest",
   "/icons/icon-192.svg",
@@ -21,6 +21,39 @@ self.addEventListener("activate", (event) => {
     caches.keys().then((keys) =>
       Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
     ).then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener("push", (event) => {
+  let data = { title: "Watchify", body: "Party reminder", url: "/parties" };
+  try {
+    if (event.data) data = { ...data, ...event.data.json() };
+  } catch {
+    /* ignore */
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title || "Watchify", {
+      body: data.body || "",
+      data: { url: data.url || "/parties" },
+      icon: "/icons/icon-192.png",
+      badge: "/icons/icon-192.png",
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || "/parties";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      for (const c of clients) {
+        if ("focus" in c) {
+          c.navigate?.(url);
+          return c.focus();
+        }
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(url);
+    })
   );
 });
 

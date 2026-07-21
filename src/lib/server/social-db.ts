@@ -214,6 +214,8 @@ function mapParty(row: {
   syncMode: string;
   coHostIdsJson: string;
   recurringWeekly: boolean;
+  clubParentId?: string | null;
+  hostClubStreak?: number;
   inviteCode?: string;
   inviteExpiresAt?: Date | null;
   inviteRevokedAt?: Date | null;
@@ -235,6 +237,8 @@ function mapParty(row: {
     syncMode: row.syncMode as WatchParty["syncMode"],
     coHostIds: parseJson<string[]>(row.coHostIdsJson, []),
     recurringWeekly: row.recurringWeekly,
+    clubParentId: row.clubParentId || null,
+    hostClubStreak: row.hostClubStreak ?? 0,
     inviteCode: row.inviteCode,
     inviteExpiresAt: row.inviteExpiresAt?.toISOString() ?? null,
     inviteRevokedAt: row.inviteRevokedAt?.toISOString() ?? null,
@@ -1027,6 +1031,9 @@ export async function goLivePartyDb(userId: string, partyId: string) {
     memberIds: row.members.map((m) => m.userId),
     hostId: row.hostId,
   });
+  void import("./reminders")
+    .then((m) => m.dispatchPartyReminders({ partyId: row.id, forceLive: true }))
+    .catch(() => undefined);
 
   return { ok: true as const, party: mapParty(row) };
 }
@@ -1273,13 +1280,22 @@ export async function endPartyDb(userId: string, partyId: string) {
     data: { status: "ended", isLive: false },
   });
 
-  // Recurring weekly: spawn next week's room automatically with a fresh invite.
+  // Recurring weekly Watch Club: spawn next week, keep invite cohort, notify, streak.
   if (party.recurringWeekly) {
     const nextStart = new Date(
       (party.startsAt?.getTime() || Date.now()) + 7 * 86_400_000
     );
     const nextId = uid("wp");
-    await prisma.party.create({
+    const prevStreak = party.hostClubStreak ?? 0;
+    const nextStreak = prevStreak + 1;
+    const cohort = await prisma.partyMember.findMany({
+      where: { partyId },
+      select: { userId: true },
+    });
+    const memberIds = Array.from(
+      new Set([party.hostId, ...cohort.map((m) => m.userId)])
+    );
+    const spawned = await prisma.party.create({
       data: {
         id: nextId,
         name: party.name,
@@ -1292,10 +1308,14 @@ export async function endPartyDb(userId: string, partyId: string) {
         syncMode: party.syncMode,
         coHostIdsJson: party.coHostIdsJson,
         recurringWeekly: true,
+        clubParentId: partyId,
+        hostClubStreak: nextStreak,
         inviteExpiresAt: new Date(nextStart.getTime() + 7 * 86_400_000),
         visibility: party.visibility,
         maxMembers: party.maxMembers,
-        members: { create: [{ userId: party.hostId }] },
+        members: {
+          create: memberIds.map((userId) => ({ userId })),
+        },
         playbackSync: {
           create: {
             positionSec: 0,
@@ -1305,10 +1325,89 @@ export async function endPartyDb(userId: string, partyId: string) {
         },
       },
     });
-    return { ok: true, nextPartyId: nextId, nextStartsAt: nextStart.toISOString() };
+    void notifyWeeklyClubSpawn({
+      partyId: nextId,
+      partyName: party.name,
+      movieId: party.movieId,
+      hostId: party.hostId,
+      memberIds,
+      nextStartsAt: nextStart,
+      hostClubStreak: nextStreak,
+      inviteCode: spawned.inviteCode || nextId,
+    });
+    return {
+      ok: true,
+      nextPartyId: nextId,
+      nextStartsAt: nextStart.toISOString(),
+      hostClubStreak: nextStreak,
+    };
   }
 
   return { ok: true };
+}
+
+async function notifyWeeklyClubSpawn(input: {
+  partyId: string;
+  partyName: string;
+  movieId: string;
+  hostId: string;
+  memberIds: string[];
+  nextStartsAt: Date;
+  hostClubStreak: number;
+  inviteCode: string;
+}) {
+  try {
+    const { productEmailEnabled, sendEmail } = await import("../email");
+    const { getMovie } = await import("../movies");
+    const { absoluteUrl } = await import("../site");
+    const movie = getMovie(input.movieId);
+    const host = await prisma.user.findUnique({
+      where: { id: input.hostId },
+      select: { name: true, email: true },
+    });
+    const inviteUrl = absoluteUrl(`/share/party/${input.inviteCode}`);
+    const when = input.nextStartsAt.toLocaleString();
+    const subject = `Weekly Watch Club: ${input.partyName} · week ${input.hostClubStreak}`;
+    const text = `${host?.name || "Your host"} locked next week’s Watch Club for ${
+      movie?.title || "the title"
+    } on ${when}.\n\nHost streak: ${input.hostClubStreak} week(s).\nJoin: ${inviteUrl}\n`;
+    const html = `<p><strong>${host?.name || "Your host"}</strong> spawned next week’s Watch Club (<em>${
+      input.partyName
+    }</em> · ${movie?.title || "title"}) for <strong>${when}</strong>.</p><p>Host streak: ${
+      input.hostClubStreak
+    } week(s).</p><p><a href="${inviteUrl}">Open next week’s room</a></p>`;
+
+    // Refresh invite code from DB if available
+    const next = await prisma.party.findUnique({
+      where: { id: input.partyId },
+      select: { inviteCode: true },
+    });
+    const url = absoluteUrl(`/share/party/${next?.inviteCode || input.inviteCode}`);
+
+    if (!productEmailEnabled()) {
+      console.info("[watchify:watch-club]", subject, url);
+      return;
+    }
+    const recipients = await prisma.user.findMany({
+      where: {
+        id: { in: input.memberIds },
+        bannedAt: null,
+        isGuest: false,
+      },
+      select: { email: true },
+    });
+    for (const r of recipients) {
+      if (!r.email) continue;
+      await sendEmail({
+        to: r.email,
+        subject,
+        text: text.replace(inviteUrl, url),
+        html: html.replace(inviteUrl, url),
+      });
+    }
+  } catch (err) {
+    console.error("[watchify] weekly club notify failed", err);
+  }
 }
 
 export async function requestJoinPartyDb(userId: string, partyId: string) {

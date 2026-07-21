@@ -32,6 +32,13 @@ export function ShareMenu({ url, title, text, compact, onBeforeShare, onShared }
   }
 
   function noteShared() {
+    try {
+      localStorage.setItem("watchify_invite_copied", "1");
+      const n = Number(localStorage.getItem("watchify_invite_share_count") || "0") + 1;
+      localStorage.setItem("watchify_invite_share_count", String(n));
+    } catch {
+      /* ignore */
+    }
     onShared?.();
   }
 

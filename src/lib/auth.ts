@@ -60,6 +60,10 @@ export const authOptions: NextAuthOptions = {
           handle: pub.handle,
           role: pub.role,
           emailVerified: pub.emailVerified,
+          isGuest: Boolean(
+            (user as { isGuest?: boolean }).isGuest ||
+              pub.email.endsWith("@guest.watchify.local")
+          ),
         };
       },
     }),
@@ -113,6 +117,7 @@ export const authOptions: NextAuthOptions = {
         token.handle = user.handle ?? "";
         token.role = (user.role as UserRole) || "user";
         token.emailVerified = Boolean(user.emailVerified);
+        token.isGuest = Boolean(user.isGuest);
       }
       const uid = (token.uid as string) || (token.sub as string) || "";
       if (uid) {
@@ -129,6 +134,10 @@ export const authOptions: NextAuthOptions = {
             token.handle = dbUser.handle;
             token.role = dbUser.role;
             token.emailVerified = Boolean(dbUser.emailVerifiedAt);
+            token.isGuest = Boolean(
+              (dbUser as { isGuest?: boolean }).isGuest ||
+                dbUser.email.endsWith("@guest.watchify.local")
+            );
           }
         } catch {
           // DB briefly unavailable — keep token
@@ -145,6 +154,7 @@ export const authOptions: NextAuthOptions = {
           session.user.handle = "";
           session.user.role = "user";
           session.user.emailVerified = false;
+          session.user.isGuest = false;
         }
         return session;
       }
@@ -154,6 +164,7 @@ export const authOptions: NextAuthOptions = {
         session.user.handle = (token.handle as string) || "";
         session.user.role = (token.role as UserRole) || "user";
         session.user.emailVerified = Boolean(token.emailVerified);
+        session.user.isGuest = Boolean(token.isGuest);
       }
       return session;
     },

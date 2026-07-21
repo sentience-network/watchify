@@ -38,7 +38,9 @@ import { PartyQrInvite } from "./PartyQrInvite";
 import { WatchingNowInvite } from "./WatchingNowInvite";
 import { PartyNextVote } from "./PartyNextVote";
 import { ServiceMismatchBanner } from "./ServiceMismatchBanner";
+import { OwnAccountSyncRitual } from "./OwnAccountSyncRitual";
 import { encodePlayheadPin, parsePlayheadPin } from "@/lib/playhead-pin";
+import { track } from "@/lib/analytics-client";
 
 const REACTIONS = ["🔥", "😂", "😱", "👏", "❤️"];
 
@@ -507,16 +509,37 @@ export function PartySocialPanel({
         />
       ) : null}
 
+      {mode === "own_account" && party && movie && currentUserId ? (
+        <OwnAccountSyncRitual
+          party={party}
+          movie={movie}
+          positionSec={positionSec}
+          joinCueSec={joinCueSec || positionSec}
+          presence={presence}
+          currentUserId={currentUserId}
+          isHostOrCo={Boolean(isHostOrCo)}
+          preferredDeepLink={
+            preferredDeepLink
+              ? {
+                  name: preferredDeepLink.name,
+                  deepLink: preferredDeepLink.deepLink,
+                  id: preferredDeepLink.id,
+                }
+              : null
+          }
+          onGo={() => {
+            track("ready_status", { partyId, status: "go" });
+            void startReadyGo();
+            if (!sync?.watchStartedAt) {
+              startPartyWatchTracker(partyId, joinCueSec || 0);
+            }
+          }}
+        />
+      ) : null}
+
       {mode === "own_account" ? (
-        <div className="mt-3 space-y-2 rounded-lg border border-amber/30 bg-amber/10 p-3 text-xs text-mist">
-          <p className="font-medium text-amber-soft">
-            Off-site watch tracker
-          </p>
-          <p className="leading-relaxed text-mist/75">
-            Press play on your own service (Netflix, Max, etc.), then start the
-            tracker. Friends see when you started and what time to scrub to —
-            Watchify never streams those apps.
-          </p>
+        <div className="mt-3 space-y-2 rounded-lg border border-line/70 bg-ink/30 p-3 text-xs text-mist">
+          <p className="font-medium text-mist">Off-site tracker details</p>
           {sync?.watchStartedAt ? (
             <div className="rounded-md border border-line/70 bg-ink/40 px-2.5 py-2 text-white">
               <p>
@@ -530,10 +553,6 @@ export function PartySocialPanel({
                   {formatPlayhead(joinCueSec)}
                 </span>
               </p>
-              <p className="mt-0.5 text-mist/65">
-                Host playhead hint: {formatPlayhead(positionSec)} ·{" "}
-                {sync.playing ? "playing" : "paused"}
-              </p>
               <button
                 type="button"
                 onClick={() => void copyScrub()}
@@ -545,27 +564,10 @@ export function PartySocialPanel({
               </button>
             </div>
           ) : (
-            <p className="text-mist/70">Tracker not started yet.</p>
+            <p className="text-mist/70">Tracker starts when host hits Go.</p>
           )}
           {isHostOrCo ? (
             <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                className="rounded-md bg-amber px-3 py-1.5 font-semibold text-ink"
-                onClick={() => void startReadyGo()}
-                disabled={countdownLeft > 0}
-              >
-                Ready? 3–2–1 Go
-              </button>
-              <button
-                type="button"
-                className="rounded-md bg-teal px-3 py-1.5 font-semibold text-ink"
-                onClick={() => startPartyWatchTracker(partyId, 0)}
-              >
-                {sync?.watchStartedAt
-                  ? "Restart tracker (I pressed play)"
-                  : "I pressed play — start tracker"}
-              </button>
               <button
                 type="button"
                 className="rounded-md bg-teal/20 px-2 py-1 text-teal-soft"

@@ -10,6 +10,8 @@ const labels: Record<string, string> = {
   landing_view: "Landing views", signup_started: "Signup starts", signup_completed: "Signups",
   presence_shared: "Presence shares", party_created: "Parties created", invite_copied: "Invites copied",
   invite_opened: "Invites opened", party_joined: "Party joins", first_message: "First messages", return_visit: "Return visits",
+  video_joined: "Video joins", ready_status: "Ready status taps", scrub_opened: "Scrub / open service",
+  d1_return: "D1+ returns", invite_depth: "Invite depth", guest_joined: "Guest joins", watch_with_us: "Watch with us",
 };
 
 export default function AnalyticsPage() {

@@ -13,6 +13,7 @@ declare module "next-auth" {
       handle: string;
       role: UserRole;
       emailVerified: boolean;
+      isGuest?: boolean;
     };
   }
 
@@ -21,6 +22,7 @@ declare module "next-auth" {
     handle?: string;
     role?: UserRole;
     emailVerified?: boolean;
+    isGuest?: boolean;
   }
 }
 
@@ -32,5 +34,6 @@ declare module "next-auth/jwt" {
     role?: UserRole;
     emailVerified?: boolean;
     banned?: boolean;
+    isGuest?: boolean;
   }
 }

@@ -11,6 +11,7 @@ import { ReportVideoButton } from "@/components/ReportVideoButton";
 import { ScreenSharePanel } from "@/components/ScreenSharePanel";
 import { ShareMenu } from "@/components/ShareMenu";
 import { TitleRatingPanel } from "@/components/TitleRatingPanel";
+import { UploadTrustSignal } from "@/components/UploadQueueStatus";
 import { DEMO_CATALOG_NOTE, RENT_BUY_COPY } from "@/lib/deep-links";
 import { getMovie, rememberCatalogMovies } from "@/lib/movies";
 import { isFreePlayable } from "@/lib/free-content";
@@ -196,6 +197,11 @@ function WatchInner() {
                 : ""}
               {partyId ? " · party sync on" : ""}
             </p>
+            {movie.id.startsWith("ugc-") ? (
+              <div className="mt-2">
+                <UploadTrustSignal status="approved" />
+              </div>
+            ) : null}
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {!partyId ? (

@@ -31,6 +31,7 @@ import {
 import { PartyAvailabilityPicker } from "@/components/PartyAvailabilityPicker";
 import { FriendCirclesPanel } from "@/components/FriendCirclesPanel";
 import { parsePartyAvailability } from "@/lib/party-availability";
+import { PushReminderOptIn } from "@/components/PushReminderOptIn";
 import { parseFriendCircles } from "@/lib/friend-circles";
 
 export default function SettingsPage() {
@@ -113,7 +114,19 @@ export default function SettingsPage() {
     setTraktBusy(false);
     if (!res.ok) return setMsg(data.error || "Trakt request failed");
     if (data.url) return (window.location.href = data.url);
-    setMsg(action === "sync" ? `Trakt sync complete (${data.imported} history items received).` : "Trakt disconnected.");
+    if (action === "sync") {
+      setMsg(
+        `Trakt sync complete (${data.imported} history items). Refreshing For you / New from follows — ready to host from your history.`
+      );
+      await refreshFromServer();
+      try {
+        sessionStorage.setItem("watchify_taste_refresh", "1");
+      } catch {
+        /* ignore */
+      }
+    } else {
+      setMsg("Trakt disconnected.");
+    }
     await loadTrakt();
   }
 
@@ -432,6 +445,7 @@ export default function SettingsPage() {
                 : "Enable browser alerts"}
             </button>
           ) : null}
+          <PushReminderOptIn />
         </section>
 
         <section className="mb-8 rounded-2xl border border-line bg-panel/50 p-5">
@@ -492,8 +506,14 @@ export default function SettingsPage() {
                               setMsg(result.error);
                               return;
                             }
+                            await refreshFromServer();
+                            try {
+                              sessionStorage.setItem("watchify_taste_refresh", "1");
+                            } catch {
+                              /* ignore */
+                            }
                             setMsg(
-                              `Linked ${s.name}. Title pages will highlight Watch on ${s.name} when that service has the film — stay signed in on ${s.name} in this browser.`
+                              `Linked ${s.name}. For you / New from follows will use this badge — ready to host titles you share. Stay signed in on ${s.name} in this browser.`
                             );
                           } finally {
                             setLinkBusy(null);

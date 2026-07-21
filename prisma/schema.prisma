@@ -58,6 +58,8 @@ model User {
   bannedAt                 DateTime?
   warnedAt                 DateTime?
   ageVerified              Boolean   @default(false)
+  /// True for magic-link party guests (no full signup); convert prompt after join.
+  isGuest                  Boolean   @default(false)
   socialLinksJson          String    @default("{}")
   linkedServicesJson       String    @default("[]")
   /// JSON PartyAvailability — free tonight / solo / dnd
@@ -238,6 +240,10 @@ model Party {
   syncMode        String             @default("social")
   coHostIdsJson   String             @default("[]")
   recurringWeekly Boolean            @default(false)
+  /// Prior weekly-club party id (lineage for streak / cohort)
+  clubParentId    String?
+  /// Host consecutive weekly-club ends (denormalized for UI)
+  hostClubStreak  Int                @default(0)
   inviteCode      String             @unique @default(cuid())
   inviteExpiresAt DateTime?
   inviteRevokedAt DateTime?
