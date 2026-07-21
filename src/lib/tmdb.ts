@@ -719,3 +719,171 @@ export async function recommendFromTaste(input: {
   rememberMovies(movies);
   return { movies, reasons };
 }
+
+/**
+ * Recent + upcoming titles tied to favorite people (and sequels/similar for
+ * favorite movies). On-demand TMDB — not push alerts / cron.
+ */
+export async function newReleasesFromFollows(input: {
+  favoriteMovieIds: string[];
+  favoritePeople: FavoritePerson[];
+  excludeIds?: string[];
+  /** Inclusive lower bound year (default: currentYear - 1). */
+  sinceYear?: number;
+}): Promise<{ movies: Movie[]; reasons: Record<string, string> }> {
+  if (!tmdbConfigured()) return { movies: [], reasons: {} };
+
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const sinceYear = input.sinceYear ?? currentYear - 1;
+  const exclude = new Set(input.excludeIds || []);
+  const reasons: Record<string, string> = {};
+  const scored = new Map<string, { movie: Movie; score: number; dateKey: string }>();
+
+  function releaseKey(item: TmdbListItem, media: "movie" | "tv"): string {
+    return (media === "movie" ? item.release_date : item.first_air_date) || "";
+  }
+
+  function add(
+    movie: Movie,
+    score: number,
+    reason: string,
+    dateKey: string
+  ) {
+    if (exclude.has(movie.id)) return;
+    if (movie.year < sinceYear) return;
+    const prev = scored.get(movie.id);
+    if (!prev || score > prev.score || dateKey > prev.dateKey) {
+      scored.set(movie.id, {
+        movie,
+        score: (prev?.score || 0) + score,
+        dateKey: dateKey || prev?.dateKey || "",
+      });
+      reasons[movie.id] = reason;
+    } else {
+      prev.score += score;
+    }
+  }
+
+  async function collectPersonCredits(person: FavoritePerson) {
+    const [movieCredits, tvCredits] = await Promise.all([
+      tmdbFetch<{
+        cast?: TmdbListItem[];
+        crew?: (TmdbListItem & { job?: string; department?: string })[];
+      }>(`/person/${person.id}/movie_credits`),
+      tmdbFetch<{
+        cast?: TmdbListItem[];
+        crew?: (TmdbListItem & { job?: string; department?: string })[];
+      }>(`/person/${person.id}/tv_credits`),
+    ]);
+
+    const directing =
+      person.department === "Directing"
+        ? "Directed by"
+        : person.department === "Acting"
+          ? "Starring"
+          : "Featuring";
+
+    const rows: { item: TmdbListItem; media: "movie" | "tv"; boost: number }[] =
+      [];
+
+    if (person.department === "Directing") {
+      for (const c of movieCredits?.crew || []) {
+        if (c.job === "Director" || c.department === "Directing") {
+          rows.push({ item: c, media: "movie", boost: 5 });
+        }
+      }
+      for (const c of tvCredits?.crew || []) {
+        if (c.job === "Director" || c.department === "Directing") {
+          rows.push({ item: c, media: "tv", boost: 4 });
+        }
+      }
+      // Still surface acting credits lightly for directors
+      for (const c of movieCredits?.cast || []) {
+        rows.push({ item: c, media: "movie", boost: 2 });
+      }
+    } else {
+      for (const c of movieCredits?.cast || []) {
+        rows.push({ item: c, media: "movie", boost: 4 });
+      }
+      for (const c of tvCredits?.cast || []) {
+        rows.push({ item: c, media: "tv", boost: 3 });
+      }
+      for (const c of movieCredits?.crew || []) {
+        if (c.job === "Director" || c.department === "Directing") {
+          rows.push({ item: c, media: "movie", boost: 3 });
+        }
+      }
+    }
+
+    for (const row of rows) {
+      const m = mapTmdbItemToMovie(row.item, row.media);
+      if (!m) continue;
+      const dateKey = releaseKey(row.item, row.media);
+      const upcomingBoost = m.year > currentYear ? 2 : m.year === currentYear ? 1 : 0;
+      add(
+        m,
+        row.boost + upcomingBoost,
+        `${directing} ${person.name}`,
+        dateKey
+      );
+    }
+  }
+
+  for (const person of input.favoritePeople.slice(0, 8)) {
+    await collectPersonCredits(person);
+  }
+
+  // Recent similar / recommended titles for favorite movies (same window)
+  for (const catalogId of input.favoriteMovieIds.slice(0, 6)) {
+    const parsed = parseTmdbCatalogId(catalogId);
+    if (!parsed) continue;
+    const base =
+      parsed.mediaType === "movie"
+        ? `/movie/${parsed.tmdbId}`
+        : `/tv/${parsed.tmdbId}`;
+    const [similar, recs] = await Promise.all([
+      tmdbFetch<{ results?: TmdbListItem[] }>(`${base}/similar`),
+      tmdbFetch<{ results?: TmdbListItem[] }>(`${base}/recommendations`),
+    ]);
+    const seedTitle =
+      getCachedMovie(catalogId)?.title ||
+      (await fetchTmdbTitle(catalogId))?.title ||
+      "a favorite";
+    for (const item of similar?.results || []) {
+      const m = mapTmdbItemToMovie(item, parsed.mediaType);
+      if (m) {
+        add(
+          m,
+          2,
+          `New-ish · similar to ${seedTitle}`,
+          releaseKey(item, parsed.mediaType)
+        );
+      }
+    }
+    for (const item of recs?.results || []) {
+      const m = mapTmdbItemToMovie(item, parsed.mediaType);
+      if (m) {
+        add(
+          m,
+          3,
+          `New-ish · because you like ${seedTitle}`,
+          releaseKey(item, parsed.mediaType)
+        );
+      }
+    }
+  }
+
+  const movies = Array.from(scored.values())
+    .sort(
+      (a, b) =>
+        b.dateKey.localeCompare(a.dateKey) ||
+        b.score - a.score ||
+        b.movie.rating - a.movie.rating
+    )
+    .map((x) => x.movie)
+    .slice(0, 24);
+
+  rememberMovies(movies);
+  return { movies, reasons };
+}

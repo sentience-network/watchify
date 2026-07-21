@@ -485,7 +485,8 @@ export default function ProfilePage() {
                 <Link href="/discover?people=" className="text-teal-soft hover:underline">
                   Browse people on Discover
                 </Link>{" "}
-                · see picks under “For you · from your favorites”.
+                · see “New from who you follow” and “For you · from your favorites”
+                on Discover.
               </p>
             )}
           </section>

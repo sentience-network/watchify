@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireUserId } from "@/lib/server/session";
-import { recommendFromTaste, tmdbConfigured } from "@/lib/tmdb";
+import {
+  newReleasesFromFollows,
+  recommendFromTaste,
+  tmdbConfigured,
+} from "@/lib/tmdb";
 import type { FavoritePerson } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +16,8 @@ export async function GET() {
       {
         movies: [],
         reasons: {},
+        newReleases: [],
+        newReasons: {},
         note: "TMDB_API_KEY required for taste recommendations.",
       },
       { status: 503 }
@@ -43,6 +49,8 @@ export async function GET() {
     return NextResponse.json({
       movies: [],
       reasons: {},
+      newReleases: [],
+      newReasons: {},
       note: "Add favorite movies or actors/directors on your profile to unlock taste picks.",
     });
   }
@@ -54,18 +62,29 @@ export async function GET() {
     recently = [];
   }
 
-  const result = await recommendFromTaste({
-    favoriteMovieIds,
-    favoritePeople,
-    excludeIds: [
-      ...favoriteMovieIds,
-      ...recently,
-      ...(me.currentlyWatchingId ? [me.currentlyWatchingId] : []),
-    ],
-  });
+  const excludeIds = [
+    ...favoriteMovieIds,
+    ...recently,
+    ...(me.currentlyWatchingId ? [me.currentlyWatchingId] : []),
+  ];
+
+  const [result, fresh] = await Promise.all([
+    recommendFromTaste({
+      favoriteMovieIds,
+      favoritePeople,
+      excludeIds,
+    }),
+    newReleasesFromFollows({
+      favoriteMovieIds,
+      favoritePeople,
+      excludeIds,
+    }),
+  ]);
 
   return NextResponse.json({
     ...result,
+    newReleases: fresh.movies,
+    newReasons: fresh.reasons,
     note: "Picks from your favorite movies, actors, and directors (TMDB).",
   });
 }

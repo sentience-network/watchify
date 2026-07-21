@@ -119,6 +119,9 @@ function DiscoverInner() {
   const [tasteRecs, setTasteRecs] = useState<
     { movie: Movie; reason: string }[]
   >([]);
+  const [followNewReleases, setFollowNewReleases] = useState<
+    { movie: Movie; reason: string }[]
+  >([]);
   const [liveTotal, setLiveTotal] = useState(0);
   const [livePage, setLivePage] = useState(1);
   const [liveTotalPages, setLiveTotalPages] = useState(0);
@@ -208,6 +211,7 @@ function DiscoverInner() {
   useEffect(() => {
     if (!ready || !currentUserId || !tmdbLive) {
       setTasteRecs([]);
+      setFollowNewReleases([]);
       return;
     }
     let cancelled = false;
@@ -216,12 +220,20 @@ function DiscoverInner() {
       .then((data) => {
         if (cancelled) return;
         const movies = (data.movies || []) as Movie[];
-        rememberCatalogMovies(movies);
+        const fresh = (data.newReleases || []) as Movie[];
+        rememberCatalogMovies([...movies, ...fresh]);
         const reasons = (data.reasons || {}) as Record<string, string>;
+        const newReasons = (data.newReasons || {}) as Record<string, string>;
         setTasteRecs(
           movies.map((m) => ({
             movie: m,
             reason: reasons[m.id] || "Based on your favorites",
+          }))
+        );
+        setFollowNewReleases(
+          fresh.map((m) => ({
+            movie: m,
+            reason: newReasons[m.id] || "From people you follow",
           }))
         );
       })
@@ -504,6 +516,29 @@ function DiscoverInner() {
         ) : (
           <>
             <WatchingNowStrip />
+
+            {followNewReleases.length > 0 && (
+              <section className="mb-10 animate-fade-up">
+                <h2 className="mb-1 font-display text-xl font-semibold text-white">
+                  New from who you follow
+                </h2>
+                <p className="mb-4 text-xs text-mist/70">
+                  Recent and upcoming titles from favorite actors, directors, and
+                  movies on your profile (last ~2 years).
+                </p>
+                <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-thin">
+                  {followNewReleases.map(({ movie, reason }) => (
+                    <div key={movie.id} className="w-[140px] shrink-0">
+                      <MovieTile movie={movie} />
+                      <p className="mt-1 line-clamp-2 text-[11px] text-teal-soft/85">
+                        {reason}
+                        {movie.year ? ` · ${movie.year}` : ""}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
 
             {tasteRecs.length > 0 && (
               <section className="mb-10 animate-fade-up">
