@@ -97,7 +97,7 @@ export default function DiscoverPage() {
 
 function DiscoverInner() {
   const searchParams = useSearchParams();
-  const { state, openParties, publicWatching, ready, directoryUsers, currentUserId } =
+  const { state, openParties, publicWatching, ready, directoryUsers, currentUserId, canHostParties } =
     useWatchify();
   const [query, setQuery] = useState(searchParams.get("people") || "");
   const [searchMode, setSearchMode] = useState<"titles" | "people">(
@@ -338,12 +338,24 @@ function DiscoverInner() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Link href="/parties" className="rounded-xl bg-teal px-4 py-2.5 text-sm font-semibold text-ink hover:bg-teal-soft animate-party-pulse">
-                Start a party
-              </Link>
-              <Link href="/library" className="rounded-xl border border-line px-4 py-2.5 text-sm font-medium text-mist hover:text-white">
-                Watchify Free
-              </Link>
+              {canHostParties ? (
+                <Link href="/parties?create=1" className="rounded-xl bg-teal px-4 py-2.5 text-sm font-semibold text-ink hover:bg-teal-soft animate-party-pulse">
+                  Start a party
+                </Link>
+              ) : (
+                <Link href="/parties" className="rounded-xl bg-teal px-4 py-2.5 text-sm font-semibold text-ink hover:bg-teal-soft animate-party-pulse">
+                  Join a party
+                </Link>
+              )}
+              {!canHostParties && currentUserId ? (
+                <Link href="/pricing" className="rounded-xl border border-line px-4 py-2.5 text-sm font-medium text-mist hover:text-white">
+                  Host with Party plan
+                </Link>
+              ) : (
+                <Link href="/library" className="rounded-xl border border-line px-4 py-2.5 text-sm font-medium text-mist hover:text-white">
+                  Watchify Free
+                </Link>
+              )}
             </div>
           </div>
 
@@ -526,7 +538,7 @@ function DiscoverInner() {
                     return (
                       <Link
                         key={p.id}
-                        href={`/parties?join=${p.id}`}
+                        href={`/parties/${p.id}`}
                         className="min-w-[220px] shrink-0 rounded-2xl border border-teal/25 bg-panel/60 p-4 transition hover:border-teal/50 animate-party-pulse"
                       >
                         <div className="flex items-center justify-between gap-2">

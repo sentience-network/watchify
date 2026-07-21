@@ -9,6 +9,7 @@ import { VerifyEmailBanner } from "./VerifyEmailBanner";
 import { InstallAppBanner } from "./InstallAppBanner";
 import { ColdStartBanner } from "./ColdStartBanner";
 import { SocialAlerts } from "./SocialAlerts";
+import { PartyLifecycleAlerts } from "./PartyLifecycleAlerts";
 
 export function AppShell({ children }: { children: ReactNode }) {
   return (
@@ -23,6 +24,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <NowWatchingBar />
       <InstallAppBanner />
       <SocialAlerts />
+      <PartyLifecycleAlerts />
       <CookieBanner />
     </div>
   );

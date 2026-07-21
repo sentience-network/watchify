@@ -12,6 +12,7 @@ export type PartyRecap = {
   party: WatchParty;
   endedAt: string;
   nextStartsAt?: string;
+  nextPartyId?: string;
 };
 
 /**
@@ -20,9 +21,13 @@ export type PartyRecap = {
 export function PartyRecapCard({
   recap,
   onClose,
+  onSameTimeNextWeek,
+  canHost = false,
 }: {
   recap: PartyRecap;
   onClose: () => void;
+  onSameTimeNextWeek?: () => void;
+  canHost?: boolean;
 }) {
   const movie = getMovie(recap.party.movieId);
   const host = getUser(recap.party.hostId);
@@ -94,7 +99,7 @@ export function PartyRecapCard({
             ? `Next week? Already scheduled for ${new Date(
                 recap.nextStartsAt
               ).toLocaleString()}.`
-            : "Same time next week? Share this recap and lock a night."}
+            : "Same time next week? Share this recap or lock a night in one tap."}
         </p>
         <p className="mt-2 text-[11px] leading-relaxed text-mist/60">
           Shareable wrap-up for friends — chat memories + the title you queued,
@@ -108,6 +113,23 @@ export function PartyRecapCard({
           >
             Share recap
           </button>
+          {onSameTimeNextWeek ? (
+            <button
+              type="button"
+              onClick={onSameTimeNextWeek}
+              disabled={!canHost && !recap.nextPartyId}
+              className="rounded-lg border border-amber/40 bg-amber/15 px-3 py-2 text-xs font-semibold text-amber-soft disabled:opacity-50"
+              title={
+                !canHost && !recap.nextPartyId
+                  ? "Party plan required to host the rebook"
+                  : undefined
+              }
+            >
+              {recap.nextPartyId
+                ? "Open next week’s room"
+                : "Same time next week"}
+            </button>
+          ) : null}
           <ShareMenu
             compact
             url={shareUrl}

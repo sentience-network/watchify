@@ -15,6 +15,15 @@ import {
 } from "@/lib/streaming";
 import { useWatchify } from "@/lib/store";
 import { getUser } from "@/lib/users";
+import {
+  loadNotifyPrefs,
+  saveNotifyPrefs,
+  type NotifyMode,
+} from "@/lib/notify-prefs";
+import {
+  notificationPermission,
+  requestNotificationPermission,
+} from "@/lib/browser-notify";
 
 export default function SettingsPage() {
   const { data: session } = useSession();
@@ -39,7 +48,29 @@ export default function SettingsPage() {
     imported?: { id: string; title: string; year: number | null; catalogId: string | null; watchedAt: string | null }[];
   } | null>(null);
   const [traktBusy, setTraktBusy] = useState(false);
+  const [notifyMode, setNotifyMode] = useState<NotifyMode>("all");
+  const [browserPerm, setBrowserPerm] = useState<string>("unsupported");
   const plan = getPlan(state.plan);
+
+  useEffect(() => {
+    const prefs = loadNotifyPrefs();
+    setNotifyMode(prefs.mode);
+    setBrowserPerm(notificationPermission());
+  }, []);
+
+  function updateNotifyMode(mode: NotifyMode) {
+    setNotifyMode(mode);
+    saveNotifyPrefs({ mode, promptHandled: true });
+  }
+
+  async function enableBrowserAlerts() {
+    const perm = await requestNotificationPermission();
+    setBrowserPerm(perm);
+    saveNotifyPrefs({ promptHandled: true });
+    if (perm === "granted" && notifyMode === "muted") {
+      updateNotifyMode("all");
+    }
+  }
 
   useEffect(() => {
     setLinks(state.socialLinks);
@@ -291,6 +322,54 @@ export default function SettingsPage() {
             />
             Show what I&apos;m watching publicly
           </label>
+        </section>
+
+        <section className="mb-8 rounded-2xl border border-line bg-panel/50 p-5">
+          <h2 className="font-display text-lg font-semibold text-white">
+            Notifications
+          </h2>
+          <p className="mt-1 text-xs leading-relaxed text-mist/75">
+            In-app toasts always respect this setting. Browser alerts are
+            optional and never auto-prompted on sign-in.
+          </p>
+          <fieldset className="mt-3 space-y-2">
+            <legend className="sr-only">Alert mode</legend>
+            {(
+              [
+                ["all", "All social alerts"],
+                ["invites", "Invites & party reminders only"],
+                ["muted", "Muted"],
+              ] as const
+            ).map(([value, label]) => (
+              <label
+                key={value}
+                className="flex items-center gap-2 text-sm text-mist"
+              >
+                <input
+                  type="radio"
+                  name="notify-mode"
+                  checked={notifyMode === value}
+                  onChange={() => updateNotifyMode(value)}
+                />
+                {label}
+              </label>
+            ))}
+          </fieldset>
+          <p className="mt-3 text-xs text-mist/60">
+            Browser permission:{" "}
+            <span className="text-mist">{browserPerm}</span>
+          </p>
+          {browserPerm === "default" || browserPerm === "denied" ? (
+            <button
+              type="button"
+              onClick={() => void enableBrowserAlerts()}
+              className="mt-2 rounded-lg border border-line px-3 py-2 text-xs text-mist hover:text-white"
+            >
+              {browserPerm === "denied"
+                ? "Permission blocked in browser settings"
+                : "Enable browser alerts"}
+            </button>
+          ) : null}
         </section>
 
         <section className="mb-8 rounded-2xl border border-line bg-panel/50 p-5">

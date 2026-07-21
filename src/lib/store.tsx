@@ -82,6 +82,11 @@ type Store = {
     recurringWeekly?: boolean;
   }) => Promise<CreateResult<WatchParty>>;
   endParty: (partyId: string) => Promise<{ nextPartyId?: string; nextStartsAt?: string } | void>;
+  leaveParty: (partyId: string) => Promise<CreateResult<true>>;
+  updateParty: (
+    partyId: string,
+    input: { name?: string; movieId?: string; coHostIds?: string[] }
+  ) => Promise<CreateResult<WatchParty>>;
   requestJoinParty: (partyId: string) => void;
   /** One-tap invite — creates PartyMember and returns the party. */
   joinPartyByInvite: (
@@ -289,7 +294,7 @@ export function WatchifyProvider({ children }: { children: ReactNode }) {
       }
     }
     void pollUnread();
-    const id = window.setInterval(() => void pollUnread(), 8000);
+    const id = window.setInterval(() => void pollUnread(), 3000);
     return () => {
       cancelled = true;
       window.clearInterval(id);
@@ -608,6 +613,60 @@ export function WatchifyProvider({ children }: { children: ReactNode }) {
         nextPartyId: result.data.nextPartyId,
         nextStartsAt: result.data.nextStartsAt,
       };
+    },
+    [sessionUserId, refreshFromServer]
+  );
+
+  const leaveParty = useCallback(
+    async (partyId: string): Promise<CreateResult<true>> => {
+      if (!sessionUserId) {
+        return { ok: false, error: "Sign in to leave a party." };
+      }
+      const result = await apiJson<{ ok?: boolean; error?: string }>(
+        "/api/parties",
+        {
+          method: "POST",
+          body: JSON.stringify({ action: "leave", partyId }),
+        }
+      );
+      await refreshFromServer();
+      if (!result.ok) return { ok: false, error: result.error };
+      return { ok: true, value: true };
+    },
+    [sessionUserId, refreshFromServer]
+  );
+
+  const updateParty = useCallback(
+    async (
+      partyId: string,
+      input: { name?: string; movieId?: string; coHostIds?: string[] }
+    ): Promise<CreateResult<WatchParty>> => {
+      if (!sessionUserId) {
+        return { ok: false, error: "Sign in to edit a party." };
+      }
+      const result = await apiJson<{ party?: WatchParty; error?: string }>(
+        "/api/parties",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            action: "update",
+            partyId,
+            name: input.name,
+            updateMovieId: input.movieId,
+            coHostIds: input.coHostIds,
+          }),
+        }
+      );
+      if (!result.ok || !result.data.party) {
+        return {
+          ok: false,
+          error: result.ok
+            ? result.data.error || "Update failed"
+            : result.error,
+        };
+      }
+      await refreshFromServer();
+      return { ok: true, value: result.data.party };
     },
     [sessionUserId, refreshFromServer]
   );
@@ -1026,6 +1085,8 @@ export function WatchifyProvider({ children }: { children: ReactNode }) {
       unlinkStreamingService,
       createParty,
       endParty,
+      leaveParty,
+      updateParty,
       requestJoinParty,
       joinPartyByInvite,
       acceptJoinRequest,
@@ -1086,6 +1147,8 @@ export function WatchifyProvider({ children }: { children: ReactNode }) {
       unlinkStreamingService,
       createParty,
       endParty,
+      leaveParty,
+      updateParty,
       requestJoinParty,
       joinPartyByInvite,
       acceptJoinRequest,

@@ -30,7 +30,14 @@ import { PartyCountdownOverlay } from "./PartyCountdownOverlay";
 
 const REACTIONS = ["🔥", "😂", "😱", "👏", "❤️"];
 
-export function PartySocialPanel({ partyId }: { partyId: string }) {
+export function PartySocialPanel({
+  partyId,
+  theater = false,
+}: {
+  partyId: string;
+  /** Sticky player + chat stack for focus / phone theater. */
+  theater?: boolean;
+}) {
   const {
     state,
     postPartyMessage,
@@ -219,7 +226,11 @@ export function PartySocialPanel({ partyId }: { partyId: string }) {
       : "";
 
   return (
-    <div className="mt-3 rounded-xl border border-line/80 bg-ink/40 p-3">
+    <div
+      className={`mt-3 rounded-xl border border-line/80 bg-ink/40 p-3 ${
+        theater ? "party-theater-panel md:static" : ""
+      }`}
+    >
       <PartyCountdownOverlay count={countdownLeft} scrubSec={countdownScrub} />
       {isHostOrCo && party ? (
         <HostLobbyChecklist
@@ -404,7 +415,13 @@ export function PartySocialPanel({ partyId }: { partyId: string }) {
       ) : null}
 
       {mode === "watchify_free" && free ? (
-        <div className="mt-3">
+        <div
+          className={`mt-3 ${
+            theater
+              ? "sticky top-0 z-20 -mx-1 rounded-lg bg-ink/95 pb-2 pt-1 backdrop-blur md:static md:bg-transparent md:pb-0 md:pt-0"
+              : ""
+          }`}
+        >
           <FreePlayer movieId={movie.id} partyId={partyId} />
         </div>
       ) : null}
@@ -468,7 +485,11 @@ export function PartySocialPanel({ partyId }: { partyId: string }) {
         ))}
       </div>
 
-      <ul className="mt-3 max-h-40 space-y-2 overflow-y-auto text-sm">
+      <ul
+        className={`mt-3 space-y-2 overflow-y-auto text-sm ${
+          theater ? "max-h-[28vh] md:max-h-48" : "max-h-40"
+        }`}
+      >
         {messages.map((m) => {
           const author = partyUserLabel(m.userId, directoryUsers);
           return (

@@ -5,9 +5,13 @@ import { useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import {
   notificationPermission,
-  requestNotificationPermission,
   showBrowserNotification,
 } from "@/lib/browser-notify";
+import {
+  loadNotifyPrefs,
+  notifyAllows,
+  saveNotifyPrefs,
+} from "@/lib/notify-prefs";
 import { getMovie } from "@/lib/movies";
 import { useWatchify } from "@/lib/store";
 import { getUser } from "@/lib/users";
@@ -50,7 +54,7 @@ function partyInviteFromUrl(url: string | null | undefined): string | null {
 
 /**
  * Fast in-app toasts for party invites + friend went live / started watching.
- * Optional browser Notification when permission is granted.
+ * Optional browser Notification when prefs + permission allow.
  */
 export function SocialAlerts() {
   const { data: session } = useSession();
@@ -66,23 +70,33 @@ export function SocialAlerts() {
   const socialReady = useRef(false);
   const notifyAsked = useRef(false);
 
+  // Only prompt when prefs allow + user hasn't handled prompt yet
   useEffect(() => {
     if (!session?.user || notifyAsked.current) return;
-    if (notificationPermission() !== "default") return;
+    const prefs = loadNotifyPrefs();
+    if (prefs.promptHandled || prefs.mode === "muted") return;
+    if (notificationPermission() !== "default") {
+      saveNotifyPrefs({ promptHandled: true });
+      return;
+    }
     notifyAsked.current = true;
-    const t = window.setTimeout(() => {
-      void requestNotificationPermission();
-    }, 12_000);
-    return () => window.clearTimeout(t);
+    // Soft-launch: wait for an intentional Settings enable — don't auto-ask.
+    // Mark handled so we never blind-prompt; Settings can still request permission.
+    saveNotifyPrefs({ promptHandled: true });
   }, [session?.user]);
 
-  // Party invite DMs — poll faster than the 8–12s state hydrate
+  // Party invite DMs — near-realtime poll
   useEffect(() => {
     if (!session?.user || !currentUserId) return;
 
     let cancelled = false;
     async function tick() {
       try {
+        const prefs = loadNotifyPrefs();
+        if (!notifyAllows("invite", prefs)) {
+          invitesReady.current = true;
+          return;
+        }
         const res = await fetch("/api/messages");
         if (!res.ok || cancelled) return;
         const data = (await res.json()) as { conversations: ConversationRow[] };
@@ -110,11 +124,13 @@ export function SocialAlerts() {
             href,
             cta: "Join party",
           });
-          showBrowserNotification(`${c.otherUser.name} invited you`, {
-            body: msg.text.slice(0, 120),
-            tag: `invite_${msg.id}`,
-            url: href,
-          });
+          if (notifyAllows("invite", prefs)) {
+            showBrowserNotification(`${c.otherUser.name} invited you`, {
+              body: msg.text.slice(0, 120),
+              tag: `invite_${msg.id}`,
+              url: href,
+            });
+          }
         }
         invitesReady.current = true;
       } catch {
@@ -123,7 +139,7 @@ export function SocialAlerts() {
     }
 
     void tick();
-    const id = window.setInterval(() => void tick(), 4000);
+    const id = window.setInterval(() => void tick(), 2500);
     return () => {
       cancelled = true;
       window.clearInterval(id);
@@ -133,6 +149,7 @@ export function SocialAlerts() {
   // Friend started watching / went live with a party
   useEffect(() => {
     if (!ready || !currentUserId) return;
+    const prefs = loadNotifyPrefs();
 
     if (!socialReady.current) {
       for (const row of friendsWatching) {
@@ -152,6 +169,7 @@ export function SocialAlerts() {
       if (prev === row.movieId) continue;
       seenWatching.current.set(row.userId, row.movieId);
       if (prev === undefined) continue;
+      if (!notifyAllows("watching", prefs)) continue;
 
       const user = getUser(row.userId);
       const movie = getMovie(row.movieId);
@@ -178,12 +196,13 @@ export function SocialAlerts() {
       if (!state.friendIds.includes(party.hostId)) continue;
       if (seenLiveParty.current.has(party.id)) continue;
       seenLiveParty.current.add(party.id);
+      if (!notifyAllows("live", prefs)) continue;
 
       const host = getUser(party.hostId);
       const movie = getMovie(party.movieId);
       const title = `${host?.name || "Friend"} went live`;
       const body = movie ? `${party.name} · ${movie.title}` : party.name;
-      const href = `/parties?joined=${encodeURIComponent(party.id)}`;
+      const href = `/parties/${encodeURIComponent(party.id)}`;
       pushToast({
         id: `live_${party.id}`,
         title,

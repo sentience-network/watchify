@@ -15,7 +15,7 @@ import { getUser } from "@/lib/users";
  * Not a native TV store app — the 2-week wedge for "across every screen."
  */
 export default function TvCompanionPage() {
-  const { openParties, publicWatching, directoryUsers, currentUserId, state } =
+  const { openParties, publicWatching, directoryUsers, currentUserId, state, canHostParties } =
     useWatchify();
   const live = useMemo(
     () => openParties.filter((p) => p.isLive).slice(0, 6),
@@ -54,12 +54,29 @@ export default function TvCompanionPage() {
           {live.length === 0 ? (
             <div className="rounded-2xl border border-line bg-panel/40 p-8 text-center">
               <p className="text-mist">No live rooms right now.</p>
-              <Link
-                href="/parties"
-                className="mt-4 inline-block rounded-xl bg-teal px-5 py-3 text-sm font-semibold text-ink"
-              >
-                Start a party
-              </Link>
+              {canHostParties ? (
+                <Link
+                  href="/parties?create=1"
+                  className="mt-4 inline-block rounded-xl bg-teal px-5 py-3 text-sm font-semibold text-ink"
+                >
+                  Start a party
+                </Link>
+              ) : (
+                <div className="mt-4 flex flex-wrap justify-center gap-2">
+                  <Link
+                    href="/parties"
+                    className="inline-block rounded-xl bg-teal px-5 py-3 text-sm font-semibold text-ink"
+                  >
+                    Join a party
+                  </Link>
+                  <Link
+                    href="/pricing"
+                    className="inline-block rounded-xl border border-line px-5 py-3 text-sm font-medium text-mist"
+                  >
+                    Host with Party plan
+                  </Link>
+                </div>
+              )}
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
@@ -85,7 +102,7 @@ export default function TvCompanionPage() {
                       </p>
                       <div className="mt-4 flex flex-wrap gap-2">
                         <Link
-                          href={`/parties?join=${party.id}`}
+                          href={`/parties/${party.id}`}
                           className="rounded-lg bg-teal px-3 py-2 text-xs font-semibold text-ink"
                         >
                           Open party

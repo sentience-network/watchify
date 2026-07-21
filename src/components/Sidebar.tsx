@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
+import { useEffect, useRef, useState } from "react";
 import { useWatchify } from "@/lib/store";
 
 const baseLinks = [
@@ -33,6 +34,8 @@ export function Sidebar() {
     myHostedJoinRequests,
     incomingFriendRequests,
   } = useWatchify();
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
 
   const joinCount = myHostedJoinRequests.length;
   const friendCount = incomingFriendRequests.length;
@@ -56,8 +59,37 @@ export function Sidebar() {
     { href: "/library", label: "Free", badgeKey: null },
     { href: "/parties", label: "Parties", badgeKey: "joins" },
     { href: "/messages", label: "Messages", badgeKey: "dms" },
-    { href: "/feed", label: "Friends", badgeKey: "friends" },
   ];
+
+  const moreLinks = [
+    { href: "/feed", label: "Friends", badgeKey: "friends" as string | null },
+    ...(currentUserId
+      ? [{ href: `/profile/${currentUserId}`, label: "Profile", badgeKey: null as string | null }]
+      : [{ href: "/auth/signin", label: "Sign in", badgeKey: null as string | null }]),
+    { href: "/watchlists", label: "Lists", badgeKey: null },
+    { href: "/tv", label: "TV mode", badgeKey: null },
+    { href: "/settings", label: "Settings", badgeKey: null },
+    { href: "/pricing", label: "Pricing", badgeKey: null },
+  ];
+
+  const moreActive = moreLinks.some(
+    (l) => pathname === l.href || pathname.startsWith(l.href + "/")
+  );
+
+  useEffect(() => {
+    setMoreOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!moreOpen) return;
+    function onDoc(e: MouseEvent) {
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) {
+        setMoreOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [moreOpen]);
 
   return (
     <>
@@ -183,6 +215,54 @@ export function Sidebar() {
             </Link>
           );
         })}
+        <div ref={moreRef} className="relative flex flex-1 flex-col items-center">
+          <button
+            type="button"
+            onClick={() => setMoreOpen((o) => !o)}
+            className={`relative flex w-full flex-col items-center rounded-md py-1.5 text-center text-[10px] font-medium ${
+              moreOpen || moreActive ? "text-teal-soft" : "text-mist/80"
+            }`}
+            aria-expanded={moreOpen}
+            aria-haspopup="menu"
+          >
+            <span className="relative inline-flex items-center">
+              More
+              {friendCount > 0 ? (
+                <span className="absolute -right-3 -top-1.5 inline-flex h-3.5 min-w-[0.875rem] items-center justify-center rounded-full bg-amber px-0.5 text-[9px] font-bold text-ink">
+                  {friendCount > 9 ? "9+" : friendCount}
+                </span>
+              ) : null}
+            </span>
+          </button>
+          {moreOpen ? (
+            <div
+              role="menu"
+              className="absolute bottom-[calc(100%+0.5rem)] right-1 z-40 w-44 overflow-hidden rounded-xl border border-line bg-panel shadow-xl"
+            >
+              {moreLinks.map((link) => {
+                const active =
+                  pathname === link.href ||
+                  pathname.startsWith(link.href + "/");
+                const count = badgeFor(link.badgeKey);
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    role="menuitem"
+                    className={`flex items-center justify-between px-3 py-2.5 text-sm ${
+                      active
+                        ? "bg-teal/15 text-teal-soft"
+                        : "text-mist hover:bg-white/5 hover:text-white"
+                    }`}
+                  >
+                    <span>{link.label}</span>
+                    <Badge count={count} />
+                  </Link>
+                );
+              })}
+            </div>
+          ) : null}
+        </div>
       </nav>
     </>
   );

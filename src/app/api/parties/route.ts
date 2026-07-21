@@ -5,8 +5,10 @@ import {
   endPartyDb,
   goLivePartyDb,
   joinPartyByInviteDb,
+  leavePartyDb,
   requestJoinPartyDb,
   rsvpPartyDb,
+  updatePartyDb,
 } from "@/lib/server/social-db";
 import { prisma } from "@/lib/db";
 import type { StreamingServiceId } from "@/lib/streaming";
@@ -91,10 +93,13 @@ export async function POST(req: Request) {
       | "refresh_invite"
       | "revoke_invite"
       | "go_live"
-      | "rsvp";
+      | "rsvp"
+      | "leave"
+      | "update";
     partyId?: string;
     invite?: string;
     endPartyId?: string;
+    updateMovieId?: string;
   };
   try {
     body = await req.json();
@@ -163,6 +168,26 @@ export async function POST(req: Request) {
         userId: auth.userId,
         properties: { partyId: result.party.id, source: "rsvp" },
       });
+    }
+    return NextResponse.json(result);
+  }
+
+  if (body.action === "leave" && body.partyId) {
+    const result = await leavePartyDb(auth.userId, body.partyId);
+    if ("error" in result) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
+    }
+    return NextResponse.json(result);
+  }
+
+  if (body.action === "update" && body.partyId) {
+    const result = await updatePartyDb(auth.userId, body.partyId, {
+      name: body.name,
+      movieId: body.updateMovieId ?? body.movieId,
+      coHostIds: body.coHostIds,
+    });
+    if ("error" in result) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
     }
     return NextResponse.json(result);
   }

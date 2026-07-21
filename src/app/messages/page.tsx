@@ -69,7 +69,7 @@ function MessagesInner() {
   useEffect(() => {
     if (!ready) return;
     void refreshThreads();
-    const t = window.setInterval(() => void refreshThreads(), 12000);
+    const t = window.setInterval(() => void refreshThreads(), 3000);
     return () => window.clearInterval(t);
   }, [ready, refreshThreads]);
 
@@ -80,7 +80,7 @@ function MessagesInner() {
 
   useEffect(() => {
     if (!activeId) return;
-    const t = window.setInterval(() => void openThread(activeId), 8000);
+    const t = window.setInterval(() => void openThread(activeId), 2000);
     return () => window.clearInterval(t);
   }, [activeId, openThread]);
 
@@ -124,7 +124,7 @@ function MessagesInner() {
         <aside className="w-full shrink-0 rounded-2xl border border-line bg-panel/40 md:w-72">
           <div className="border-b border-line px-4 py-3">
             <h1 className="font-display text-lg font-semibold text-white">Messages</h1>
-            <p className="text-[11px] text-mist/70">Friends only · party invites welcome</p>
+            <p className="text-[11px] text-mist/70">Friends only · party invites welcome · near-live refresh</p>
           </div>
           {loading && <p className="p-4 text-xs text-mist">Loading…</p>}
           {!loading && threads.length === 0 && (

@@ -6,8 +6,6 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { InviteFriendsPrompt } from "@/components/InviteFriendsPrompt";
 import { MoviePoster } from "@/components/MoviePoster";
-import { PartySocialPanel } from "@/components/PartySocialPanel";
-import { PartyVideoRoom } from "@/components/PartyVideoRoom";
 import { ServiceBadge } from "@/components/ServiceBadge";
 import { ShareMenu } from "@/components/ShareMenu";
 import { TitlePicker } from "@/components/TitlePicker";
@@ -27,6 +25,7 @@ import {
   PartyRecapCard,
   type PartyRecap,
 } from "@/components/PartyRecapCard";
+import { rememberPartySnapshot } from "@/lib/party-recap-session";
 
 function formatStart(startsAt: string | null, isLive: boolean) {
   if (isLive || !startsAt) return "Live now";
@@ -48,6 +47,7 @@ function PartiesInner() {
     openParties,
     createParty,
     endParty,
+    leaveParty,
     requestJoinParty,
     joinPartyByInvite,
     acceptJoinRequest,
@@ -97,6 +97,7 @@ function PartiesInner() {
     if (joined) {
       setHighlightId(joined);
       setPromptPartyId(joined);
+      router.replace(`/parties/${encodeURIComponent(joined)}`);
       return;
     }
 
@@ -121,7 +122,8 @@ function PartiesInner() {
       setHighlightId(result.value.id);
       setPromptPartyId(result.value.id);
       setError("");
-      router.replace(`/parties?joined=${encodeURIComponent(result.value.id)}`);
+      rememberPartySnapshot(result.value);
+      router.replace(`/parties/${encodeURIComponent(result.value.id)}`);
     });
   }, [search, ready, currentUserId, joinPartyByInvite, router]);
 
@@ -201,6 +203,8 @@ function PartiesInner() {
     setPromptPartyId(result.value.id);
     // Immediate invite copy — fastest path to the viral loop
     await copyInvite(result.value);
+    rememberPartySnapshot(result.value);
+    router.push(`/parties/${result.value.id}`);
   }
 
   async function copyInvite(party: WatchParty) {
@@ -587,9 +591,16 @@ function PartiesInner() {
                             <>
                               {isHost && <button type="button" onClick={() => manageInvite(party.id, "refresh_invite")} className="rounded-lg border border-line px-3 py-1.5 text-xs text-mist">New invite</button>}
                               {isHost && !party.inviteRevokedAt && <button type="button" onClick={() => manageInvite(party.id, "revoke_invite")} className="rounded-lg border border-line px-3 py-1.5 text-xs text-mist">Revoke invite</button>}
+                              <Link
+                                href={`/parties/${party.id}`}
+                                className="rounded-lg bg-teal px-3 py-1.5 text-xs font-semibold text-ink hover:bg-teal-soft"
+                              >
+                                Enter room
+                              </Link>
                               <button
                                 type="button"
                                 onClick={async () => {
+                                  rememberPartySnapshot(party);
                                   const snapshot: PartyRecap = {
                                     party: { ...party },
                                     endedAt: new Date().toISOString(),
@@ -598,6 +609,7 @@ function PartiesInner() {
                                   setRecap({
                                     ...snapshot,
                                     nextStartsAt: next?.nextStartsAt,
+                                    nextPartyId: next?.nextPartyId,
                                   });
                                 }}
                                 className="rounded-lg border border-line px-3 py-1.5 text-xs text-mist"
@@ -606,10 +618,25 @@ function PartiesInner() {
                               </button>
                             </>
                           ) : isMember ? (
-                            <span className="rounded-lg bg-teal/15 px-3 py-1.5 text-xs font-medium text-teal-soft">
-                              You&apos;re in
-                              {party.startsAt && !party.isLive ? " · RSVP’d" : ""}
-                            </span>
+                            <>
+                              <Link
+                                href={`/parties/${party.id}`}
+                                onClick={() => rememberPartySnapshot(party)}
+                                className="rounded-lg bg-teal px-3 py-1.5 text-xs font-semibold text-ink hover:bg-teal-soft"
+                              >
+                                Enter room
+                              </Link>
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  const result = await leaveParty(party.id);
+                                  if (!result.ok) setError(result.error);
+                                }}
+                                className="rounded-lg border border-amber/40 px-3 py-1.5 text-xs text-amber-soft"
+                              >
+                                Leave
+                              </button>
+                            </>
                           ) : party.startsAt && !party.isLive ? (
                             <button
                               type="button"
@@ -633,10 +660,16 @@ function PartiesInner() {
                           )}
                         </div>
                         {(isMember || isHost || isCoHost) && (
-                          <>
-                            <PartyVideoRoom partyId={party.id} />
-                            <PartySocialPanel partyId={party.id} />
-                          </>
+                          <p className="mt-2 text-[11px] text-mist/60">
+                            Video + chat live in the{" "}
+                            <Link
+                              href={`/parties/${party.id}`}
+                              className="text-teal-soft hover:underline"
+                            >
+                              focus room
+                            </Link>{" "}
+                            — keeps this list light on phones.
+                          </p>
                         )}
                       </div>
                     </article>
@@ -666,7 +699,39 @@ function PartiesInner() {
               );
             })()}
             {recap ? (
-              <PartyRecapCard recap={recap} onClose={() => setRecap(null)} />
+              <PartyRecapCard
+                recap={recap}
+                canHost={canHostParties}
+                onSameTimeNextWeek={async () => {
+                  if (recap.nextPartyId) {
+                    router.push(`/parties/${recap.nextPartyId}`);
+                    setRecap(null);
+                    return;
+                  }
+                  if (!canHostParties) return;
+                  const base = recap.party.startsAt
+                    ? new Date(recap.party.startsAt)
+                    : new Date();
+                  const next = new Date(base.getTime() + 7 * 86_400_000);
+                  const result = await createParty({
+                    name: recap.party.name,
+                    movieId: recap.party.movieId,
+                    startsAt: next.toISOString(),
+                    isLive: false,
+                    serviceId: recap.party.serviceId,
+                    syncMode: recap.party.syncMode,
+                    coHostIds: recap.party.coHostIds,
+                    recurringWeekly: true,
+                  });
+                  if (!result.ok) {
+                    setError(result.error);
+                    return;
+                  }
+                  setRecap(null);
+                  router.push(`/parties/${result.value.id}`);
+                }}
+                onClose={() => setRecap(null)}
+              />
             ) : null}
           </>
         )}

@@ -879,6 +879,77 @@ export async function rsvpPartyDb(userId: string, partyId: string) {
   return joinPartyByInviteDb(userId, invite);
 }
 
+/** Non-host member leaves a room (host must End party). */
+export async function leavePartyDb(userId: string, partyId: string) {
+  const party = await prisma.party.findUnique({
+    where: { id: partyId },
+    include: { members: true },
+  });
+  if (!party || party.status !== "open") return { error: "Party not open" };
+  if (party.hostId === userId) {
+    return { error: "Host can’t leave — end the party instead." };
+  }
+  const isMember = party.members.some((m) => m.userId === userId);
+  if (!isMember) return { error: "Not a member" };
+
+  const coHosts = parseJson<string[]>(party.coHostIdsJson, []).filter(
+    (id) => id !== userId
+  );
+  await prisma.$transaction([
+    prisma.partyMember.deleteMany({
+      where: { partyId, userId },
+    }),
+    prisma.party.update({
+      where: { id: partyId },
+      data: { coHostIdsJson: JSON.stringify(coHosts) },
+    }),
+  ]);
+  return { ok: true as const };
+}
+
+/** Host updates name / title / co-hosts without remaking the room. */
+export async function updatePartyDb(
+  userId: string,
+  partyId: string,
+  input: {
+    name?: string;
+    movieId?: string;
+    coHostIds?: string[];
+  }
+) {
+  const party = await prisma.party.findUnique({
+    where: { id: partyId },
+    include: { members: true },
+  });
+  if (!party || party.status !== "open") return { error: "Party not open" };
+  if (party.hostId !== userId) return { error: "Only the host can edit" };
+
+  const data: {
+    name?: string;
+    movieId?: string;
+    coHostIdsJson?: string;
+  } = {};
+  if (typeof input.name === "string") {
+    data.name = sanitizeText(input.name, 80) || party.name;
+  }
+  if (typeof input.movieId === "string" && input.movieId.trim()) {
+    data.movieId = input.movieId.trim();
+  }
+  if (Array.isArray(input.coHostIds)) {
+    data.coHostIdsJson = JSON.stringify(
+      input.coHostIds.filter((id) => id && id !== userId)
+    );
+  }
+  if (!Object.keys(data).length) return { error: "Nothing to update" };
+
+  const row = await prisma.party.update({
+    where: { id: partyId },
+    data,
+    include: { members: true },
+  });
+  return { ok: true as const, party: mapParty(row) };
+}
+
 export async function endPartyDb(userId: string, partyId: string) {
   const party = await prisma.party.findUnique({ where: { id: partyId } });
   if (!party) return { error: "Not found" };
