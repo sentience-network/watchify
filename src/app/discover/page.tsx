@@ -27,6 +27,11 @@ import {
   recommendationsFromFriends,
 } from "@/lib/social-graph";
 import {
+  availabilityChip,
+  availabilityIsActive,
+  parsePartyAvailability,
+} from "@/lib/party-availability";
+import {
   STREAMING_SERVICES,
   isStreamingServiceId,
   type StreamingServiceId,
@@ -579,9 +584,20 @@ function DiscoverInner() {
             {compatible.length > 0 && (
               <section className="mb-10 animate-fade-up">
                 <h2 className="mb-1 font-display text-xl font-semibold text-white">Compatible friends</h2>
-                <p className="mb-4 text-xs text-mist/70">Shared streaming services — easier own-account parties.</p>
+                <p className="mb-4 text-xs text-mist/70">
+                  Shared streaming services — easier own-account parties.{" "}
+                  <Link href="/parties" className="text-teal-soft hover:underline">
+                    Watch Match →
+                  </Link>
+                </p>
                 <div className="flex flex-wrap gap-2">
-                  {compatible.map(({ user, overlap }) => (
+                  {compatible.map(({ user, overlap }) => {
+                    const avail = parsePartyAvailability(user.partyAvailability);
+                    const chip =
+                      availabilityIsActive(avail) && avail.status === "free"
+                        ? availabilityChip(avail)
+                        : null;
+                    return (
                     <Link
                       key={user.id}
                       href={`/profile/${user.id}`}
@@ -594,7 +610,14 @@ function DiscoverInner() {
                         {user.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
                       </div>
                       <div>
-                        <p className="text-xs font-medium text-white">{user.name}</p>
+                        <p className="text-xs font-medium text-white">
+                          {user.name}
+                          {chip ? (
+                            <span className="ml-1 text-[10px] font-normal text-teal-soft">
+                              · {chip}
+                            </span>
+                          ) : null}
+                        </p>
                         <div className="flex gap-1">
                           {overlap.slice(0, 3).map((id) => (
                             <ServiceBadge key={id} serviceId={id} />
@@ -602,7 +625,8 @@ function DiscoverInner() {
                         </div>
                       </div>
                     </Link>
-                  ))}
+                    );
+                  })}
                 </div>
               </section>
             )}

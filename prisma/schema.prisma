@@ -41,6 +41,10 @@ model User {
   ageVerified              Boolean   @default(false)
   socialLinksJson          String    @default("{}")
   linkedServicesJson       String    @default("[]")
+  /// JSON PartyAvailability — free tonight / solo / dnd
+  partyAvailabilityJson    String    @default("{}")
+  /// JSON FriendCircle[] — named friend subsets for invites
+  friendCirclesJson        String    @default("[]")
   publicWatching           Boolean   @default(true)
   currentlyWatchingId      String?
   currentlyWatchingServiceId String?
@@ -373,4 +377,12 @@ model DirectMessage {
 
   @@index([conversationId, createdAt])
   @@index([senderId])
+}
+
+/// Short-lived key/value (TV pair codes, soft-launch helpers).
+model SoftKv {
+  key       String    @id
+  valueJson String
+  expiresAt DateTime?
+  updatedAt DateTime  @updatedAt
 }

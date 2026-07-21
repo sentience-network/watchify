@@ -58,6 +58,8 @@ export async function PATCH(req: Request) {
     accentColor?: string;
     favoriteMovieIds?: string[];
     favoritePeople?: FavoritePerson[];
+    partyAvailability?: unknown;
+    friendCircles?: unknown;
   };
   try {
     body = await req.json();
@@ -104,7 +106,9 @@ export async function PATCH(req: Request) {
     body.borderStyle !== undefined ||
     body.accentColor !== undefined ||
     body.favoriteMovieIds !== undefined ||
-    body.favoritePeople !== undefined
+    body.favoritePeople !== undefined ||
+    body.partyAvailability !== undefined ||
+    body.friendCircles !== undefined
   ) {
     await updateProfile(auth.userId, {
       name: body.name,
@@ -119,6 +123,8 @@ export async function PATCH(req: Request) {
       accentColor: body.accentColor,
       favoriteMovieIds: body.favoriteMovieIds,
       favoritePeople: body.favoritePeople,
+      partyAvailability: body.partyAvailability,
+      friendCircles: body.friendCircles,
     });
   }
 

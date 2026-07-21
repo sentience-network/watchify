@@ -8,6 +8,7 @@ import { getMovie } from "@/lib/movies";
 import { watchingShareUrl } from "@/lib/share";
 import { useWatchify } from "@/lib/store";
 import { isFreePlayable } from "@/lib/free-content";
+import { signalFinishedBeat } from "@/components/FinishedSocialBeat";
 
 export function NowWatchingBar() {
   const {
@@ -31,7 +32,7 @@ export function NowWatchingBar() {
       : `/share/watching/${uid}`;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-line bg-panel/95 shadow-bar backdrop-blur-md">
+    <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-line bg-panel/95 pb-[env(safe-area-inset-bottom,0px)] shadow-bar backdrop-blur-md">
       <div className="mx-auto flex max-w-7xl items-center gap-3 px-3 py-2.5 md:px-6">
         {movie ? (
           <>
@@ -91,7 +92,10 @@ export function NowWatchingBar() {
               </Link>
               <button
                 type="button"
-                onClick={() => markFinished(movie.id)}
+                onClick={() => {
+                  signalFinishedBeat(movie.id);
+                  markFinished(movie.id);
+                }}
                 className="rounded-lg bg-amber px-3 py-2 text-xs font-semibold text-ink hover:bg-amber-soft"
               >
                 Finished

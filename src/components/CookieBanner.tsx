@@ -8,7 +8,7 @@ export function CookieBanner() {
   if (!ready || state.cookieConsent !== "unknown") return null;
 
   return (
-    <div className="fixed bottom-[76px] left-3 right-3 z-50 mx-auto max-w-xl rounded-2xl border border-line bg-panel/95 p-4 shadow-bar backdrop-blur md:bottom-24">
+    <div className="fixed bottom-[calc(76px+env(safe-area-inset-bottom,0px))] left-3 right-3 z-50 mx-auto max-w-xl rounded-2xl border border-line bg-panel/95 p-4 shadow-bar backdrop-blur md:bottom-24">
       <p className="text-sm text-mist">
         Watchify uses essential cookies for sign-in and local storage for your
         queues. Accept enables optional third-party product analytics; essential-only

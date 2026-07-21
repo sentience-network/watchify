@@ -27,6 +27,8 @@ import {
   sanitizeHexColor,
 } from "../profile-themes";
 import { EMPTY_SOCIAL_LINKS, type FavoritePerson } from "../types";
+import { parsePartyAvailability } from "../party-availability";
+import { parseFriendCircles } from "../friend-circles";
 
 function parseFavoritePeople(json: string | null | undefined): FavoritePerson[] {
   try {
@@ -80,6 +82,8 @@ export function mapPublicUser(row: {
   linkedServicesJson: string;
   socialLinksJson: string;
   publicWatching: boolean;
+  partyAvailabilityJson?: string | null;
+  friendCirclesJson?: string | null;
 }): User {
   const looks = profileLooksFromRow(row);
   return {
@@ -111,6 +115,12 @@ export function mapPublicUser(row: {
       ...EMPTY_SOCIAL_LINKS,
       ...parseJson<Partial<SocialLinks>>(row.socialLinksJson, {}),
     },
+    partyAvailability: parsePartyAvailability(
+      parseJson(row.partyAvailabilityJson || "{}", {})
+    ),
+    friendCircles: parseFriendCircles(
+      parseJson(row.friendCirclesJson || "[]", [])
+    ),
   };
 }
 
@@ -442,6 +452,8 @@ export async function updateProfile(
     accentColor?: string;
     favoriteMovieIds?: string[];
     favoritePeople?: FavoritePerson[];
+    partyAvailability?: unknown;
+    friendCircles?: unknown;
   }
 ) {
   const data: Record<string, unknown> = {};
@@ -502,6 +514,19 @@ export async function updateProfile(
       }))
       .slice(0, 8);
     data.favoritePeopleJson = JSON.stringify(people);
+  }
+  if (patch.partyAvailability !== undefined) {
+    const a = parsePartyAvailability(patch.partyAvailability);
+    data.partyAvailabilityJson = JSON.stringify({
+      status: a.status,
+      until: a.until || null,
+      note: a.note ? sanitizeText(a.note, 80) : undefined,
+    });
+  }
+  if (patch.friendCircles !== undefined) {
+    data.friendCirclesJson = JSON.stringify(
+      parseFriendCircles(patch.friendCircles)
+    );
   }
   if (Object.keys(data).length === 0) return;
   await prisma.user.update({ where: { id: userId }, data });
@@ -986,6 +1011,71 @@ export async function updatePartyDb(
     include: { members: true },
   });
   return { ok: true as const, party: mapParty(row) };
+}
+
+/** Host or co-host (claim) transfers hosting to a room member / co-host. */
+export async function transferPartyHostDb(
+  actorId: string,
+  partyId: string,
+  toUserId?: string
+) {
+  const party = await prisma.party.findUnique({
+    where: { id: partyId },
+    include: { members: true },
+  });
+  if (!party || party.status !== "open") return { error: "Party not open" };
+  const coHosts = parseJson<string[]>(party.coHostIdsJson, []);
+  const memberIds = party.members.map((m) => m.userId);
+
+  let nextHost = toUserId || "";
+  if (!nextHost) {
+    // Claim path: co-host claims when host is gone
+    if (!coHosts.includes(actorId)) {
+      return { error: "Only a co-host can claim host" };
+    }
+    nextHost = actorId;
+  }
+
+  if (nextHost === party.hostId) {
+    return { error: "Already host" };
+  }
+
+  const eligible =
+    memberIds.includes(nextHost) ||
+    coHosts.includes(nextHost) ||
+    nextHost === actorId;
+  if (!eligible) return { error: "Target must be in the room" };
+
+  const isHost = party.hostId === actorId;
+  const isClaim = !isHost && coHosts.includes(actorId) && nextHost === actorId;
+  if (!isHost && !isClaim) {
+    return { error: "Only the host can transfer (or a co-host can claim)" };
+  }
+
+  const prevHost = party.hostId;
+  const nextCoHosts = Array.from(
+    new Set(
+      [...coHosts, prevHost]
+        .filter((id) => id && id !== nextHost)
+    )
+  );
+
+  // Ensure new host is a member
+  if (!memberIds.includes(nextHost)) {
+    await prisma.partyMember.create({
+      data: { partyId, userId: nextHost },
+    });
+  }
+
+  const row = await prisma.party.update({
+    where: { id: partyId },
+    data: {
+      hostId: nextHost,
+      coHostIdsJson: JSON.stringify(nextCoHosts),
+    },
+    include: { members: true },
+  });
+  return { ok: true as const, party: mapParty(row), previousHostId: prevHost };
 }
 
 export async function endPartyDb(userId: string, partyId: string) {

@@ -21,6 +21,10 @@ import type { StreamingServiceId } from "@/lib/streaming";
 import type { Movie, WatchParty } from "@/lib/types";
 import { track } from "@/lib/analytics-client";
 import { downloadPartyIcs, googleCalendarUrl } from "@/lib/calendar-ics";
+import { formatScheduledWhen } from "@/lib/timezone-label";
+import { WhoCanWatchList } from "@/components/WhoCanWatchList";
+import { ServiceMismatchBanner } from "@/components/ServiceMismatchBanner";
+import { WatchMatchPanel } from "@/components/WatchMatchPanel";
 import {
   PartyRecapCard,
   type PartyRecap,
@@ -28,12 +32,7 @@ import {
 import { rememberPartySnapshot } from "@/lib/party-recap-session";
 
 function formatStart(startsAt: string | null, isLive: boolean) {
-  if (isLive || !startsAt) return "Live now";
-  return new Date(startsAt).toLocaleString(undefined, {
-    weekday: "short",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  return formatScheduledWhen(startsAt, isLive).primary;
 }
 
 function PartiesInner() {
@@ -280,6 +279,9 @@ function PartiesInner() {
           <p className="text-mist">Loading parties…</p>
         ) : (
           <>
+            <div className="mb-8">
+              <WatchMatchPanel />
+            </div>
             {myHostedJoinRequests.length > 0 && (
               <section className="mb-8 rounded-2xl border border-amber/30 bg-panel/60 p-4 animate-fade-up">
                 <h2 className="font-display text-lg font-semibold text-white">
@@ -404,6 +406,14 @@ function PartiesInner() {
                   placeholder="Room name (optional — e.g. Friday sci-fi)"
                   className="w-full rounded-xl border border-line bg-ink/50 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-teal/40"
                 />
+                {movieId ? (
+                  <WhoCanWatchList
+                    movieId={movieId}
+                    hostService={(serviceId || null) as StreamingServiceId | null}
+                    syncMode={syncMode}
+                    friendIds={state.friendIds}
+                  />
+                ) : null}
                 {syncMode !== "watchify_free" &&
                   state.linkedServices.length > 0 && (
                     <select
@@ -525,8 +535,8 @@ function PartiesInner() {
                             <p className="mt-1 text-[11px] uppercase tracking-wider text-mist/50">
                               {party.syncMode || "social"} ·{" "}
                               {party.memberIds.length} in room
-                              {party.recurringWeekly && party.startsAt
-                                ? ` · next ${new Date(party.startsAt).toLocaleString()}`
+                              {party.startsAt && !party.isLive
+                                ? ` · ${formatScheduledWhen(party.startsAt, false).detail || ""}`
                                 : ""}
                             </p>
                           </div>
@@ -541,6 +551,14 @@ function PartiesInner() {
                           </span>
                         </div>
                         <div className="mt-3 flex flex-wrap gap-2">
+                          {!isMember && !isHost && !isCoHost ? (
+                            <div className="w-full">
+                              <ServiceMismatchBanner
+                                party={party}
+                                linkedServices={state.linkedServices}
+                              />
+                            </div>
+                          ) : null}
                           <button
                             type="button"
                             onClick={() => copyInvite(party)}

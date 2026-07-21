@@ -24,6 +24,10 @@ import {
   notificationPermission,
   requestNotificationPermission,
 } from "@/lib/browser-notify";
+import { PartyAvailabilityPicker } from "@/components/PartyAvailabilityPicker";
+import { FriendCirclesPanel } from "@/components/FriendCirclesPanel";
+import { parsePartyAvailability } from "@/lib/party-availability";
+import { parseFriendCircles } from "@/lib/friend-circles";
 
 export default function SettingsPage() {
   const { data: session } = useSession();
@@ -323,6 +327,41 @@ export default function SettingsPage() {
             Show what I&apos;m watching publicly
           </label>
         </section>
+
+        <div className="mb-8">
+          <PartyAvailabilityPicker
+            value={parsePartyAvailability(
+              directoryUsers.find((u) => u.id === session?.user?.id)
+                ?.partyAvailability || { status: "solo" }
+            )}
+            onSave={async (next) => {
+              await fetch("/api/me", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ partyAvailability: next }),
+              });
+              await refreshFromServer();
+            }}
+          />
+        </div>
+
+        <div className="mb-8">
+          <FriendCirclesPanel
+            circles={parseFriendCircles(
+              directoryUsers.find((u) => u.id === session?.user?.id)
+                ?.friendCircles || []
+            )}
+            friendIds={state.friendIds}
+            onSave={async (next) => {
+              await fetch("/api/me", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ friendCircles: next }),
+              });
+              await refreshFromServer();
+            }}
+          />
+        </div>
 
         <section className="mb-8 rounded-2xl border border-line bg-panel/50 p-5">
           <h2 className="font-display text-lg font-semibold text-white">

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo } from "react";
 import { AppShell } from "@/components/AppShell";
 import { MoviePoster } from "@/components/MoviePoster";
+import { TvPairHost } from "@/components/TvPairing";
 import { PartyQrInvite } from "@/components/PartyQrInvite";
 import { ShareMenu } from "@/components/ShareMenu";
 import { getMovie } from "@/lib/movies";
@@ -47,6 +48,8 @@ export default function TvCompanionPage() {
             </Link>
           )}
         </header>
+
+        <TvPairHost />
 
         <section className="mb-12">
           <h2 className="mb-4 font-display text-2xl font-semibold text-white">

@@ -37,6 +37,8 @@ import { PartyCatchUpHero } from "./PartyCatchUpHero";
 import { PartyQrInvite } from "./PartyQrInvite";
 import { WatchingNowInvite } from "./WatchingNowInvite";
 import { PartyNextVote } from "./PartyNextVote";
+import { ServiceMismatchBanner } from "./ServiceMismatchBanner";
+import { encodePlayheadPin, parsePlayheadPin } from "@/lib/playhead-pin";
 
 const REACTIONS = ["🔥", "😂", "😱", "👏", "❤️"];
 
@@ -68,6 +70,9 @@ export function PartySocialPanel({
   const [soundsOn, setSoundsOn] = useState(false);
   const [scrubCopied, setScrubCopied] = useState(false);
   const [kickMsg, setKickMsg] = useState("");
+  const [hostAway, setHostAway] = useState(false);
+  const [handoffMsg, setHandoffMsg] = useState("");
+  const [pinNote, setPinNote] = useState("");
   const typingTimer = useRef<number | null>(null);
   const countdownFired = useRef(false);
 
@@ -81,6 +86,28 @@ export function PartySocialPanel({
 
   const { presence, videoPeers, live, countdown, clearCountdown, nextVote, kicked } =
     usePartyRealtime(partyId, ready && isMember);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    if (party?.syncMode) {
+      document.body.dataset.partySyncMode = party.syncMode;
+    }
+    return () => {
+      delete document.body.dataset.partySyncMode;
+    };
+  }, [party?.syncMode]);
+
+  // Host-drop detection: host missing from presence while room is live
+  useEffect(() => {
+    if (!party || !isMember) {
+      setHostAway(false);
+      return;
+    }
+    const hostOnline = presence.some((m) => m.userId === party.hostId);
+    if (!live) return;
+    if (presence.length === 0) return;
+    setHostAway(!hostOnline && party.hostId !== currentUserId);
+  }, [presence, party, isMember, live, currentUserId]);
 
   const movie = party ? getMovie(party.movieId) : undefined;
   const hostLabel = party
@@ -279,6 +306,29 @@ export function PartySocialPanel({
     setKickMsg(result.ok ? "Member removed." : result.error);
   }
 
+  async function claimHost() {
+    setHandoffMsg("");
+    const res = await fetch("/api/parties", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "claim_host", partyId }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setHandoffMsg(data.error || "Could not claim host");
+      return;
+    }
+    setHostAway(false);
+    setHandoffMsg("You’re now the host.");
+    await refreshFromServer();
+  }
+
+  function dropPlayheadPin() {
+    const msg = encodePlayheadPin(joinCueSec || positionSec, pinNote);
+    postPartyMessage(partyId, msg);
+    setPinNote("");
+  }
+
   const inviteUrl =
     typeof window !== "undefined"
       ? partyInviteUrl(party.id, undefined, { inviteCode: party.inviteCode })
@@ -291,6 +341,40 @@ export function PartySocialPanel({
       }`}
     >
       <PartyCountdownOverlay count={countdownLeft} scrubSec={countdownScrub} />
+      {!live ? (
+        <div
+          className="mb-3 rounded-lg border border-amber/35 bg-amber/10 px-3 py-2 text-xs text-amber-soft"
+          role="status"
+        >
+          <span className="font-semibold">Reconnecting…</span> Chat and sync
+          pause until the live link returns. Your membership is fine.
+        </div>
+      ) : null}
+      {hostAway ? (
+        <div className="mb-3 rounded-lg border border-amber/35 bg-amber/10 px-3 py-2 text-xs text-mist">
+          <p className="font-medium text-amber-soft">Host appears offline</p>
+          <p className="mt-0.5 text-mist/75">
+            If they don’t return, a co-host can claim hosting so the night
+            continues.
+          </p>
+          {party.coHostIds?.includes(currentUserId) ? (
+            <button
+              type="button"
+              onClick={() => void claimHost()}
+              className="mt-2 rounded-lg bg-teal/20 px-2.5 py-1 text-[11px] font-semibold text-teal-soft"
+            >
+              Claim host
+            </button>
+          ) : null}
+          {handoffMsg ? (
+            <p className="mt-1 text-[11px] text-teal-soft">{handoffMsg}</p>
+          ) : null}
+        </div>
+      ) : null}
+      <ServiceMismatchBanner
+        party={party}
+        linkedServices={state.linkedServices}
+      />
       {isHostOrCo && party ? (
         <HostLobbyChecklist
           party={party}
@@ -600,6 +684,20 @@ export function PartySocialPanel({
             {emoji}
           </button>
         ))}
+        <button
+          type="button"
+          onClick={() => dropPlayheadPin()}
+          className="rounded-md border border-teal/35 px-2 py-1 text-[11px] font-medium text-teal-soft hover:bg-teal/10"
+          title="Drop a playhead pin in chat"
+        >
+          📌 {formatPlayhead(joinCueSec || positionSec)}
+        </button>
+        <input
+          value={pinNote}
+          onChange={(e) => setPinNote(e.target.value)}
+          placeholder="Pin note…"
+          className="min-w-[100px] flex-1 rounded-md border border-line bg-ink/50 px-2 py-1 text-[11px] text-white"
+        />
         {fly ? (
           <span className="pointer-events-none text-xl animate-react-fly" aria-hidden>
             {fly}
@@ -619,13 +717,26 @@ export function PartySocialPanel({
       >
         {messages.map((m) => {
           const author = partyUserLabel(m.userId, directoryUsers);
+          const pin = parsePlayheadPin(m.text);
           return (
             <li key={m.id} className="text-mist">
               <span className="font-medium text-white">{author.name}</span>
               {author.handle ? (
                 <span className="text-mist/55"> @{author.handle}</span>
               ) : null}
-              : {m.text}
+              :{" "}
+              {pin ? (
+                <button
+                  type="button"
+                  className="inline text-left text-teal-soft hover:underline"
+                  onClick={() => void copyToClipboard(pin.stamp)}
+                  title="Copy playhead"
+                >
+                  {m.text}
+                </button>
+              ) : (
+                m.text
+              )}
             </li>
           );
         })}

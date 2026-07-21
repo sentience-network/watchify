@@ -111,6 +111,12 @@ export default async function SharePartyPage({ params }: Props) {
           <p className="mt-4 text-xs leading-relaxed text-mist/65">
             Keep personal information private. You can leave, block, or report people at any time.
           </p>
+          <p className="mt-3 rounded-xl border border-amber/30 bg-amber/10 px-3 py-2 text-xs leading-relaxed text-mist/85">
+            Soft launch tip: the first open after sleep can take{" "}
+            <span className="font-medium text-amber-soft">30–60 seconds</span>. Wait,
+            then refresh once — a hang is usually the free host waking, not a bad
+            invite.
+          </p>
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <ShareMenu
               url={absoluteUrl(`/share/party/${params.id}`)}

@@ -9,6 +9,7 @@ import {
   removePartyMemberDb,
   requestJoinPartyDb,
   rsvpPartyDb,
+  transferPartyHostDb,
   updatePartyDb,
 } from "@/lib/server/social-db";
 import { prisma } from "@/lib/db";
@@ -97,7 +98,9 @@ export async function POST(req: Request) {
       | "rsvp"
       | "leave"
       | "update"
-      | "kick";
+      | "kick"
+      | "transfer_host"
+      | "claim_host";
     partyId?: string;
     invite?: string;
     endPartyId?: string;
@@ -188,6 +191,21 @@ export async function POST(req: Request) {
       auth.userId,
       body.partyId,
       body.targetUserId
+    );
+    if ("error" in result) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
+    }
+    return NextResponse.json(result);
+  }
+
+  if (
+    (body.action === "transfer_host" || body.action === "claim_host") &&
+    body.partyId
+  ) {
+    const result = await transferPartyHostDb(
+      auth.userId,
+      body.partyId,
+      body.action === "claim_host" ? undefined : body.targetUserId
     );
     if ("error" in result) {
       return NextResponse.json({ error: result.error }, { status: 400 });
