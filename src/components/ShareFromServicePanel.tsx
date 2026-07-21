@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CATALOG } from "@/lib/movies";
 import {
   NO_CREDENTIAL_COPY,
@@ -28,6 +28,16 @@ export function ShareFromServicePanel({ compact }: { compact?: boolean }) {
       STREAMING_SERVICES.filter((s) => state.linkedServices.includes(s.id)),
     [state.linkedServices]
   );
+
+  useEffect(() => {
+    if (!serviceId && state.linkedServices[0]) {
+      setServiceId(state.linkedServices[0]);
+      return;
+    }
+    if (serviceId && !state.linkedServices.includes(serviceId)) {
+      setServiceId(state.linkedServices[0] ?? "");
+    }
+  }, [serviceId, state.linkedServices]);
 
   if (!ready) return null;
 

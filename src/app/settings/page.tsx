@@ -524,33 +524,44 @@ export default function SettingsPage() {
             Watchify link to Facebook/Instagram uses the Share menu — Instagram
             cannot auto-post from the web.
           </p>
-          <form onSubmit={saveSocial} className="mt-4 space-y-2">
-            {(
-              [
-                ["x", "X / Twitter"],
-                ["facebook", "Facebook"],
-                ["instagram", "Instagram"],
-                ["tiktok", "TikTok"],
-                ["letterboxd", "Letterboxd"],
-              ] as const
-            ).map(([key, label]) => (
-              <input
-                key={key}
-                value={links[key]}
-                onChange={(e) =>
-                  setLinks((s) => ({ ...s, [key]: e.target.value }))
-                }
-                placeholder={`${label} https://…`}
-                className="w-full rounded-xl border border-line bg-ink/50 px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-teal/40"
-              />
-            ))}
-            <button
-              type="submit"
-              className="rounded-lg bg-teal px-3 py-2 text-xs font-semibold text-ink hover:bg-teal-soft"
-            >
-              Save links
-            </button>
-          </form>
+          {!plan.limits.socialLinks ? (
+            <p className="mt-3 text-sm text-amber-soft">
+              Social profile URLs require{" "}
+              <Link href="/pricing" className="underline">
+                Plus or Party
+              </Link>
+              . Streaming service badges above work on Free (up to{" "}
+              {linkedServiceLimit ?? "all"}).
+            </p>
+          ) : (
+            <form onSubmit={saveSocial} className="mt-4 space-y-2">
+              {(
+                [
+                  ["x", "X / Twitter"],
+                  ["facebook", "Facebook"],
+                  ["instagram", "Instagram"],
+                  ["tiktok", "TikTok"],
+                  ["letterboxd", "Letterboxd"],
+                ] as const
+              ).map(([key, label]) => (
+                <input
+                  key={key}
+                  value={links[key]}
+                  onChange={(e) =>
+                    setLinks((s) => ({ ...s, [key]: e.target.value }))
+                  }
+                  placeholder={`${label} https://…`}
+                  className="w-full rounded-xl border border-line bg-ink/50 px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-teal/40"
+                />
+              ))}
+              <button
+                type="submit"
+                className="rounded-lg bg-teal px-3 py-2 text-xs font-semibold text-ink hover:bg-teal-soft"
+              >
+                Save links
+              </button>
+            </form>
+          )}
         </section>
 
         <section className="mb-8 rounded-2xl border border-line bg-panel/50 p-5">

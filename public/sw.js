@@ -1,6 +1,6 @@
 /* Watchify PWA — cache shell assets only; never cache auth/API.
  * HTML navigations are network-first so deploys (e.g. spiral hero) show immediately. */
-const CACHE = "watchify-shell-v2";
+const CACHE = "watchify-shell-v3";
 const PRECACHE = [
   "/manifest.webmanifest",
   "/icons/icon-192.svg",

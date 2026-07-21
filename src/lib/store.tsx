@@ -205,6 +205,12 @@ export function WatchifyProvider({ children }: { children: ReactNode }) {
   const [realtimeConnected, setRealtimeConnectedState] = useState(false);
   const hydrating = useRef(false);
   const pendingRefresh = useRef(false);
+  const refreshWaiters = useRef<Array<() => void>>([]);
+  /** Keeps link/unlink badges visible while a concurrent /api/me/state poll returns stale data. */
+  const linkedServicesLock = useRef<{
+    services: StreamingServiceId[];
+    until: number;
+  } | null>(null);
   const realtimeConnectedRef = useRef(false);
   const slowTimer = useRef<number | null>(null);
 
@@ -212,20 +218,53 @@ export function WatchifyProvider({ children }: { children: ReactNode }) {
 
   const applyServerState = useCallback(
     (next: AppState, users?: User[]) => {
-      const merged: AppState = {
-        ...next,
-        // Cookie consent stays device-local
-        cookieConsent: state.cookieConsent,
-      };
-      setState(merged);
-      if (users) setDirectoryUsers(users);
-      cacheState(merged);
+      setState((s) => {
+        let linkedServices = Array.isArray(next.linkedServices)
+          ? next.linkedServices
+          : [];
+        const lock = linkedServicesLock.current;
+        if (lock && Date.now() < lock.until) {
+          const same =
+            lock.services.length === linkedServices.length &&
+            lock.services.every((id) => linkedServices.includes(id));
+          if (same) {
+            linkedServicesLock.current = null;
+          } else {
+            linkedServices = lock.services;
+          }
+        }
+        const merged: AppState = {
+          ...next,
+          linkedServices,
+          // Cookie consent stays device-local
+          cookieConsent: s.cookieConsent,
+        };
+        cacheState(merged);
+        return merged;
+      });
+      if (users) {
+        const lock = linkedServicesLock.current;
+        const lockActive = Boolean(lock && Date.now() < lock.until);
+        setDirectoryUsers(
+          lockActive && sessionUserId
+            ? users.map((u) =>
+                u.id === sessionUserId
+                  ? { ...u, linkedServices: lock!.services }
+                  : u
+              )
+            : users
+        );
+      }
     },
-    [state.cookieConsent]
+    [sessionUserId]
   );
 
   const applyLinkedServices = useCallback(
     (linkedServices: StreamingServiceId[]) => {
+      linkedServicesLock.current = {
+        services: linkedServices,
+        until: Date.now() + 15_000,
+      };
       setState((s) => {
         const next = { ...s, linkedServices };
         cacheState(next);
@@ -244,8 +283,12 @@ export function WatchifyProvider({ children }: { children: ReactNode }) {
   const refreshFromServer = useCallback(async () => {
     if (!sessionUserId) return;
     if (hydrating.current) {
-      // Don't drop link/unlink refreshes behind an in-flight poll.
+      // Queue another hydrate and wait so callers (link/unlink) don't finish early
+      // while a poll still holds a pre-mutation snapshot.
       pendingRefresh.current = true;
+      await new Promise<void>((resolve) => {
+        refreshWaiters.current.push(resolve);
+      });
       return;
     }
     hydrating.current = true;
@@ -269,6 +312,8 @@ export function WatchifyProvider({ children }: { children: ReactNode }) {
         slowTimer.current = null;
       }
       setHydratingSlow(false);
+      const waiters = refreshWaiters.current.splice(0);
+      waiters.forEach((w) => w());
     }
   }, [sessionUserId, applyServerState]);
 
@@ -581,9 +626,11 @@ export function WatchifyProvider({ children }: { children: ReactNode }) {
       });
       if (!result.ok) return { ok: false as const, error: result.error };
       if (result.data.linkedServices) {
+        // Trust PATCH response — do not let an in-flight poll wipe badges.
         applyLinkedServices(result.data.linkedServices);
+      } else {
+        await refreshFromServer();
       }
-      await refreshFromServer();
       return { ok: true as const };
     },
     [sessionUserId, refreshFromServer, applyLinkedServices]
@@ -605,8 +652,9 @@ export function WatchifyProvider({ children }: { children: ReactNode }) {
       if (!result.ok) return { ok: false as const, error: result.error };
       if (result.data.linkedServices) {
         applyLinkedServices(result.data.linkedServices);
+      } else {
+        await refreshFromServer();
       }
-      await refreshFromServer();
       return { ok: true as const };
     },
     [sessionUserId, refreshFromServer, applyLinkedServices]

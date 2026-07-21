@@ -111,7 +111,9 @@ export function mapPublicUser(row: {
       : null,
     recentlyWatchedIds: parseJson<string[]>(row.recentlyWatchedIdsJson, []),
     friendIds: [],
-    linkedServices: parseJson<StreamingServiceId[]>(row.linkedServicesJson, []),
+    linkedServices: parseJson<StreamingServiceId[]>(row.linkedServicesJson, []).filter(
+      isStreamingServiceId
+    ),
     socialLinks: {
       ...EMPTY_SOCIAL_LINKS,
       ...parseJson<Partial<SocialLinks>>(row.socialLinksJson, {}),
@@ -344,7 +346,9 @@ export async function loadAppStateForUser(userId: string): Promise<AppState | nu
       ...EMPTY_SOCIAL_LINKS,
       ...parseJson<Partial<SocialLinks>>(me.socialLinksJson, {}),
     },
-    linkedServices: parseJson<StreamingServiceId[]>(me.linkedServicesJson, []),
+    linkedServices: parseJson<StreamingServiceId[]>(me.linkedServicesJson, []).filter(
+      isStreamingServiceId
+    ),
     blockedUserIds: blocked,
     cookieConsent: "unknown",
     ageConfirmed: me.ageVerified,
