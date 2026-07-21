@@ -8,7 +8,6 @@ import {
   NAMEPLATE_STYLES,
   PATTERN_OVERLAYS,
   PROFILE_BADGES,
-  bannerCss,
   dicebearUrlForStyle,
   multiplyCombinations,
   normalizeAccentPalette,
