@@ -80,6 +80,13 @@ export async function PATCH(req: Request) {
     profileTheme?: string;
     borderStyle?: string;
     accentColor?: string;
+    accentPalette?: string;
+    avatarStyle?: string;
+    avatarFrame?: string;
+    bannerStyle?: string;
+    patternOverlay?: string;
+    nameplateStyle?: string;
+    profileBadgeIds?: string[];
     favoriteMovieIds?: string[];
     favoritePeople?: FavoritePerson[];
     partyAvailability?: unknown;
@@ -141,6 +148,13 @@ export async function PATCH(req: Request) {
     body.profileTheme !== undefined ||
     body.borderStyle !== undefined ||
     body.accentColor !== undefined ||
+    body.accentPalette !== undefined ||
+    body.avatarStyle !== undefined ||
+    body.avatarFrame !== undefined ||
+    body.bannerStyle !== undefined ||
+    body.patternOverlay !== undefined ||
+    body.nameplateStyle !== undefined ||
+    body.profileBadgeIds !== undefined ||
     body.favoriteMovieIds !== undefined ||
     body.favoritePeople !== undefined ||
     body.partyAvailability !== undefined ||
@@ -157,6 +171,13 @@ export async function PATCH(req: Request) {
       profileTheme: body.profileTheme,
       borderStyle: body.borderStyle,
       accentColor: body.accentColor,
+      accentPalette: body.accentPalette,
+      avatarStyle: body.avatarStyle,
+      avatarFrame: body.avatarFrame,
+      bannerStyle: body.bannerStyle,
+      patternOverlay: body.patternOverlay,
+      nameplateStyle: body.nameplateStyle,
+      profileBadgeIds: body.profileBadgeIds,
       favoriteMovieIds: body.favoriteMovieIds,
       favoritePeople: body.favoritePeople,
       partyAvailability: body.partyAvailability,

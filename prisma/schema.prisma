@@ -20,12 +20,26 @@ model User {
   avatarHue                Int       @default(168)
   /// Optional https avatar image; null → hue + initials
   avatarUrl                String?
-  /// classic | neon | cinema | coral | midnight
+  /// Profile page theme id (see profile-themes.ts)
   profileTheme             String    @default("classic")
-  /// soft | sharp | double | glow
+  /// Page border / frame id
   borderStyle              String    @default("soft")
   /// Sanitized hex accent, e.g. #2dd4bf
   accentColor              String    @default("#2dd4bf")
+  /// Curated accent palette id (custom keeps free hex in accentColor)
+  accentPalette            String    @default("teal")
+  /// Avatar generator / mode id (hue | photo | dicebear styles)
+  avatarStyle              String    @default("hue")
+  /// Avatar ring / frame id
+  avatarFrame              String    @default("soft-ring")
+  /// Profile banner strip id
+  bannerStyle              String    @default("none")
+  /// Pattern overlay id on the profile frame
+  patternOverlay           String    @default("none")
+  /// Display-name nameplate style id
+  nameplateStyle           String    @default("classic")
+  /// JSON string[] of cosmetic profile badge ids (max 3)
+  profileBadgeIdsJson      String    @default("[]")
   /// JSON string[] of catalog movie ids (favorites shelf, max 8)
   favoriteMovieIdsJson     String    @default("[]")
   /// JSON FavoritePerson[] — actors/directors for taste + profile (max 8)

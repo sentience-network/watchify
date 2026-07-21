@@ -23,7 +23,13 @@ import { isFreePlayable } from "@/lib/free-content";
 import { getMovie } from "@/lib/movies";
 import { personPosterUrl } from "@/lib/people";
 import {
+  PROFILE_BADGES,
+  bannerCss,
+  normalizeAvatarFrame,
+  normalizeBannerStyle,
   normalizeBorderStyle,
+  normalizeNameplateStyle,
+  normalizePatternOverlay,
   normalizeProfileTheme,
   sanitizeHexColor,
 } from "@/lib/profile-themes";
@@ -134,6 +140,12 @@ export default function ProfilePage() {
   const theme = normalizeProfileTheme(user.profileTheme);
   const border = normalizeBorderStyle(user.borderStyle);
   const accent = sanitizeHexColor(user.accentColor || "#2dd4bf");
+  const banner = normalizeBannerStyle(user.bannerStyle);
+  const pattern = normalizePatternOverlay(user.patternOverlay);
+  const nameplate = normalizeNameplateStyle(user.nameplateStyle);
+  const avatarFrame = normalizeAvatarFrame(user.avatarFrame);
+  const badgeIds = user.profileBadgeIds || [];
+  const bannerBackground = bannerCss(banner);
   const recentlyIds = isMe
     ? state.recentlyWatchedIds
     : user.recentlyWatchedIds;
@@ -225,6 +237,19 @@ export default function ProfilePage() {
         style={{ "--profile-accent": accent } as CSSProperties}
       >
         <div className="profile-frame rounded-3xl p-5 md:p-7">
+          {banner !== "none" && (
+            <div
+              className="profile-banner"
+              style={{ background: bannerBackground }}
+              aria-hidden
+            />
+          )}
+          {pattern !== "none" && (
+            <div
+              className={`profile-pattern profile-pattern-${pattern}`}
+              aria-hidden
+            />
+          )}
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="flex gap-4">
               <ProfileAvatar
@@ -233,6 +258,7 @@ export default function ProfilePage() {
                 avatarUrl={user.avatarUrl}
                 size="xl"
                 ringColor={accent}
+                frame={avatarFrame}
               />
               <div>
                 <p
@@ -241,10 +267,24 @@ export default function ProfilePage() {
                 >
                   Watchify profile
                 </p>
-                <h1 className="font-display text-3xl font-bold text-white md:text-4xl">
+                <h1
+                  className={`font-display text-3xl font-bold text-white md:text-4xl profile-nameplate-${nameplate}`}
+                >
                   {user.name}
                 </h1>
                 <p className="text-sm text-mist/70">@{user.handle}</p>
+                {badgeIds.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {badgeIds.map((id) => {
+                      const meta = PROFILE_BADGES.find((b) => b.id === id);
+                      return (
+                        <span key={id} className="profile-badge-chip">
+                          {meta?.label || id}
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
                 <p className="mt-2 max-w-md text-sm leading-relaxed text-mist">
                   {user.bio || (isMe ? "Add a short bio in Customize." : "")}
                 </p>
@@ -261,6 +301,13 @@ export default function ProfilePage() {
                     profileTheme: user.profileTheme,
                     borderStyle: user.borderStyle,
                     accentColor: user.accentColor,
+                    accentPalette: user.accentPalette,
+                    avatarStyle: user.avatarStyle,
+                    avatarFrame: user.avatarFrame,
+                    bannerStyle: user.bannerStyle,
+                    patternOverlay: user.patternOverlay,
+                    nameplateStyle: user.nameplateStyle,
+                    profileBadgeIds: user.profileBadgeIds,
                     favoriteMovieIds: user.favoriteMovieIds,
                     favoritePeople: user.favoritePeople,
                   }}

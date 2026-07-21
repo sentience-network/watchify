@@ -1,9 +1,9 @@
 "use client";
 
+import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { getPartyRealtime } from "@/lib/party-realtime";
-import type { PartyPresenceMember, PartyReadyStatus } from "@/lib/types";
+import type { PartyPresenceMember, PartyReadyStatus, User } from "@/lib/types";
 import { partyUserLabel } from "@/lib/users";
-import type { User } from "@/lib/types";
 
 const STATUSES: { id: PartyReadyStatus; label: string }[] = [
   { id: "opened", label: "Opened app" },
@@ -97,6 +97,7 @@ export function PartyReadyBoard({
             )
             .map((m) => {
               const label = partyUserLabel(m.userId, directoryUsers, m);
+              const user = directoryUsers.find((u) => u.id === m.userId);
               return (
                 <li
                   key={m.userId}
@@ -109,6 +110,16 @@ export function PartyReadyBoard({
                       )}`}
                       title={m.readyStatus || "not set"}
                     />
+                    {user ? (
+                      <ProfileAvatar
+                        name={user.name}
+                        hue={user.avatarHue}
+                        avatarUrl={user.avatarUrl}
+                        frame={user.avatarFrame}
+                        ringColor={user.accentColor || "#2dd4bf"}
+                        size="sm"
+                      />
+                    ) : null}
                     <span className="truncate text-white">
                       {label.name}
                       {m.userId === currentUserId ? " (you)" : ""}

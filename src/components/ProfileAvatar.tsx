@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 
 type Props = {
   name: string;
@@ -10,6 +10,8 @@ type Props = {
   size?: "sm" | "md" | "lg" | "xl";
   className?: string;
   ringColor?: string;
+  /** Cosmetic frame id from profile cosmetics */
+  frame?: string | null;
 };
 
 const SIZE = {
@@ -26,6 +28,7 @@ export function ProfileAvatar({
   size = "md",
   className = "",
   ringColor,
+  frame,
 }: Props) {
   const [broken, setBroken] = useState(false);
   const initials = name
@@ -34,34 +37,44 @@ export function ProfileAvatar({
     .map((w) => w[0]?.toUpperCase() || "")
     .join("");
   const showImg = Boolean(avatarUrl) && !broken;
+  const frameId = frame || "soft-ring";
+  const useCssFrame = frameId !== "soft-ring" && frameId !== "none";
 
   return (
     <div
-      className={`relative shrink-0 overflow-hidden rounded-full ${SIZE[size]} ${className}`}
-      style={{
-        background: showImg
-          ? "#0b1210"
-          : `hsl(${hue} 72% 48%)`,
-        boxShadow: ringColor
-          ? `0 0 0 3px ${ringColor}55, 0 0 24px ${ringColor}33`
-          : undefined,
-      }}
+      className={`avatar-frame avatar-frame-${frameId} ${className}`}
+      style={
+        {
+          "--profile-accent": ringColor || "#2dd4bf",
+        } as CSSProperties
+      }
     >
-      {showImg ? (
-        <Image
-          src={avatarUrl!}
-          alt=""
-          fill
-          className="object-cover"
-          sizes="96px"
-          unoptimized
-          onError={() => setBroken(true)}
-        />
-      ) : (
-        <span className="flex h-full w-full items-center justify-center font-display font-bold text-white">
-          {initials || "?"}
-        </span>
-      )}
+      <div
+        className={`relative shrink-0 overflow-hidden rounded-full ${SIZE[size]}`}
+        style={{
+          background: showImg ? "#0b1210" : `hsl(${hue} 72% 48%)`,
+          boxShadow:
+            !useCssFrame && frameId === "soft-ring" && ringColor
+              ? `0 0 0 3px ${ringColor}55, 0 0 24px ${ringColor}33`
+              : undefined,
+        }}
+      >
+        {showImg ? (
+          <Image
+            src={avatarUrl!}
+            alt=""
+            fill
+            className="object-cover"
+            sizes="96px"
+            unoptimized
+            onError={() => setBroken(true)}
+          />
+        ) : (
+          <span className="flex h-full w-full items-center justify-center font-display font-bold text-white">
+            {initials || "?"}
+          </span>
+        )}
+      </div>
     </div>
   );
 }

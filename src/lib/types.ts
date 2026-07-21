@@ -118,6 +118,14 @@ export type User = {
   profileTheme?: string;
   borderStyle?: string;
   accentColor?: string;
+  accentPalette?: string;
+  avatarStyle?: string;
+  avatarFrame?: string;
+  bannerStyle?: string;
+  patternOverlay?: string;
+  nameplateStyle?: string;
+  /** Cosmetic profile pins (max 3) */
+  profileBadgeIds?: string[];
   /** Showcase shelf (max 8 catalog ids) */
   favoriteMovieIds?: string[];
   /** Favorite actors / directors (max 8) */

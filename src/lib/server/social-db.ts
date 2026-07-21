@@ -20,12 +20,30 @@ import type {
   WatchParty,
 } from "../types";
 import {
+  BORDER_STYLES,
+  PROFILE_THEMES,
   dicebearAvatar,
+  dicebearUrlForStyle,
+  normalizeAccentPalette,
+  normalizeAvatarFrame,
+  normalizeAvatarStyle,
+  normalizeBannerStyle,
   normalizeBorderStyle,
+  normalizeNameplateStyle,
+  normalizePatternOverlay,
   normalizeProfileTheme,
+  paletteHex,
+  planAllowsTier,
   profileLooksFromRow,
   sanitizeAvatarUrl,
   sanitizeHexColor,
+  sanitizeProfileBadgeIds,
+  ACCENT_PALETTES,
+  AVATAR_FRAMES,
+  AVATAR_STYLES,
+  BANNER_STYLES,
+  NAMEPLATE_STYLES,
+  PATTERN_OVERLAYS,
 } from "../profile-themes";
 import { EMPTY_SOCIAL_LINKS, type FavoritePerson } from "../types";
 import { parsePartyAvailability } from "../party-availability";
@@ -73,6 +91,13 @@ export function mapPublicUser(row: {
   profileTheme?: string | null;
   borderStyle?: string | null;
   accentColor?: string | null;
+  accentPalette?: string | null;
+  avatarStyle?: string | null;
+  avatarFrame?: string | null;
+  bannerStyle?: string | null;
+  patternOverlay?: string | null;
+  nameplateStyle?: string | null;
+  profileBadgeIdsJson?: string | null;
   favoriteMovieIdsJson?: string | null;
   favoritePeopleJson?: string | null;
   currentlyWatchingId: string | null;
@@ -97,6 +122,13 @@ export function mapPublicUser(row: {
     profileTheme: looks.profileTheme,
     borderStyle: looks.borderStyle,
     accentColor: looks.accentColor,
+    accentPalette: looks.accentPalette,
+    avatarStyle: looks.avatarStyle,
+    avatarFrame: looks.avatarFrame,
+    bannerStyle: looks.bannerStyle,
+    patternOverlay: looks.patternOverlay,
+    nameplateStyle: looks.nameplateStyle,
+    profileBadgeIds: looks.profileBadgeIds,
     favoriteMovieIds: looks.favoriteMovieIds,
     favoritePeople: parseFavoritePeople(row.favoritePeopleJson),
     currentlyWatchingId: row.publicWatching ? row.currentlyWatchingId : null,
@@ -440,6 +472,13 @@ export async function pushActivity(
   });
 }
 
+function cosmeticAllowed(
+  plan: PlanId | string | null | undefined,
+  tier: "free" | "party" | undefined
+) {
+  return planAllowsTier(plan, tier || "free");
+}
+
 export async function updateProfile(
   userId: string,
   patch: {
@@ -455,12 +494,21 @@ export async function updateProfile(
     profileTheme?: string;
     borderStyle?: string;
     accentColor?: string;
+    accentPalette?: string;
+    avatarStyle?: string;
+    avatarFrame?: string;
+    bannerStyle?: string;
+    patternOverlay?: string;
+    nameplateStyle?: string;
+    profileBadgeIds?: string[];
     favoriteMovieIds?: string[];
     favoritePeople?: FavoritePerson[];
     partyAvailability?: unknown;
     friendCircles?: unknown;
   }
 ) {
+  const me = await prisma.user.findUnique({ where: { id: userId } });
+  const plan = (me?.plan as PlanId) || "free";
   const data: Record<string, unknown> = {};
   if (patch.name !== undefined) data.name = sanitizeText(patch.name, 80) || "Watcher";
   if (patch.bio !== undefined) data.bio = sanitizeText(patch.bio, 280);
@@ -476,19 +524,72 @@ export async function updateProfile(
     data.avatarHue = Math.max(0, Math.min(359, Math.round(patch.avatarHue)));
   }
   if (patch.useDicebearAvatar) {
-    const me = await prisma.user.findUnique({ where: { id: userId } });
     data.avatarUrl = dicebearAvatar(me?.handle || userId);
+    data.avatarStyle = "avataaars";
+  } else if (patch.avatarStyle !== undefined) {
+    const style = normalizeAvatarStyle(patch.avatarStyle);
+    const meta = AVATAR_STYLES.find((s) => s.id === style);
+    if (cosmeticAllowed(plan, meta?.tier)) {
+      data.avatarStyle = style;
+      if (style === "hue") {
+        data.avatarUrl = null;
+      } else if (style !== "photo") {
+        const url = dicebearUrlForStyle(style, me?.handle || userId);
+        if (url) data.avatarUrl = url;
+      }
+    }
   } else if (patch.avatarUrl !== undefined) {
     data.avatarUrl = sanitizeAvatarUrl(patch.avatarUrl);
+    if (patch.avatarUrl) data.avatarStyle = "photo";
   }
   if (patch.profileTheme !== undefined) {
-    data.profileTheme = normalizeProfileTheme(patch.profileTheme);
+    const theme = normalizeProfileTheme(patch.profileTheme);
+    const meta = PROFILE_THEMES.find((t) => t.id === theme);
+    if (cosmeticAllowed(plan, meta?.tier)) data.profileTheme = theme;
   }
   if (patch.borderStyle !== undefined) {
-    data.borderStyle = normalizeBorderStyle(patch.borderStyle);
+    const border = normalizeBorderStyle(patch.borderStyle);
+    const meta = BORDER_STYLES.find((b) => b.id === border);
+    if (cosmeticAllowed(plan, meta?.tier)) data.borderStyle = border;
+  }
+  if (patch.accentPalette !== undefined) {
+    const palette = normalizeAccentPalette(patch.accentPalette);
+    const meta = ACCENT_PALETTES.find((p) => p.id === palette);
+    if (cosmeticAllowed(plan, meta?.tier)) {
+      data.accentPalette = palette;
+      if (palette !== "custom") {
+        data.accentColor = paletteHex(palette);
+      }
+    }
   }
   if (patch.accentColor !== undefined) {
     data.accentColor = sanitizeHexColor(patch.accentColor);
+    data.accentPalette = "custom";
+  }
+  if (patch.avatarFrame !== undefined) {
+    const frame = normalizeAvatarFrame(patch.avatarFrame);
+    const meta = AVATAR_FRAMES.find((f) => f.id === frame);
+    if (cosmeticAllowed(plan, meta?.tier)) data.avatarFrame = frame;
+  }
+  if (patch.bannerStyle !== undefined) {
+    const banner = normalizeBannerStyle(patch.bannerStyle);
+    const meta = BANNER_STYLES.find((b) => b.id === banner);
+    if (cosmeticAllowed(plan, meta?.tier)) data.bannerStyle = banner;
+  }
+  if (patch.patternOverlay !== undefined) {
+    const pattern = normalizePatternOverlay(patch.patternOverlay);
+    const meta = PATTERN_OVERLAYS.find((p) => p.id === pattern);
+    if (cosmeticAllowed(plan, meta?.tier)) data.patternOverlay = pattern;
+  }
+  if (patch.nameplateStyle !== undefined) {
+    const plate = normalizeNameplateStyle(patch.nameplateStyle);
+    const meta = NAMEPLATE_STYLES.find((n) => n.id === plate);
+    if (cosmeticAllowed(plan, meta?.tier)) data.nameplateStyle = plate;
+  }
+  if (patch.profileBadgeIds !== undefined) {
+    data.profileBadgeIdsJson = JSON.stringify(
+      sanitizeProfileBadgeIds(patch.profileBadgeIds, plan)
+    );
   }
   if (patch.favoriteMovieIds !== undefined) {
     const ids = patch.favoriteMovieIds
