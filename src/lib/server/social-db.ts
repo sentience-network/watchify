@@ -75,6 +75,7 @@ export function mapPublicUser(row: {
   currentlyWatchingId: string | null;
   currentlyWatchingServiceId: string | null;
   watchingProgressPercent: number | null;
+  watchingStartedAt?: Date | null;
   recentlyWatchedIdsJson: string;
   linkedServicesJson: string;
   socialLinksJson: string;
@@ -99,6 +100,9 @@ export function mapPublicUser(row: {
       : null,
     watchingProgressPercent: row.publicWatching
       ? row.watchingProgressPercent
+      : null,
+    watchingStartedAt: row.publicWatching
+      ? row.watchingStartedAt?.toISOString() ?? null
       : null,
     recentlyWatchedIds: parseJson<string[]>(row.recentlyWatchedIdsJson, []),
     friendIds: [],
@@ -253,6 +257,7 @@ export async function loadAppStateForUser(userId: string): Promise<AppState | nu
     partyId: p.partyId,
     positionSec: p.positionSec,
     playing: p.playing,
+    watchStartedAt: p.watchStartedAt?.toISOString() ?? null,
     updatedAt: p.updatedAt.toISOString(),
     updatedBy: p.updatedBy,
   }));
@@ -264,6 +269,7 @@ export async function loadAppStateForUser(userId: string): Promise<AppState | nu
     currentlyWatchingServiceId:
       (me.currentlyWatchingServiceId as StreamingServiceId | null) ?? null,
     watchingProgressPercent: me.watchingProgressPercent,
+    watchingStartedAt: me.watchingStartedAt?.toISOString() ?? null,
     recentlyWatchedIds: parseJson<string[]>(me.recentlyWatchedIdsJson, []),
     activities: activities.map(
       (a): Activity => ({
@@ -458,9 +464,16 @@ export async function setPresence(
     movieId: string | null;
     serviceId?: StreamingServiceId | null;
     progressPercent?: number | null;
+    /** Reset the started-at join cue (default: when title changes) */
+    startTracker?: boolean;
   }
 ) {
   const movieId = input.movieId;
+  const me = await prisma.user.findUnique({ where: { id: userId } });
+  const titleChanged = Boolean(movieId && movieId !== me?.currentlyWatchingId);
+  const startTracker = Boolean(input.startTracker) || titleChanged;
+  const now = new Date();
+
   await prisma.user.update({
     where: { id: userId },
     data: {
@@ -469,7 +482,14 @@ export async function setPresence(
       watchingProgressPercent: movieId
         ? input.progressPercent !== undefined
           ? input.progressPercent
-          : 0
+          : titleChanged
+            ? 0
+            : me?.watchingProgressPercent ?? 0
+        : null,
+      watchingStartedAt: movieId
+        ? startTracker
+          ? now
+          : me?.watchingStartedAt ?? now
         : null,
     },
   });
@@ -508,6 +528,7 @@ export async function markFinished(userId: string, movieId: string) {
             currentlyWatchingId: null,
             currentlyWatchingServiceId: null,
             watchingProgressPercent: null,
+            watchingStartedAt: null,
           }
         : {}),
     },
@@ -1058,21 +1079,33 @@ export async function updatePartyPlaybackDb(
   userId: string,
   partyId: string,
   positionSec: number,
-  playing: boolean
+  playing: boolean,
+  opts?: { startTracker?: boolean }
 ) {
+  const startTracker = Boolean(opts?.startTracker);
+  const now = new Date();
+  const existing = await prisma.partyPlaybackSync.findUnique({
+    where: { partyId },
+  });
+  const watchStartedAt = startTracker
+    ? now
+    : existing?.watchStartedAt ?? (playing && !existing ? now : undefined);
+
   const row = await prisma.partyPlaybackSync.upsert({
     where: { partyId },
     create: {
       partyId,
       positionSec: Math.max(0, positionSec),
       playing,
+      watchStartedAt: watchStartedAt ?? null,
       updatedBy: userId,
     },
     update: {
       positionSec: Math.max(0, positionSec),
       playing,
       updatedBy: userId,
-      updatedAt: new Date(),
+      updatedAt: now,
+      ...(startTracker ? { watchStartedAt: now } : {}),
     },
   });
   return {
@@ -1081,6 +1114,7 @@ export async function updatePartyPlaybackDb(
       partyId: row.partyId,
       positionSec: row.positionSec,
       playing: row.playing,
+      watchStartedAt: row.watchStartedAt?.toISOString() ?? null,
       updatedAt: row.updatedAt.toISOString(),
       updatedBy: row.updatedBy,
     } satisfies PartyPlaybackSync,

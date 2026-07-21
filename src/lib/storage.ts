@@ -11,6 +11,7 @@ export function defaultState(): AppState {
     currentlyWatchingId: null,
     currentlyWatchingServiceId: null,
     watchingProgressPercent: null,
+    watchingStartedAt: null,
     recentlyWatchedIds: [],
     activities: [],
     watchingPublic: true,

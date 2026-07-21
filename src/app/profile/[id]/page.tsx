@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { AppShell } from "@/components/AppShell";
 import { InviteFriendsInApp } from "@/components/InviteFriendsInApp";
 import { MoviePoster } from "@/components/MoviePoster";
@@ -11,6 +11,14 @@ import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { ProfileCustomizePanel } from "@/components/ProfileCustomizePanel";
 import { ServiceBadge } from "@/components/ServiceBadge";
 import { ShareMenu } from "@/components/ShareMenu";
+import {
+  estimateWatchPosition,
+  formatPlayhead,
+  formatRelativeStarted,
+  formatWatchStartedAt,
+  suggestedJoinPlayheadSec,
+} from "@/lib/deep-links";
+import { isFreePlayable } from "@/lib/free-content";
 import { getMovie } from "@/lib/movies";
 import { personPosterUrl } from "@/lib/people";
 import {
@@ -38,12 +46,81 @@ export default function ProfilePage() {
     blockUser,
     isBlocked,
     refreshFromServer,
+    restartWatchingTracker,
   } = useWatchify();
   const user =
     directoryUsers.find((u) => u.id === params.id) || getUser(params.id);
   const [reportMsg, setReportMsg] = useState("");
   const [reporting, setReporting] = useState(false);
   const [messaging, setMessaging] = useState(false);
+  const [tick, setTick] = useState(0);
+
+  const isMe = Boolean(user && user.id === currentUserId);
+  const watchingId = user
+    ? isMe
+      ? state.currentlyWatchingId
+      : user.currentlyWatchingId
+    : null;
+  const watching = watchingId ? getMovie(watchingId) : null;
+  const showWatching = user
+    ? isMe
+      ? Boolean(watching && state.watchingPublic)
+      : Boolean(watching)
+    : false;
+  const watchingStartedAt = user
+    ? isMe
+      ? state.watchingStartedAt
+      : user.watchingStartedAt
+    : null;
+  const progress = user
+    ? isMe
+      ? state.watchingProgressPercent
+      : user.watchingProgressPercent
+    : null;
+  const livePartyForTitle =
+    user && watchingId
+      ? openParties.find(
+          (p) =>
+            p.hostId === user.id &&
+            p.movieId === watchingId &&
+            p.status === "open"
+        )
+      : undefined;
+  const partySync = livePartyForTitle
+    ? state.partyPlaybackSync.find((s) => s.partyId === livePartyForTitle.id)
+    : undefined;
+
+  useEffect(() => {
+    if (!showWatching || !watchingStartedAt) return;
+    const id = window.setInterval(() => setTick((n) => n + 1), 15000);
+    return () => window.clearInterval(id);
+  }, [showWatching, watchingStartedAt]);
+
+  const position = useMemo(() => {
+    void tick;
+    if (partySync?.watchStartedAt || (partySync && partySync.positionSec > 0)) {
+      const cue = suggestedJoinPlayheadSec(
+        partySync.watchStartedAt,
+        partySync.positionSec || 0,
+        Boolean(partySync.playing)
+      );
+      return {
+        elapsedSec: cue,
+        percent:
+          typeof progress === "number"
+            ? progress
+            : watching?.runtime
+              ? Math.min(99, Math.round((cue / (watching.runtime * 60)) * 100))
+              : null,
+        label: `~${formatPlayhead(cue)} in`,
+      };
+    }
+    return estimateWatchPosition({
+      watchingStartedAt,
+      progressPercent: progress,
+      runtimeMinutes: watching?.runtime,
+    });
+  }, [tick, partySync, progress, watching?.runtime, watchingStartedAt]);
 
   if (!user) {
     return (
@@ -53,20 +130,12 @@ export default function ProfilePage() {
     );
   }
 
-  const isMe = user.id === currentUserId;
   const theme = normalizeProfileTheme(user.profileTheme);
   const border = normalizeBorderStyle(user.borderStyle);
   const accent = sanitizeHexColor(user.accentColor || "#2dd4bf");
-  const watchingId = isMe
-    ? state.currentlyWatchingId
-    : user.currentlyWatchingId;
   const recentlyIds = isMe
     ? state.recentlyWatchedIds
     : user.recentlyWatchedIds;
-  const watching = watchingId ? getMovie(watchingId) : null;
-  const showWatching = isMe
-    ? Boolean(watching && state.watchingPublic)
-    : Boolean(watching);
   const recent = recentlyIds
     .map((id) => getMovie(id))
     .filter(Boolean)
@@ -107,9 +176,8 @@ export default function ProfilePage() {
   const watchingService = isMe
     ? state.currentlyWatchingServiceId
     : user.currentlyWatchingServiceId;
-  const progress = isMe
-    ? state.watchingProgressPercent
-    : user.watchingProgressPercent;
+  const freeTitle = watching ? isFreePlayable(watching) : false;
+
   const socialEntries = social
     ? (
         [
@@ -396,42 +464,110 @@ export default function ProfilePage() {
             )}
           </div>
           {showWatching && watching ? (
-            <div className="mt-3 flex gap-4 rounded-2xl border border-line bg-panel/50 p-4 transition hover:border-teal/30">
+            <div className="mt-3 flex gap-4 rounded-2xl border border-teal/25 bg-panel/50 p-4">
               <MoviePoster movie={watching} size="sm" />
-              <div>
+              <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="font-display text-lg font-semibold text-white">
                     {watching.title}
                   </p>
                   <ServiceBadge serviceId={watchingService} />
-                  {typeof progress === "number" && (
-                    <span className="text-xs text-mist/60">{progress}%</span>
-                  )}
+                  {freeTitle ? (
+                    <span className="rounded-md bg-teal/15 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-teal-soft">
+                      Free on Watchify
+                    </span>
+                  ) : null}
                 </div>
                 <p className="text-sm text-mist/70">
-                  {watching.year} · {watching.genres.join(" · ")}
+                  {watching.year} · {watching.genres.slice(0, 3).join(" · ")}
                 </p>
-                <p className="mt-2 line-clamp-3 text-sm text-mist">
-                  {watching.overview}
-                </p>
-                {!isMe && (
-                  <Link
-                    href="/parties"
-                    className="mt-3 inline-block text-xs font-medium text-teal-soft hover:underline"
-                  >
-                    Start a party around this →
-                  </Link>
-                )}
-                {showWatching && (
-                  <div className="mt-2">
-                    <ShareMenu
-                      url={watchingUrl}
-                      title={`${user.name} is watching ${watching.title}`}
-                      text={`${user.name} is watching ${watching.title} on Watchify`}
-                      compact
-                    />
-                  </div>
-                )}
+                <div className="mt-2 rounded-lg border border-line/70 bg-ink/40 px-3 py-2 text-sm">
+                  {watchingStartedAt ? (
+                    <p className="text-white">
+                      Started{" "}
+                      <span className="font-semibold text-teal-soft">
+                        {formatWatchStartedAt(watchingStartedAt)}
+                      </span>
+                      <span className="text-mist/60">
+                        {" "}
+                        ({formatRelativeStarted(watchingStartedAt)})
+                      </span>
+                    </p>
+                  ) : (
+                    <p className="text-mist/70">Start time not shared yet.</p>
+                  )}
+                  <p className="mt-0.5 text-mist">
+                    Join cue:{" "}
+                    <span className="font-semibold text-white">
+                      {position.label}
+                    </span>
+                    {position.percent !== null ? (
+                      <span className="text-mist/60">
+                        {" "}
+                        · ~{position.percent}%
+                      </span>
+                    ) : null}
+                    {partySync?.playing ? (
+                      <span className="text-teal-soft"> · live playhead</span>
+                    ) : null}
+                  </p>
+                  {!freeTitle ? (
+                    <p className="mt-1 text-[11px] leading-relaxed text-mist/55">
+                      Off-site title — scrub to this time on your own service.
+                      Watchify does not stream Netflix, Max, etc.
+                    </p>
+                  ) : null}
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {freeTitle ? (
+                    <Link
+                      href={`/watch/${watching.id}${
+                        livePartyForTitle
+                          ? `?party=${encodeURIComponent(livePartyForTitle.id)}`
+                          : ""
+                      }`}
+                      className="rounded-lg bg-teal px-3 py-1.5 text-xs font-semibold text-ink hover:bg-teal-soft"
+                    >
+                      {livePartyForTitle ? "Open sync player" : "Watch free"}
+                    </Link>
+                  ) : null}
+                  {livePartyForTitle ? (
+                    <Link
+                      href={`/parties?joined=${encodeURIComponent(livePartyForTitle.id)}`}
+                      className="rounded-lg border border-teal/40 px-3 py-1.5 text-xs font-medium text-teal-soft hover:bg-teal/10"
+                    >
+                      Join their party
+                    </Link>
+                  ) : (
+                    <Link
+                      href={`/parties?create=1&movieId=${encodeURIComponent(watching.id)}&syncMode=${
+                        freeTitle ? "watchify_free" : "own_account"
+                      }`}
+                      className="rounded-lg border border-teal/40 px-3 py-1.5 text-xs font-medium text-teal-soft hover:bg-teal/10"
+                    >
+                      {isMe ? "Start party" : "Start party with this"}
+                    </Link>
+                  )}
+                  {isMe ? (
+                    <button
+                      type="button"
+                      onClick={() => restartWatchingTracker()}
+                      className="rounded-lg border border-line px-3 py-1.5 text-xs text-mist hover:text-white"
+                    >
+                      Restart start timer
+                    </button>
+                  ) : null}
+                  <ShareMenu
+                    url={watchingUrl}
+                    title={`${user.name} is watching ${watching.title}`}
+                    text={
+                      watchingStartedAt
+                        ? `${user.name} started ${watching.title} at ${formatWatchStartedAt(watchingStartedAt)} — join around ${position.label} on Watchify`
+                        : `${user.name} is watching ${watching.title} on Watchify`
+                    }
+                    compact
+                  />
+                </div>
               </div>
             </div>
           ) : isMe && watching && !state.watchingPublic ? (

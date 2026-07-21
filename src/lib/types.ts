@@ -125,6 +125,8 @@ export type User = {
   currentlyWatchingId: string | null;
   currentlyWatchingServiceId?: StreamingServiceId | null;
   watchingProgressPercent?: number | null;
+  /** ISO — when they started this title (join / scrub cue) */
+  watchingStartedAt?: string | null;
   recentlyWatchedIds: string[];
   friendIds: string[];
   socialLinks?: SocialLinks;
@@ -179,6 +181,8 @@ export type PartyPlaybackSync = {
   partyId: string;
   positionSec: number;
   playing: boolean;
+  /** ISO — host pressed play off-site; friends use this as the join/start cue */
+  watchStartedAt?: string | null;
   updatedAt: string;
   updatedBy: string;
 };
@@ -223,6 +227,7 @@ export type AppState = {
   currentlyWatchingId: string | null;
   currentlyWatchingServiceId: StreamingServiceId | null;
   watchingProgressPercent: number | null;
+  watchingStartedAt: string | null;
   recentlyWatchedIds: string[];
   activities: Activity[];
   /** When true, strangers can see what you're watching */

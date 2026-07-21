@@ -47,6 +47,7 @@ export async function GET(
           partyId: playback.partyId,
           positionSec: playback.positionSec,
           playing: playback.playing,
+          watchStartedAt: playback.watchStartedAt?.toISOString() ?? null,
           updatedAt: playback.updatedAt.toISOString(),
           updatedBy: playback.updatedBy,
         }
@@ -65,6 +66,7 @@ export async function POST(
     emoji?: string;
     positionSec?: number;
     playing?: boolean;
+    startTracker?: boolean;
   };
   try {
     body = await req.json();
@@ -85,14 +87,18 @@ export async function POST(
     const result = await addPartyReactionDb(auth.userId, params.id, body.emoji);
     return NextResponse.json(result);
   }
-  if (body.positionSec !== undefined && body.playing !== undefined) {
-    await updatePartyPlaybackDb(
+  if (
+    body.startTracker ||
+    (body.positionSec !== undefined && body.playing !== undefined)
+  ) {
+    const result = await updatePartyPlaybackDb(
       auth.userId,
       params.id,
-      body.positionSec,
-      body.playing
+      body.positionSec ?? 0,
+      body.playing ?? true,
+      { startTracker: Boolean(body.startTracker) }
     );
-    return NextResponse.json({ ok: true });
+    return NextResponse.json(result);
   }
   return NextResponse.json({ error: "Nothing to post" }, { status: 400 });
 }

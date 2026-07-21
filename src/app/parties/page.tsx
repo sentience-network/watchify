@@ -10,15 +10,17 @@ import { PartySocialPanel } from "@/components/PartySocialPanel";
 import { PartyVideoRoom } from "@/components/PartyVideoRoom";
 import { ServiceBadge } from "@/components/ServiceBadge";
 import { ShareMenu } from "@/components/ShareMenu";
+import { TitlePicker } from "@/components/TitlePicker";
 import { absoluteUrl } from "@/lib/site";
-import { CATALOG, freeMovies, getMovie } from "@/lib/movies";
+import { getMovie, rememberCatalogMovies } from "@/lib/movies";
+import { isFreePlayable } from "@/lib/free-content";
 import { copyToClipboard, partyShareUrl } from "@/lib/share";
 import { partyInviteUrl } from "@/lib/social-graph";
 import { STREAMING_HONEST_COPY } from "@/lib/streaming";
 import { useWatchify } from "@/lib/store";
 import { getUser } from "@/lib/users";
 import type { StreamingServiceId } from "@/lib/streaming";
-import type { WatchParty } from "@/lib/types";
+import type { Movie, WatchParty } from "@/lib/types";
 import { track } from "@/lib/analytics-client";
 
 function formatStart(startsAt: string | null, isLive: boolean) {
@@ -52,7 +54,7 @@ function PartiesInner() {
   } = useWatchify();
 
   const [name, setName] = useState("");
-  const [movieId, setMovieId] = useState(state.currentlyWatchingId ?? "m1");
+  const [movieId, setMovieId] = useState(state.currentlyWatchingId ?? "");
   const [liveNow, setLiveNow] = useState(true);
   const [startsAt, setStartsAt] = useState("");
   const [error, setError] = useState("");
@@ -67,7 +69,9 @@ function PartiesInner() {
   const [copiedId, setCopiedId] = useState("");
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [promptPartyId, setPromptPartyId] = useState<string | null>(null);
+  const [createExpanded, setCreateExpanded] = useState(false);
   const inviteHandled = useRef<string | null>(null);
+  const prefillsHandled = useRef(false);
 
   const resolveUser = (id: string) =>
     directoryUsers.find((u) => u.id === id) || getUser(id);
@@ -115,20 +119,59 @@ function PartiesInner() {
     });
   }, [search, ready, currentUserId, joinPartyByInvite, router]);
 
-  const movieOptions = useMemo(() => {
-    if (syncMode === "watchify_free") return freeMovies();
-    return CATALOG.filter((m) => !m.youtubePlaybackId && !m.freePlaybackUrl);
-  }, [syncMode]);
-
+  // Prefill from ?movieId= / ?create=1&movieId= / ?syncMode=
   useEffect(() => {
-    if (!movieOptions.some((m) => m.id === movieId) && movieOptions[0]) {
-      setMovieId(movieOptions[0].id);
+    if (prefillsHandled.current) return;
+    const mid = search.get("movieId");
+    const mode = search.get("syncMode") as WatchParty["syncMode"] | null;
+    const create = search.get("create");
+    if (!mid && !create && !mode) return;
+    prefillsHandled.current = true;
+    if (create === "1" || mid) setCreateExpanded(true);
+    if (mode === "own_account" || mode === "watchify_free" || mode === "social") {
+      setSyncMode(mode);
     }
-  }, [movieOptions, movieId]);
+    if (!mid) return;
+    const local = getMovie(mid);
+    if (local) {
+      setMovieId(local.id);
+      if (!mode) {
+        setSyncMode(isFreePlayable(local) ? "watchify_free" : "own_account");
+      }
+      return;
+    }
+    void fetch(`/api/catalog/title/${encodeURIComponent(mid)}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (!data.movie) return;
+        rememberCatalogMovies([data.movie as Movie]);
+        setMovieId(data.movie.id);
+        if (!mode) {
+          setSyncMode(
+            isFreePlayable(data.movie as Movie) ? "watchify_free" : "own_account"
+          );
+        }
+      })
+      .catch(() => undefined);
+  }, [search]);
+
+  function onTitlePicked(id: string, movie?: Movie) {
+    setMovieId(id);
+    const m = movie || getMovie(id);
+    if (!m) return;
+    if (syncMode === "watchify_free" && !isFreePlayable(m)) {
+      setSyncMode("own_account");
+    } else if (syncMode !== "watchify_free" && isFreePlayable(m)) {
+      // Keep host choice; free titles can still use own-account if they want
+    }
+  }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
-    if (!movieId) return;
+    if (!movieId) {
+      setError("Pick a title to watch together.");
+      return;
+    }
     const result = await createParty({
       name: name.trim() || "Watch party",
       movieId,
@@ -246,10 +289,29 @@ function PartiesInner() {
               </section>
             )}
 
-            <section className="mb-10 rounded-2xl border border-line bg-panel/50 p-5 animate-fade-up">
-              <h2 className="font-display text-xl font-semibold text-white">
-                Create a party
-              </h2>
+            <section
+              id="create-party"
+              className="mb-10 rounded-2xl border border-line bg-panel/50 p-5 animate-fade-up"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 className="font-display text-xl font-semibold text-white">
+                    Create a party
+                  </h2>
+                  <p className="mt-1 text-sm text-mist/75">
+                    Pick any title, choose how you sync, invite friends.
+                  </p>
+                </div>
+                {!createExpanded && (
+                  <button
+                    type="button"
+                    onClick={() => setCreateExpanded(true)}
+                    className="rounded-xl bg-teal px-4 py-2 text-sm font-semibold text-ink hover:bg-teal-soft"
+                  >
+                    Start create
+                  </button>
+                )}
+              </div>
               {!canHostParties && (
                 <p className="mt-2 text-sm text-amber-soft">
                   Hosting needs the Party plan.{" "}
@@ -259,39 +321,54 @@ function PartiesInner() {
                   — you can still jump into open rooms below.
                 </p>
               )}
+              {(createExpanded || movieId) && (
               <form onSubmit={handleCreate} className="mt-4 space-y-3">
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-mist/60">
+                    Title
+                  </label>
+                  <TitlePicker
+                    value={movieId}
+                    onChange={onTitlePicked}
+                    freeOnly={syncMode === "watchify_free"}
+                    placeholder="Search TMDB or browse free titles…"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-mist/60">
+                    Sync mode
+                  </label>
+                  <select
+                    value={syncMode}
+                    onChange={(e) =>
+                      setSyncMode(e.target.value as typeof syncMode)
+                    }
+                    className="w-full rounded-xl border border-line bg-ink/50 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-teal/40"
+                  >
+                    <option value="watchify_free">
+                      Watchify Free — real synced playback
+                    </option>
+                    <option value="own_account">
+                      Own account — Netflix/Max/etc. (timing + playhead hints)
+                    </option>
+                    <option value="social">
+                      Social only — chat + presence
+                    </option>
+                  </select>
+                  {syncMode === "own_account" ? (
+                    <p className="mt-1.5 text-[11px] leading-relaxed text-mist/60">
+                      Watchify does not stream paid apps. After you press play on
+                      your service, start the watch tracker so friends know when
+                      to join and what time to scrub to.
+                    </p>
+                  ) : null}
+                </div>
                 <input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Room name (e.g. Friday sci-fi)"
+                  placeholder="Room name (optional — e.g. Friday sci-fi)"
                   className="w-full rounded-xl border border-line bg-ink/50 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-teal/40"
                 />
-                <select
-                  value={syncMode}
-                  onChange={(e) =>
-                    setSyncMode(e.target.value as typeof syncMode)
-                  }
-                  className="w-full rounded-xl border border-line bg-ink/50 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-teal/40"
-                >
-                  <option value="own_account">
-                    Own-account sync (Netflix/Max/etc. — each uses own login)
-                  </option>
-                  <option value="watchify_free">
-                    Watchify Free (real synced playback)
-                  </option>
-                  <option value="social">Social only (chat + presence)</option>
-                </select>
-                <select
-                  value={movieId}
-                  onChange={(e) => setMovieId(e.target.value)}
-                  className="w-full rounded-xl border border-line bg-ink/50 px-4 py-3 text-sm text-white outline-none focus:ring-2 focus:ring-teal/40"
-                >
-                  {movieOptions.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.title} ({m.year})
-                    </option>
-                  ))}
-                </select>
                 {syncMode !== "watchify_free" &&
                   state.linkedServices.length > 0 && (
                     <select
@@ -351,12 +428,13 @@ function PartiesInner() {
                 {error && <p className="text-sm text-amber-soft">{error}</p>}
                 <button
                   type="submit"
-                  disabled={!canHostParties}
+                  disabled={!canHostParties || !movieId}
                   className="rounded-xl bg-teal px-5 py-2.5 text-sm font-semibold text-ink hover:bg-teal-soft disabled:opacity-50"
                 >
                   Create party → invite link
                 </button>
               </form>
+              )}
             </section>
 
             <section>

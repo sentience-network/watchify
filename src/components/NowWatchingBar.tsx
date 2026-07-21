@@ -82,10 +82,12 @@ export function NowWatchingBar() {
                 }}
               />
               <Link
-                href="/parties"
-                className="rounded-lg border border-teal/40 px-2.5 py-2 text-[11px] font-medium text-teal-soft hover:bg-teal/10"
+                href={`/parties?create=1&movieId=${encodeURIComponent(movie.id)}&syncMode=${
+                  isFreePlayable(movie) ? "watchify_free" : "own_account"
+                }`}
+                className="rounded-lg bg-teal px-2.5 py-2 text-[11px] font-semibold text-ink hover:bg-teal-soft"
               >
-                Party
+                Create party
               </Link>
               <button
                 type="button"

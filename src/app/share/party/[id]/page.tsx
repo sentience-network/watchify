@@ -3,6 +3,11 @@ import Link from "next/link";
 import { InviteJoinButton } from "@/components/InviteJoinButton";
 import { ShareMenu } from "@/components/ShareMenu";
 import { prisma } from "@/lib/db";
+import {
+  formatPlayhead,
+  formatWatchStartedAt,
+  suggestedJoinPlayheadSec,
+} from "@/lib/deep-links";
 import { getMovie } from "@/lib/movies";
 import { buildPageMetadata } from "@/lib/seo";
 import { absoluteUrl } from "@/lib/site";
@@ -14,7 +19,11 @@ type Props = { params: { id: string } };
 async function loadParty(code: string) {
   return prisma.party.findFirst({
     where: { OR: [{ inviteCode: code }, { id: code, visibility: "public" }] },
-    include: { host: { select: { name: true } }, members: { select: { userId: true } } },
+    include: {
+      host: { select: { name: true } },
+      members: { select: { userId: true } },
+      playbackSync: true,
+    },
   });
 }
 
@@ -78,6 +87,24 @@ export default async function SharePartyPage({ params }: Props) {
               <div className="sm:col-span-2">
                 <dt className="text-mist/60">Host preferred service</dt>
                 <dd>{STREAMING_SERVICES.find((s) => s.id === party.serviceId)?.name || party.serviceId}</dd>
+              </div>
+            ) : null}
+            {party.playbackSync?.watchStartedAt ? (
+              <div className="sm:col-span-2">
+                <dt className="text-mist/60">Host started watching</dt>
+                <dd>
+                  {formatWatchStartedAt(
+                    party.playbackSync.watchStartedAt.toISOString()
+                  )}
+                  {" · scrub to ~"}
+                  {formatPlayhead(
+                    suggestedJoinPlayheadSec(
+                      party.playbackSync.watchStartedAt.toISOString(),
+                      party.playbackSync.positionSec,
+                      party.playbackSync.playing
+                    )
+                  )}
+                </dd>
               </div>
             ) : null}
           </dl>

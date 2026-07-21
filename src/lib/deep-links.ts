@@ -182,6 +182,86 @@ export function formatPlayhead(seconds: number): string {
   return `${m}:${String(sec).padStart(2, "0")}`;
 }
 
+/** Suggested scrub time from host start + optional manual playhead. */
+export function suggestedJoinPlayheadSec(
+  watchStartedAt: string | null | undefined,
+  positionSec: number,
+  playing: boolean,
+  nowMs = Date.now()
+): number {
+  if (watchStartedAt && playing) {
+    const elapsed = Math.max(
+      0,
+      Math.floor((nowMs - new Date(watchStartedAt).getTime()) / 1000)
+    );
+    return Math.max(positionSec, elapsed);
+  }
+  return Math.max(0, positionSec);
+}
+
+export function formatWatchStartedAt(iso: string | null | undefined): string {
+  if (!iso) return "";
+  return new Date(iso).toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+export function formatRelativeStarted(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const mins = Math.max(
+    0,
+    Math.floor((Date.now() - new Date(iso).getTime()) / 60000)
+  );
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
+
+/** Estimate where someone is in a title from start time + optional progress %. */
+export function estimateWatchPosition(opts: {
+  watchingStartedAt?: string | null;
+  progressPercent?: number | null;
+  runtimeMinutes?: number | null;
+  nowMs?: number;
+}): { elapsedSec: number; percent: number | null; label: string } {
+  const now = opts.nowMs ?? Date.now();
+  const runtimeSec =
+    opts.runtimeMinutes && opts.runtimeMinutes > 0
+      ? opts.runtimeMinutes * 60
+      : null;
+
+  let elapsedSec = 0;
+  if (opts.watchingStartedAt) {
+    elapsedSec = Math.max(
+      0,
+      Math.floor((now - new Date(opts.watchingStartedAt).getTime()) / 1000)
+    );
+  }
+
+  let percent: number | null =
+    typeof opts.progressPercent === "number" ? opts.progressPercent : null;
+
+  if (percent === null && runtimeSec && opts.watchingStartedAt) {
+    percent = Math.min(99, Math.round((elapsedSec / runtimeSec) * 100));
+  }
+
+  if (percent !== null && runtimeSec && !opts.watchingStartedAt) {
+    elapsedSec = Math.round((percent / 100) * runtimeSec);
+  }
+
+  const label =
+    elapsedSec > 0
+      ? `~${formatPlayhead(elapsedSec)} in`
+      : percent !== null
+        ? `~${percent}% in`
+        : "Just started";
+
+  return { elapsedSec, percent, label };
+}
+
 /** Honest copy: paid streamers almost never accept a start-time in the URL. */
 export const TIMESTAMP_LIMIT_COPY =
   "Most streamers (Netflix, Max, Hulu, etc.) cannot open at an exact timestamp via a link. Watchify joins chat and shows the live party playhead — scrub to that time in your player, or copy the timestamp.";

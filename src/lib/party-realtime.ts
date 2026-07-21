@@ -250,9 +250,14 @@ export class PartyRealtimeClient {
 
   sendPlayback(
     positionSec: number,
-    playing: boolean
+    playing: boolean,
+    opts?: { startTracker?: boolean }
   ): Promise<PartyPlaybackSync | null> {
-    return this.emitAck("playback", { positionSec, playing });
+    return this.emitAck("playback", {
+      positionSec,
+      playing,
+      startTracker: Boolean(opts?.startTracker),
+    });
   }
 
   setTyping(typing: boolean) {

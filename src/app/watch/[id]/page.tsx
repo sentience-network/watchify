@@ -195,19 +195,29 @@ function WatchInner() {
               {partyId ? " · party sync on" : ""}
             </p>
           </div>
-          <ShareMenu
-            url={
-              inviteCode
-                ? absoluteUrl(`/share/party/${inviteCode}`)
-                : shareUrl
-            }
-            title={`${movie.title} on Watchify`}
-            text={
-              free
-                ? `Watch ${movie.title} free on Watchify`
-                : `Watching ${movie.title} on Watchify`
-            }
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            {!partyId ? (
+              <Link
+                href={`/parties?create=1&movieId=${encodeURIComponent(movie.id)}&syncMode=${free ? "watchify_free" : "own_account"}`}
+                className="rounded-xl bg-teal px-4 py-2 text-sm font-semibold text-ink hover:bg-teal-soft"
+              >
+                Create party
+              </Link>
+            ) : null}
+            <ShareMenu
+              url={
+                inviteCode
+                  ? absoluteUrl(`/share/party/${inviteCode}`)
+                  : shareUrl
+              }
+              title={`${movie.title} on Watchify`}
+              text={
+                free
+                  ? `Watch ${movie.title} free on Watchify`
+                  : `Watching ${movie.title} on Watchify`
+              }
+            />
+          </div>
         </div>
 
         <div className="mt-6">
@@ -226,7 +236,7 @@ function WatchInner() {
               </div>
               <p className="text-sm text-mist">
                 Official trailer embed only — full film is not hosted on Watchify.
-                Open a streamer below with your own account, or{" "}
+                Open a streamer below with your own account,{" "}
                 <button
                   type="button"
                   className="text-teal-soft hover:underline"
@@ -236,7 +246,14 @@ function WatchInner() {
                 >
                   share that you&apos;re watching
                 </button>
-                .
+                , or{" "}
+                <Link
+                  href={`/parties?create=1&movieId=${encodeURIComponent(movie.id)}&syncMode=own_account`}
+                  className="text-teal-soft hover:underline"
+                >
+                  start an own-account party
+                </Link>{" "}
+                with a join-time tracker for friends.
               </p>
             </div>
           ) : (

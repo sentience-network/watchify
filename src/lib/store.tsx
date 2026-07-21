@@ -53,8 +53,11 @@ type Store = {
     opts?: {
       serviceId?: StreamingServiceId | null;
       progressPercent?: number | null;
+      startTracker?: boolean;
     }
   ) => void;
+  /** Reset the public “started at” join cue for the current title. */
+  restartWatchingTracker: () => void;
   setWatchingProgress: (percent: number | null) => void;
   markFinished: (movieId: string) => void;
   setWatchingPublic: (value: boolean) => void;
@@ -85,8 +88,11 @@ type Store = {
   updatePartyPlayback: (
     partyId: string,
     positionSec: number,
-    playing: boolean
+    playing: boolean,
+    opts?: { startTracker?: boolean }
   ) => void;
+  /** Host pressed play off-site — sets watchStartedAt for friends. */
+  startPartyWatchTracker: (partyId: string, positionSec?: number) => void;
   /** Instant patches from Socket.io (deduped). */
   applyPartyMessage: (message: PartyMessage) => void;
   applyPartyReaction: (reaction: PartyReaction) => void;
@@ -128,6 +134,7 @@ type Store = {
     isFriend: boolean;
     serviceId?: StreamingServiceId | null;
     progressPercent?: number | null;
+    watchingStartedAt?: string | null;
   }[];
   isFriend: (userId: string) => boolean;
   isBlocked: (userId: string) => boolean;
@@ -268,8 +275,17 @@ export function WatchifyProvider({ children }: { children: ReactNode }) {
 
   const applyPartyPlayback = useCallback((sync: PartyPlaybackSync) => {
     setState((s) => {
+      const prev = s.partyPlaybackSync.find((p) => p.partyId === sync.partyId);
+      const merged: PartyPlaybackSync = {
+        ...prev,
+        ...sync,
+        watchStartedAt:
+          sync.watchStartedAt !== undefined
+            ? sync.watchStartedAt
+            : prev?.watchStartedAt ?? null,
+      };
       const rest = s.partyPlaybackSync.filter((p) => p.partyId !== sync.partyId);
-      return { ...s, partyPlaybackSync: [...rest, sync] };
+      return { ...s, partyPlaybackSync: [...rest, merged] };
     });
   }, []);
 
@@ -362,18 +378,31 @@ export function WatchifyProvider({ children }: { children: ReactNode }) {
       opts?: {
         serviceId?: StreamingServiceId | null;
         progressPercent?: number | null;
+        startTracker?: boolean;
       }
     ) => {
-      setState((s) => ({
-        ...s,
-        currentlyWatchingId: movieId,
-        currentlyWatchingServiceId: movieId ? opts?.serviceId ?? null : null,
-        watchingProgressPercent: movieId
-          ? opts?.progressPercent !== undefined
-            ? opts.progressPercent
-            : 0
-          : null,
-      }));
+      const nowIso = new Date().toISOString();
+      setState((s) => {
+        const titleChanged = Boolean(movieId && movieId !== s.currentlyWatchingId);
+        const startTracker = Boolean(opts?.startTracker) || titleChanged;
+        return {
+          ...s,
+          currentlyWatchingId: movieId,
+          currentlyWatchingServiceId: movieId ? opts?.serviceId ?? null : null,
+          watchingProgressPercent: movieId
+            ? opts?.progressPercent !== undefined
+              ? opts.progressPercent
+              : titleChanged
+                ? 0
+                : s.watchingProgressPercent
+            : null,
+          watchingStartedAt: movieId
+            ? startTracker
+              ? nowIso
+              : s.watchingStartedAt ?? nowIso
+            : null,
+        };
+      });
       if (!sessionUserId) return;
       void apiJson("/api/presence", {
         method: "PATCH",
@@ -381,11 +410,24 @@ export function WatchifyProvider({ children }: { children: ReactNode }) {
           movieId,
           serviceId: opts?.serviceId,
           progressPercent: opts?.progressPercent,
+          startTracker: opts?.startTracker,
         }),
       }).then(() => refreshFromServer());
     },
     [sessionUserId, refreshFromServer]
   );
+
+  const restartWatchingTracker = useCallback(() => {
+    setState((s) => {
+      if (!s.currentlyWatchingId) return s;
+      return { ...s, watchingStartedAt: new Date().toISOString() };
+    });
+    if (!sessionUserId) return;
+    void apiJson("/api/presence", {
+      method: "PATCH",
+      body: JSON.stringify({ startTracker: true }),
+    }).then(() => refreshFromServer());
+  }, [sessionUserId, refreshFromServer]);
 
   const setWatchingProgress = useCallback(
     (percent: number | null) => {
@@ -407,6 +449,23 @@ export function WatchifyProvider({ children }: { children: ReactNode }) {
 
   const markFinished = useCallback(
     (movieId: string) => {
+      setState((s) => ({
+        ...s,
+        currentlyWatchingId:
+          s.currentlyWatchingId === movieId ? null : s.currentlyWatchingId,
+        currentlyWatchingServiceId:
+          s.currentlyWatchingId === movieId
+            ? null
+            : s.currentlyWatchingServiceId,
+        watchingProgressPercent:
+          s.currentlyWatchingId === movieId ? null : s.watchingProgressPercent,
+        watchingStartedAt:
+          s.currentlyWatchingId === movieId ? null : s.watchingStartedAt,
+        recentlyWatchedIds: [
+          movieId,
+          ...s.recentlyWatchedIds.filter((id) => id !== movieId),
+        ].slice(0, 12),
+      }));
       if (!sessionUserId) return;
       void apiJson("/api/presence", {
         method: "PATCH",
@@ -621,29 +680,46 @@ export function WatchifyProvider({ children }: { children: ReactNode }) {
   );
 
   const updatePartyPlayback = useCallback(
-    (partyId: string, positionSec: number, playing: boolean) => {
+    (
+      partyId: string,
+      positionSec: number,
+      playing: boolean,
+      opts?: { startTracker?: boolean }
+    ) => {
       if (!sessionUserId) return;
+      const startTracker = Boolean(opts?.startTracker);
+      const nowIso = new Date().toISOString();
       // Optimistic local sync so FreePlayer feels instant for the host
       applyPartyPlayback({
         partyId,
         positionSec,
         playing,
-        updatedAt: new Date().toISOString(),
+        watchStartedAt: startTracker ? nowIso : undefined,
+        updatedAt: nowIso,
         updatedBy: sessionUserId,
       });
       const rt = getPartyRealtime(partyId);
       if (rt?.connected) {
-        void rt.sendPlayback(positionSec, playing).then((sync) => {
-          if (sync) applyPartyPlayback(sync);
-        });
+        void rt
+          .sendPlayback(positionSec, playing, { startTracker })
+          .then((sync) => {
+            if (sync) applyPartyPlayback(sync);
+          });
         return;
       }
       void apiJson(`/api/parties/${partyId}/messages`, {
         method: "POST",
-        body: JSON.stringify({ positionSec, playing }),
+        body: JSON.stringify({ positionSec, playing, startTracker }),
       });
     },
     [sessionUserId, applyPartyPlayback]
+  );
+
+  const startPartyWatchTracker = useCallback(
+    (partyId: string, positionSec = 0) => {
+      updatePartyPlayback(partyId, positionSec, true, { startTracker: true });
+    },
+    [updatePartyPlayback]
   );
 
   const sendFriendRequest = useCallback(
@@ -839,6 +915,7 @@ export function WatchifyProvider({ children }: { children: ReactNode }) {
       isFriend: boolean;
       serviceId?: StreamingServiceId | null;
       progressPercent?: number | null;
+      watchingStartedAt?: string | null;
     }[] = [];
     for (const user of usersForPresence) {
       if (blocked.has(user.id)) continue;
@@ -850,6 +927,7 @@ export function WatchifyProvider({ children }: { children: ReactNode }) {
             isFriend: false,
             serviceId: state.currentlyWatchingServiceId,
             progressPercent: state.watchingProgressPercent,
+            watchingStartedAt: state.watchingStartedAt,
           });
         }
         continue;
@@ -861,6 +939,7 @@ export function WatchifyProvider({ children }: { children: ReactNode }) {
         isFriend: state.friendIds.includes(user.id),
         serviceId: user.currentlyWatchingServiceId ?? null,
         progressPercent: user.watchingProgressPercent ?? null,
+        watchingStartedAt: user.watchingStartedAt ?? null,
       });
     }
     return rows.sort((a, b) => Number(b.isFriend) - Number(a.isFriend));
@@ -869,6 +948,7 @@ export function WatchifyProvider({ children }: { children: ReactNode }) {
     state.currentlyWatchingId,
     state.currentlyWatchingServiceId,
     state.watchingProgressPercent,
+    state.watchingStartedAt,
     state.watchingPublic,
     state.friendIds,
     blocked,
@@ -893,6 +973,7 @@ export function WatchifyProvider({ children }: { children: ReactNode }) {
       addToWatchlist,
       removeFromWatchlist,
       setCurrentlyWatching,
+      restartWatchingTracker,
       setWatchingProgress,
       markFinished,
       setWatchingPublic,
@@ -907,6 +988,7 @@ export function WatchifyProvider({ children }: { children: ReactNode }) {
       postPartyMessage,
       addPartyReaction,
       updatePartyPlayback,
+      startPartyWatchTracker,
       applyPartyMessage,
       applyPartyReaction,
       applyPartyPlayback,
@@ -948,6 +1030,7 @@ export function WatchifyProvider({ children }: { children: ReactNode }) {
       addToWatchlist,
       removeFromWatchlist,
       setCurrentlyWatching,
+      restartWatchingTracker,
       setWatchingProgress,
       markFinished,
       setWatchingPublic,
@@ -962,6 +1045,7 @@ export function WatchifyProvider({ children }: { children: ReactNode }) {
       postPartyMessage,
       addPartyReaction,
       updatePartyPlayback,
+      startPartyWatchTracker,
       applyPartyMessage,
       applyPartyReaction,
       applyPartyPlayback,

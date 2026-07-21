@@ -1,6 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import {
+  estimateWatchPosition,
+  formatWatchStartedAt,
+} from "@/lib/deep-links";
 import { getMovie } from "@/lib/movies";
 import { getUser } from "@/lib/users";
 import { useWatchify } from "@/lib/store";
@@ -58,6 +62,18 @@ export function WatchingNowStrip() {
                   </span>
                 )}
               </div>
+              {row.watchingStartedAt ? (
+                <p className="mt-1 text-[10px] text-mist/65">
+                  Started {formatWatchStartedAt(row.watchingStartedAt)} ·{" "}
+                  {
+                    estimateWatchPosition({
+                      watchingStartedAt: row.watchingStartedAt,
+                      progressPercent: row.progressPercent,
+                      runtimeMinutes: movie.runtime,
+                    }).label
+                  }
+                </p>
+              ) : null}
               <p className="mt-1 text-[10px] uppercase tracking-wider text-teal/80">
                 {row.isFriend ? "Friend" : "Open"}
               </p>

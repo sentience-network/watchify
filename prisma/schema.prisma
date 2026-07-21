@@ -45,6 +45,8 @@ model User {
   currentlyWatchingId      String?
   currentlyWatchingServiceId String?
   watchingProgressPercent  Int?
+  /// When the user started the current title (join cue for friends)
+  watchingStartedAt        DateTime?
   recentlyWatchedIdsJson   String    @default("[]")
   createdAt                DateTime  @default(now())
   updatedAt                DateTime  @updatedAt
@@ -277,12 +279,14 @@ model PartyReaction {
 }
 
 model PartyPlaybackSync {
-  partyId     String   @id
-  positionSec Float    @default(0)
-  playing     Boolean  @default(false)
-  updatedAt   DateTime @default(now())
-  updatedBy   String
-  party       Party    @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  partyId        String    @id
+  positionSec    Float     @default(0)
+  playing        Boolean   @default(false)
+  /// When the host pressed play off-site (join cue for friends)
+  watchStartedAt DateTime?
+  updatedAt      DateTime  @default(now())
+  updatedBy      String
+  party          Party     @relation(fields: [partyId], references: [id], onDelete: Cascade)
 }
 
 model Block {

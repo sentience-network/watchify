@@ -164,6 +164,7 @@ io.on("connection", (socket) => {
                 partyId: p.partyId,
                 positionSec: p.positionSec,
                 playing: p.playing,
+                watchStartedAt: p.watchStartedAt?.toISOString() ?? null,
                 updatedAt: p.updatedAt.toISOString(),
                 updatedBy: p.updatedBy,
               }
@@ -252,7 +253,11 @@ io.on("connection", (socket) => {
   socket.on(
     "playback",
     async (
-      payload: { positionSec?: number; playing?: boolean },
+      payload: {
+        positionSec?: number;
+        playing?: boolean;
+        startTracker?: boolean;
+      },
       ack?
     ) => {
       try {
@@ -263,25 +268,37 @@ io.on("connection", (socket) => {
         }
         const positionSec = Math.max(0, Number(payload?.positionSec) || 0);
         const playing = Boolean(payload?.playing);
+        const startTracker = Boolean(payload?.startTracker);
+        const now = new Date();
+        const existing = await prisma.partyPlaybackSync.findUnique({
+          where: { partyId },
+        });
         const row = await prisma.partyPlaybackSync.upsert({
           where: { partyId },
           create: {
             partyId,
             positionSec,
             playing,
+            watchStartedAt: startTracker || playing ? now : null,
             updatedBy: userId,
           },
           update: {
             positionSec,
             playing,
             updatedBy: userId,
-            updatedAt: new Date(),
+            updatedAt: now,
+            ...(startTracker
+              ? { watchStartedAt: now }
+              : !existing?.watchStartedAt && playing
+                ? { watchStartedAt: now }
+                : {}),
           },
         });
         const sync = {
           partyId: row.partyId,
           positionSec: row.positionSec,
           playing: row.playing,
+          watchStartedAt: row.watchStartedAt?.toISOString() ?? null,
           updatedAt: row.updatedAt.toISOString(),
           updatedBy: row.updatedBy,
         };

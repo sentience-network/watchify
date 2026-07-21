@@ -24,6 +24,7 @@ export async function GET() {
       currentlyWatchingId: true,
       currentlyWatchingServiceId: true,
       watchingProgressPercent: true,
+      watchingStartedAt: true,
     },
   });
   return NextResponse.json({
@@ -32,6 +33,7 @@ export async function GET() {
       movieId: r.currentlyWatchingId!,
       serviceId: r.currentlyWatchingServiceId,
       progressPercent: r.watchingProgressPercent,
+      watchingStartedAt: r.watchingStartedAt?.toISOString() ?? null,
     })),
   });
 }
@@ -45,6 +47,7 @@ export async function PATCH(req: Request) {
     progressPercent?: number | null;
     publicWatching?: boolean;
     finishedMovieId?: string;
+    startTracker?: boolean;
   };
   try {
     body = await req.json();
@@ -68,8 +71,19 @@ export async function PATCH(req: Request) {
       movieId: body.movieId,
       serviceId: body.serviceId,
       progressPercent: body.progressPercent,
+      startTracker: body.startTracker,
     });
     if (body.movieId) await recordEvent("presence_shared", { userId: auth.userId, properties: { source: "manual" } });
+  } else if (body.startTracker) {
+    const me = await prisma.user.findUnique({ where: { id: auth.userId } });
+    if (me?.currentlyWatchingId) {
+      await setPresence(auth.userId, {
+        movieId: me.currentlyWatchingId,
+        serviceId: me.currentlyWatchingServiceId as StreamingServiceId | null,
+        progressPercent: me.watchingProgressPercent,
+        startTracker: true,
+      });
+    }
   }
   return NextResponse.json({ ok: true });
 }

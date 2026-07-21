@@ -75,8 +75,13 @@ export function FreePlayer({ movieId, partyId, autoplay }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const ytPlayerRef = useRef<YtPlayer | null>(null);
   const ytElementId = `watchify-yt-${movieId}`;
-  const { state, updatePartyPlayback, setCurrentlyWatching, ready } =
-    useWatchify();
+  const {
+    state,
+    updatePartyPlayback,
+    setCurrentlyWatching,
+    setWatchingProgress,
+    ready,
+  } = useWatchify();
   const movie = getMovie(movieId);
   const sync = partyId
     ? state.partyPlaybackSync.find((p) => p.partyId === partyId)
@@ -115,9 +120,42 @@ export function FreePlayer({ movieId, partyId, autoplay }: Props) {
 
   useEffect(() => {
     if (isFreePlayable(movie)) {
-      setCurrentlyWatching(movieId, { serviceId: null, progressPercent: 0 });
+      setCurrentlyWatching(movieId, {
+        serviceId: null,
+        progressPercent: 0,
+        startTracker: true,
+      });
     }
   }, [movie, movieId, setCurrentlyWatching]);
+
+  // Push rough progress % to presence so friends see where you are.
+  useEffect(() => {
+    if (!movie?.runtime || movie.runtime <= 0) return;
+    const runtimeSec = movie.runtime * 60;
+    const id = window.setInterval(() => {
+      let current = 0;
+      try {
+        if (videoRef.current && !videoRef.current.paused) {
+          current = videoRef.current.currentTime;
+        } else if (ytPlayerRef.current?.getCurrentTime) {
+          if (
+            ytPlayerRef.current.getPlayerState?.() !==
+            window.YT?.PlayerState.PLAYING
+          ) {
+            return;
+          }
+          current = ytPlayerRef.current.getCurrentTime();
+        } else {
+          return;
+        }
+      } catch {
+        return;
+      }
+      const pct = Math.min(99, Math.round((current / runtimeSec) * 100));
+      setWatchingProgress(pct);
+    }, 12000);
+    return () => window.clearInterval(id);
+  }, [movie?.runtime, setWatchingProgress]);
 
   // Optional IFrame API for party sync — plain iframe already plays without it.
   useEffect(() => {
