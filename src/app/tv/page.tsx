@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo } from "react";
 import { AppShell } from "@/components/AppShell";
 import { MoviePoster } from "@/components/MoviePoster";
+import { PartyQrInvite } from "@/components/PartyQrInvite";
 import { ShareMenu } from "@/components/ShareMenu";
 import { getMovie } from "@/lib/movies";
 import { partyShareUrl } from "@/lib/share";
@@ -111,6 +112,14 @@ export default function TvCompanionPage() {
                           url={partyShareUrl(party.inviteCode || party.id)}
                           title={`${party.name} on Watchify`}
                           text={`Join ${host.name}'s party for ${movie.title}`}
+                        />
+                      </div>
+                      <div className="mt-3">
+                        <PartyQrInvite
+                          inviteUrl={partyShareUrl(
+                            party.inviteCode || party.id
+                          )}
+                          compact
                         />
                       </div>
                     </div>

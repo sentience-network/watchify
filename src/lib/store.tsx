@@ -83,6 +83,11 @@ type Store = {
   }) => Promise<CreateResult<WatchParty>>;
   endParty: (partyId: string) => Promise<{ nextPartyId?: string; nextStartsAt?: string } | void>;
   leaveParty: (partyId: string) => Promise<CreateResult<true>>;
+  /** Host / co-host removes a member (HTTP fallback if realtime kick fails). */
+  removePartyMember: (
+    partyId: string,
+    targetUserId: string
+  ) => Promise<CreateResult<true>>;
   updateParty: (
     partyId: string,
     input: { name?: string; movieId?: string; coHostIds?: string[] }
@@ -636,6 +641,32 @@ export function WatchifyProvider({ children }: { children: ReactNode }) {
     [sessionUserId, refreshFromServer]
   );
 
+  const removePartyMember = useCallback(
+    async (
+      partyId: string,
+      targetUserId: string
+    ): Promise<CreateResult<true>> => {
+      if (!sessionUserId) {
+        return { ok: false, error: "Sign in to manage the party." };
+      }
+      const result = await apiJson<{ ok?: boolean; error?: string }>(
+        "/api/parties",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            action: "kick",
+            partyId,
+            targetUserId,
+          }),
+        }
+      );
+      await refreshFromServer();
+      if (!result.ok) return { ok: false, error: result.error };
+      return { ok: true, value: true };
+    },
+    [sessionUserId, refreshFromServer]
+  );
+
   const updateParty = useCallback(
     async (
       partyId: string,
@@ -1086,6 +1117,7 @@ export function WatchifyProvider({ children }: { children: ReactNode }) {
       createParty,
       endParty,
       leaveParty,
+      removePartyMember,
       updateParty,
       requestJoinParty,
       joinPartyByInvite,
@@ -1148,6 +1180,7 @@ export function WatchifyProvider({ children }: { children: ReactNode }) {
       createParty,
       endParty,
       leaveParty,
+      removePartyMember,
       updateParty,
       requestJoinParty,
       joinPartyByInvite,

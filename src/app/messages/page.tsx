@@ -4,6 +4,10 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import {
+  DmPartyInviteCard,
+  looksLikePartyInvite,
+} from "@/components/DmPartyInviteCard";
 import { useWatchify } from "@/lib/store";
 import type { User } from "@/lib/types";
 
@@ -206,16 +210,20 @@ function MessagesInner() {
                       }`}
                     >
                       <p>{m.text}</p>
-                      {m.linkUrl && (
-                        <a
-                          href={m.linkUrl}
-                          className="mt-1 block break-all text-[11px] text-teal-soft underline"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          {m.linkUrl}
-                        </a>
-                      )}
+                      {m.linkUrl ? (
+                        looksLikePartyInvite(m.linkUrl) ? (
+                          <DmPartyInviteCard linkUrl={m.linkUrl} />
+                        ) : (
+                          <a
+                            href={m.linkUrl}
+                            className="mt-1 block break-all text-[11px] text-teal-soft underline"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            {m.linkUrl}
+                          </a>
+                        )
+                      ) : null}
                       <p className="mt-1 text-[10px] opacity-50">
                         {new Date(m.createdAt).toLocaleString()}
                       </p>

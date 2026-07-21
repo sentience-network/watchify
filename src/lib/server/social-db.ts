@@ -907,6 +907,44 @@ export async function leavePartyDb(userId: string, partyId: string) {
   return { ok: true as const };
 }
 
+/** Host / co-host removes another member from the room. */
+export async function removePartyMemberDb(
+  actorId: string,
+  partyId: string,
+  targetUserId: string
+) {
+  if (!targetUserId || targetUserId === actorId) {
+    return { error: "Invalid target" };
+  }
+  const party = await prisma.party.findUnique({
+    where: { id: partyId },
+    include: { members: true },
+  });
+  if (!party || party.status !== "open") return { error: "Party not open" };
+  const coHosts = parseJson<string[]>(party.coHostIdsJson, []);
+  const actorOk =
+    party.hostId === actorId || coHosts.includes(actorId);
+  if (!actorOk) return { error: "Only host or co-host can remove members" };
+  if (party.hostId === targetUserId) {
+    return { error: "Cannot remove the host" };
+  }
+  const isMember = party.members.some((m) => m.userId === targetUserId);
+  const isCo = coHosts.includes(targetUserId);
+  if (!isMember && !isCo) return { error: "Not a member" };
+
+  const nextCoHosts = coHosts.filter((id) => id !== targetUserId);
+  await prisma.$transaction([
+    prisma.partyMember.deleteMany({
+      where: { partyId, userId: targetUserId },
+    }),
+    prisma.party.update({
+      where: { id: partyId },
+      data: { coHostIdsJson: JSON.stringify(nextCoHosts) },
+    }),
+  ]);
+  return { ok: true as const };
+}
+
 /** Host updates name / title / co-hosts without remaking the room. */
 export async function updatePartyDb(
   userId: string,

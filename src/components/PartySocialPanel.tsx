@@ -19,6 +19,11 @@ import { useWatchify } from "@/lib/store";
 import { partyUserLabel } from "@/lib/users";
 import { usePartyRealtime } from "@/hooks/usePartyRealtime";
 import { getPartyRealtime } from "@/lib/party-realtime";
+import {
+  partySoundsEnabled,
+  setPartySoundsEnabled,
+} from "@/lib/party-sounds";
+import { copyToClipboard } from "@/lib/share";
 import { FreePlayer } from "./FreePlayer";
 import { ProviderDeepLinks, ScrubToTimeBanner } from "./ScrubToTimeBanner";
 import { ServiceBadge } from "./ServiceBadge";
@@ -27,6 +32,11 @@ import { ShareMenu } from "./ShareMenu";
 import { partyInviteUrl } from "@/lib/social-graph";
 import { HostLobbyChecklist } from "./HostLobbyChecklist";
 import { PartyCountdownOverlay } from "./PartyCountdownOverlay";
+import { PartyReadyBoard } from "./PartyReadyBoard";
+import { PartyCatchUpHero } from "./PartyCatchUpHero";
+import { PartyQrInvite } from "./PartyQrInvite";
+import { WatchingNowInvite } from "./WatchingNowInvite";
+import { PartyNextVote } from "./PartyNextVote";
 
 const REACTIONS = ["🔥", "😂", "😱", "👏", "❤️"];
 
@@ -48,12 +58,16 @@ export function PartySocialPanel({
     currentUserId,
     directoryUsers,
     refreshFromServer,
+    removePartyMember,
   } = useWatchify();
   const [text, setText] = useState("");
   const [fly, setFly] = useState<string | null>(null);
   const [joinTick, setJoinTick] = useState(0);
   const [countdownLeft, setCountdownLeft] = useState(0);
   const [countdownScrub, setCountdownScrub] = useState(0);
+  const [soundsOn, setSoundsOn] = useState(false);
+  const [scrubCopied, setScrubCopied] = useState(false);
+  const [kickMsg, setKickMsg] = useState("");
   const typingTimer = useRef<number | null>(null);
   const countdownFired = useRef(false);
 
@@ -65,7 +79,7 @@ export function PartySocialPanel({
         party.coHostIds?.includes(currentUserId))
   );
 
-  const { presence, videoPeers, live, countdown, clearCountdown } =
+  const { presence, videoPeers, live, countdown, clearCountdown, nextVote, kicked } =
     usePartyRealtime(partyId, ready && isMember);
 
   const movie = party ? getMovie(party.movieId) : undefined;
@@ -89,6 +103,10 @@ export function PartySocialPanel({
       ),
     [sync?.watchStartedAt, positionSec, sync?.playing, joinTick]
   );
+
+  useEffect(() => {
+    setSoundsOn(partySoundsEnabled());
+  }, []);
 
   useEffect(() => {
     if (!sync?.watchStartedAt || !sync.playing) return;
@@ -199,6 +217,23 @@ export function PartySocialPanel({
     };
   }, [partyId]);
 
+  if (kicked) {
+    return (
+      <div className="mt-3 rounded-xl border border-amber/40 bg-amber/10 p-4 text-sm text-mist">
+        <p className="font-medium text-amber-soft">Removed from party</p>
+        <p className="mt-1 text-xs text-mist/75">
+          A host removed you from this room. You can still browse other parties.
+        </p>
+        <Link
+          href="/parties"
+          className="mt-3 inline-block text-xs font-medium text-teal-soft hover:underline"
+        >
+          Back to parties →
+        </Link>
+      </div>
+    );
+  }
+
   if (!ready || !party || !movie) return null;
 
   function onSend(e: FormEvent) {
@@ -218,6 +253,30 @@ export function PartySocialPanel({
     typingTimer.current = window.setTimeout(() => {
       rt.setTyping(false);
     }, 1200);
+  }
+
+  async function copyScrub() {
+    const stamp = formatPlayhead(joinCueSec || positionSec);
+    const ok = await copyToClipboard(`Scrub to ${stamp}`);
+    if (ok) {
+      setScrubCopied(true);
+      window.setTimeout(() => setScrubCopied(false), 1600);
+    }
+  }
+
+  async function kick(targetUserId: string) {
+    setKickMsg("");
+    const rt = getPartyRealtime(partyId);
+    if (rt?.connected) {
+      const ok = await rt.kickMember(targetUserId);
+      if (ok) {
+        await refreshFromServer();
+        setKickMsg("Member removed.");
+        return;
+      }
+    }
+    const result = await removePartyMember(partyId, targetUserId);
+    setKickMsg(result.ok ? "Member removed." : result.error);
   }
 
   const inviteUrl =
@@ -247,6 +306,17 @@ export function PartySocialPanel({
               : "Social sync"}
         </p>
         <div className="flex items-center gap-2">
+          <label className="flex items-center gap-1.5 text-[10px] text-mist/70">
+            <input
+              type="checkbox"
+              checked={soundsOn}
+              onChange={(e) => {
+                setPartySoundsEnabled(e.target.checked);
+                setSoundsOn(e.target.checked);
+              }}
+            />
+            Sounds
+          </label>
           {inviteUrl ? (
             <ShareMenu
               compact
@@ -274,14 +344,36 @@ export function PartySocialPanel({
       </p>
 
       {inviteUrl ? (
-        <div className="mt-3 border-t border-line/60 pt-3">
+        <div className="mt-3 border-t border-line/60 pt-3 space-y-3">
           <InviteFriendsInApp
+            inviteUrl={inviteUrl}
+            partyName={party.name}
+            movieTitle={movie.title}
+          />
+          <PartyQrInvite inviteUrl={inviteUrl} compact />
+          <WatchingNowInvite
             inviteUrl={inviteUrl}
             partyName={party.name}
             movieTitle={movie.title}
           />
         </div>
       ) : null}
+
+      <PartyReadyBoard
+        partyId={partyId}
+        presence={presence}
+        currentUserId={currentUserId}
+        directoryUsers={directoryUsers}
+        isHostOrCo={isHostOrCo}
+      />
+
+      <PartyCatchUpHero
+        partyId={partyId}
+        scrubSec={joinCueSec || positionSec}
+        serviceName={preferredDeepLink?.name}
+        deepLink={preferredDeepLink?.deepLink}
+        watchStartedAt={sync?.watchStartedAt}
+      />
 
       <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-mist">
         <span>
@@ -327,7 +419,7 @@ export function PartySocialPanel({
         <ScrubToTimeBanner
           serviceName={preferredDeepLink.name}
           deepLink={preferredDeepLink.deepLink}
-          positionSec={positionSec}
+          positionSec={joinCueSec || positionSec}
         />
       ) : null}
 
@@ -358,6 +450,15 @@ export function PartySocialPanel({
                 Host playhead hint: {formatPlayhead(positionSec)} ·{" "}
                 {sync.playing ? "playing" : "paused"}
               </p>
+              <button
+                type="button"
+                onClick={() => void copyScrub()}
+                className="mt-2 rounded-md border border-amber/40 px-2 py-1 text-[11px] font-medium text-amber-soft"
+              >
+                {scrubCopied
+                  ? "Copied"
+                  : `Copy scrub to ${formatPlayhead(joinCueSec)}`}
+              </button>
             </div>
           ) : (
             <p className="text-mist/70">Tracker not started yet.</p>
@@ -426,14 +527,25 @@ export function PartySocialPanel({
         </div>
       ) : null}
 
+      <PartyNextVote
+        partyId={partyId}
+        isHostOrCo={isHostOrCo}
+        vote={nextVote}
+        currentUserId={currentUserId}
+      />
+
       {presence.length > 0 ? (
         <ul className="mt-2 flex flex-wrap gap-1.5">
           {presence.map((m) => {
             const label = partyUserLabel(m.userId, directoryUsers, m);
+            const canKick =
+              isHostOrCo &&
+              m.userId !== currentUserId &&
+              m.userId !== party.hostId;
             return (
               <li
                 key={m.userId}
-                className="rounded-md border border-line/70 bg-panel/50 px-2 py-0.5 text-[11px] text-mist"
+                className="flex items-center gap-1 rounded-md border border-line/70 bg-panel/50 px-2 py-0.5 text-[11px] text-mist"
               >
                 <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-teal" />
                 {label.name}
@@ -441,10 +553,25 @@ export function PartySocialPanel({
                   <span className="text-mist/55"> @{label.handle}</span>
                 ) : null}
                 {m.typing ? " · typing…" : ""}
+                {canKick ? (
+                  <button
+                    type="button"
+                    onClick={() => void kick(m.userId)}
+                    className="ml-1 text-[10px] text-amber-soft hover:underline"
+                    title="Remove from party"
+                  >
+                    Remove
+                  </button>
+                ) : null}
               </li>
             );
           })}
         </ul>
+      ) : null}
+      {kickMsg ? (
+        <p className="mt-1 text-[11px] text-mist/70" role="status">
+          {kickMsg}
+        </p>
       ) : null}
 
       {videoPeers.length > 0 ? (

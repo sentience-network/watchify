@@ -10,6 +10,9 @@ export function usePartyVideo(partyId: string) {
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
   const [peers, setPeers] = useState<Map<string, VideoPeer>>(new Map());
+  const [connectionStates, setConnectionStates] = useState<Map<string, string>>(
+    new Map()
+  );
   const [joined, setJoined] = useState(false);
   const [error, setError] = useState("");
   const [turnConfigured, setTurnConfigured] = useState(false);
@@ -22,28 +25,72 @@ export function usePartyVideo(partyId: string) {
   const closePeer = useCallback((userId: string) => {
     pcs.current.get(userId)?.close();
     pcs.current.delete(userId);
-    setRemoteStreams((current) => { const next = new Map(current); next.delete(userId); return next; });
-    setPeers((current) => { const next = new Map(current); next.delete(userId); return next; });
+    setRemoteStreams((current) => {
+      const next = new Map(current);
+      next.delete(userId);
+      return next;
+    });
+    setPeers((current) => {
+      const next = new Map(current);
+      next.delete(userId);
+      return next;
+    });
+    setConnectionStates((current) => {
+      const next = new Map(current);
+      next.delete(userId);
+      return next;
+    });
   }, []);
 
-  const makePeer = useCallback((userId: string) => {
-    const existing = pcs.current.get(userId);
-    if (existing) return existing;
-    const pc = new RTCPeerConnection({ iceServers: iceRef.current });
-    pcs.current.set(userId, pc);
-    localRef.current?.getTracks().forEach((track) => pc.addTrack(track, localRef.current!));
-    pc.onicecandidate = (event) => {
-      if (event.candidate) clientRef.current?.sendWebrtcSignal(userId, { type: "ice", candidate: event.candidate.toJSON() });
-    };
-    pc.ontrack = (event) => {
-      const stream = event.streams[0] || new MediaStream([event.track]);
-      setRemoteStreams((current) => new Map(current).set(userId, stream));
-    };
-    pc.onconnectionstatechange = () => {
-      if (["failed", "closed"].includes(pc.connectionState)) closePeer(userId);
-    };
-    return pc;
-  }, [closePeer]);
+  const makePeer = useCallback(
+    (userId: string) => {
+      const existing = pcs.current.get(userId);
+      if (existing) return existing;
+      const pc = new RTCPeerConnection({ iceServers: iceRef.current });
+      pcs.current.set(userId, pc);
+      localRef.current?.getTracks().forEach((track) =>
+        pc.addTrack(track, localRef.current!)
+      );
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          clientRef.current?.sendWebrtcSignal(userId, {
+            type: "ice",
+            candidate: event.candidate.toJSON(),
+          });
+        }
+      };
+      pc.ontrack = (event) => {
+        const stream = event.streams[0] || new MediaStream([event.track]);
+        setRemoteStreams((current) => new Map(current).set(userId, stream));
+      };
+      pc.onconnectionstatechange = () => {
+        setConnectionStates((current) =>
+          new Map(current).set(userId, pc.connectionState)
+        );
+        if (["failed", "closed"].includes(pc.connectionState)) {
+          closePeer(userId);
+        }
+      };
+      pc.oniceconnectionstatechange = () => {
+        if (
+          pc.iceConnectionState === "disconnected" ||
+          pc.iceConnectionState === "failed"
+        ) {
+          setConnectionStates((current) =>
+            new Map(current).set(
+              userId,
+              pc.iceConnectionState === "failed" ? "failed" : "reconnecting"
+            )
+          );
+        }
+      };
+      setConnectionStates((current) =>
+        new Map(current).set(userId, pc.connectionState || "connecting")
+      );
+      return pc;
+    },
+    [closePeer]
+  );
 
   const initiate = useCallback(async (peer: VideoPeer) => {
     setPeers((current) => new Map(current).set(peer.userId, peer));
@@ -140,6 +187,7 @@ export function usePartyVideo(partyId: string) {
     setLocalStream(null);
     setRemoteStreams(new Map());
     setPeers(new Map());
+    setConnectionStates(new Map());
   }, []);
 
   const toggle = useCallback(async (kind: "camera" | "microphone") => {
@@ -229,5 +277,17 @@ export function usePartyVideo(partyId: string) {
     }
   }, []);
 
-  return { localStream, remoteStreams, peers, joined, error, turnConfigured, join, leave, toggle, shareScreen };
+  return {
+    localStream,
+    remoteStreams,
+    peers,
+    connectionStates,
+    joined,
+    error,
+    turnConfigured,
+    join,
+    leave,
+    toggle,
+    shareScreen,
+  };
 }

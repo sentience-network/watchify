@@ -5,9 +5,11 @@ import {
   acquirePartyRealtime,
   releasePartyRealtime,
   type PartyCountdownEvent,
+  type PartyNextVote,
   type PartySocketHandlers,
   type VideoPeer,
 } from "@/lib/party-realtime";
+import { playPartySound } from "@/lib/party-sounds";
 import { useWatchify } from "@/lib/store";
 import type { PartyPresenceMember } from "@/lib/types";
 
@@ -21,24 +23,47 @@ export function usePartyRealtime(partyId: string, enabled: boolean) {
     applyPartyReaction,
     applyPartyPlayback,
     setRealtimeConnected,
+    refreshFromServer,
+    currentUserId,
   } = useWatchify();
   const [presence, setPresence] = useState<PartyPresenceMember[]>([]);
   const [videoPeers, setVideoPeers] = useState<VideoPeer[]>([]);
   const [live, setLive] = useState(false);
   const [countdown, setCountdown] = useState<PartyCountdownEvent | null>(null);
+  const [nextVote, setNextVote] = useState<PartyNextVote | null>(null);
+  const [kicked, setKicked] = useState(false);
 
   const handlers = useMemo<PartySocketHandlers>(
     () => ({
       onJoined: (data) => {
         setPresence(data.members);
         setVideoPeers(data.videoPeers || []);
+        setNextVote(data.nextVote ?? null);
         if (data.playback) applyPartyPlayback(data.playback);
       },
       onMessage: (message) => applyPartyMessage(message),
-      onReaction: (reaction) => applyPartyReaction(reaction),
+      onReaction: (reaction) => {
+        applyPartyReaction(reaction);
+        if (reaction.userId !== currentUserId) playPartySound("reaction");
+      },
       onPlayback: (sync) => applyPartyPlayback(sync),
       onPresence: (members) => setPresence(members),
-      onCountdown: (event) => setCountdown(event),
+      onCountdown: (event) => {
+        setCountdown(event);
+        playPartySound("countdown");
+      },
+      onNextVote: (vote) => setNextVote(vote),
+      onMemberOnline: (userId) => {
+        if (userId !== currentUserId) playPartySound("join");
+      },
+      onMemberKicked: (userId) => {
+        if (userId === currentUserId) {
+          setKicked(true);
+          void refreshFromServer();
+        } else {
+          void refreshFromServer();
+        }
+      },
       onTyping: (userId, typing) => {
         setPresence((prev) =>
           prev.map((m) => (m.userId === userId ? { ...m, typing } : m))
@@ -65,6 +90,8 @@ export function usePartyRealtime(partyId: string, enabled: boolean) {
       applyPartyReaction,
       applyPartyPlayback,
       setRealtimeConnected,
+      refreshFromServer,
+      currentUserId,
     ]
   );
 
@@ -74,6 +101,7 @@ export function usePartyRealtime(partyId: string, enabled: boolean) {
       setPresence([]);
       setVideoPeers([]);
       setCountdown(null);
+      setNextVote(null);
       return;
     }
 
@@ -89,8 +117,22 @@ export function usePartyRealtime(partyId: string, enabled: boolean) {
       setPresence([]);
       setVideoPeers([]);
       setCountdown(null);
+      setNextVote(null);
     };
   }, [partyId, enabled, handlers]);
+
+  // Countdown tick sounds
+  useEffect(() => {
+    if (!countdown) return;
+    const started = new Date(countdown.startedAt).getTime();
+    const id = window.setInterval(() => {
+      const elapsed = Math.floor((Date.now() - started) / 1000);
+      const left = Math.max(0, countdown.seconds - elapsed);
+      if (left > 0 && left <= countdown.seconds) playPartySound("countdown");
+      if (left <= 0) window.clearInterval(id);
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [countdown]);
 
   return {
     presence,
@@ -98,5 +140,7 @@ export function usePartyRealtime(partyId: string, enabled: boolean) {
     live,
     countdown,
     clearCountdown: () => setCountdown(null),
+    nextVote,
+    kicked,
   };
 }

@@ -6,6 +6,7 @@ import {
   goLivePartyDb,
   joinPartyByInviteDb,
   leavePartyDb,
+  removePartyMemberDb,
   requestJoinPartyDb,
   rsvpPartyDb,
   updatePartyDb,
@@ -95,11 +96,13 @@ export async function POST(req: Request) {
       | "go_live"
       | "rsvp"
       | "leave"
-      | "update";
+      | "update"
+      | "kick";
     partyId?: string;
     invite?: string;
     endPartyId?: string;
     updateMovieId?: string;
+    targetUserId?: string;
   };
   try {
     body = await req.json();
@@ -174,6 +177,18 @@ export async function POST(req: Request) {
 
   if (body.action === "leave" && body.partyId) {
     const result = await leavePartyDb(auth.userId, body.partyId);
+    if ("error" in result) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
+    }
+    return NextResponse.json(result);
+  }
+
+  if (body.action === "kick" && body.partyId && body.targetUserId) {
+    const result = await removePartyMemberDb(
+      auth.userId,
+      body.partyId,
+      body.targetUserId
+    );
     if ("error" in result) {
       return NextResponse.json({ error: result.error }, { status: 400 });
     }

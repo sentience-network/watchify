@@ -132,6 +132,18 @@ export type User = {
   socialLinks?: SocialLinks;
   /** Services they subscribe to (badge only — no credentials) */
   linkedServices?: StreamingServiceId[];
+  /** Open-to-party presence (friends see Free tonight / Solo / DND) */
+  partyAvailability?: {
+    status: "free" | "solo" | "dnd";
+    until?: string | null;
+    note?: string;
+  };
+  /** Named friend subsets for invite targeting */
+  friendCircles?: {
+    id: string;
+    name: string;
+    memberIds: string[];
+  }[];
 };
 
 export type WatchPartyStatus = "open" | "ended";
@@ -168,12 +180,17 @@ export type WatchParty = {
   maxMembers?: number;
 };
 
+/** Joiner check-in before host presses Go (ephemeral / realtime). */
+export type PartyReadyStatus = "opened" | "scrubbed" | "ready";
+
 /** Who is currently connected to the party realtime room (ephemeral). */
 export type PartyPresenceMember = {
   userId: string;
   name: string;
   handle: string;
   typing?: boolean;
+  /** Opened app / scrubbed / ready — for host green lights. */
+  readyStatus?: PartyReadyStatus | null;
 };
 
 /** Shared playhead for free Watchify titles or soft sync hints for own-account */

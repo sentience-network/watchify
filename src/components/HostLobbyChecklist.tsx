@@ -8,6 +8,7 @@ import { partyInviteUrl } from "@/lib/social-graph";
 import { useWatchify } from "@/lib/store";
 import type { WatchParty } from "@/lib/types";
 import { track } from "@/lib/analytics-client";
+import { PartyQrInvite } from "./PartyQrInvite";
 
 const KEY = "watchify_lobby_checklist_dismissed";
 
@@ -208,6 +209,14 @@ export function HostLobbyChecklist({
         >
           {party.isLive ? "Ready — hide checklist" : "Go live"}
         </button>
+      </div>
+      <div className="mt-3">
+        <PartyQrInvite
+          inviteUrl={partyInviteUrl(party.id, undefined, {
+            inviteCode: party.inviteCode,
+          })}
+          compact
+        />
       </div>
     </aside>
   );

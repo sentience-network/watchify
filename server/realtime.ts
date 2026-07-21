@@ -22,18 +22,31 @@ const APP_ORIGIN = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3344";
 
 const prisma = new PrismaClient();
 
+type ReadyStatus = "opened" | "scrubbed" | "ready";
+
 type PresenceMember = {
   userId: string;
   name: string;
   handle: string;
   typing: boolean;
+  readyStatus: ReadyStatus | null;
   socketIds: Set<string>;
+};
+
+type NextVoteOption = { movieId: string; title: string };
+type NextVoteState = {
+  partyId: string;
+  options: NextVoteOption[];
+  votes: Record<string, string>;
+  startedBy: string;
+  startedAt: string;
 };
 
 /** Ephemeral room presence — membership remains in DB. */
 const rooms = new Map<string, Map<string, PresenceMember>>();
 type VideoMember = { userId: string; name: string; camera: boolean; microphone: boolean; socketId: string };
 const videoRooms = new Map<string, Map<string, VideoMember>>();
+const nextVotes = new Map<string, NextVoteState>();
 const VIDEO_MESH_LIMIT = 6;
 
 function roomKey(partyId: string) {
@@ -48,7 +61,20 @@ function presenceList(partyId: string) {
     name: m.name,
     handle: m.handle,
     typing: m.typing,
+    readyStatus: m.readyStatus,
   }));
+}
+
+function parseCoHosts(json: string): string[] {
+  try {
+    return JSON.parse(json) as string[];
+  } catch {
+    return [];
+  }
+}
+
+function isHostOrCo(party: { hostId: string; coHostIdsJson: string }, userId: string) {
+  return party.hostId === userId || parseCoHosts(party.coHostIdsJson).includes(userId);
 }
 
 function broadcastPresence(io: Server, partyId: string) {
@@ -149,6 +175,7 @@ io.on("connection", (socket) => {
         name,
         handle,
         typing: false,
+        readyStatus: null,
         socketIds: new Set([socket.id]),
       });
     }
@@ -160,6 +187,7 @@ io.on("connection", (socket) => {
       partyId,
       members: presenceList(partyId),
       videoPeers,
+      nextVote: nextVotes.get(partyId) || null,
       playback: await prisma.partyPlaybackSync
         .findUnique({ where: { partyId } })
         .then((p) =>
@@ -329,6 +357,169 @@ io.on("connection", (socket) => {
     });
   });
 
+  socket.on(
+    "ready_status",
+    (payload: { status?: string }, ack?) => {
+      const map = rooms.get(partyId);
+      const member = map?.get(userId);
+      if (!member) {
+        ack?.({ ok: false, error: "Not present" });
+        return;
+      }
+      const raw = String(payload?.status || "");
+      const status: ReadyStatus | null =
+        raw === "opened" || raw === "scrubbed" || raw === "ready"
+          ? raw
+          : null;
+      member.readyStatus = status;
+      broadcastPresence(io, partyId);
+      ack?.({ ok: true, status });
+    }
+  );
+
+  socket.on(
+    "next_vote_start",
+    async (
+      payload: { options?: { movieId?: string; title?: string }[] },
+      ack?
+    ) => {
+      try {
+        const party = await assertMember(userId, partyId);
+        if (!party) {
+          ack?.({ ok: false, error: "Not a member" });
+          return;
+        }
+        if (!isHostOrCo(party, userId)) {
+          ack?.({ ok: false, error: "Host only" });
+          return;
+        }
+        const options = (payload?.options || [])
+          .map((o) => ({
+            movieId: sanitizeText(String(o?.movieId || ""), 64),
+            title: sanitizeText(String(o?.title || ""), 80),
+          }))
+          .filter((o) => o.movieId && o.title)
+          .slice(0, 3);
+        if (options.length < 2) {
+          ack?.({ ok: false, error: "Need 2–3 options" });
+          return;
+        }
+        const vote: NextVoteState = {
+          partyId,
+          options,
+          votes: {},
+          startedBy: userId,
+          startedAt: new Date().toISOString(),
+        };
+        nextVotes.set(partyId, vote);
+        io.to(roomKey(partyId)).emit("next_vote", { vote });
+        ack?.({ ok: true, vote });
+      } catch (e) {
+        ack?.({
+          ok: false,
+          error: e instanceof Error ? e.message : "Failed",
+        });
+      }
+    }
+  );
+
+  socket.on(
+    "next_vote_cast",
+    (payload: { movieId?: string }, ack?) => {
+      const vote = nextVotes.get(partyId);
+      if (!vote) {
+        ack?.({ ok: false, error: "No active vote" });
+        return;
+      }
+      const movieId = sanitizeText(String(payload?.movieId || ""), 64);
+      if (!vote.options.some((o) => o.movieId === movieId)) {
+        ack?.({ ok: false, error: "Invalid option" });
+        return;
+      }
+      vote.votes[userId] = movieId;
+      nextVotes.set(partyId, vote);
+      io.to(roomKey(partyId)).emit("next_vote", { vote });
+      ack?.({ ok: true, vote });
+    }
+  );
+
+  socket.on("next_vote_end", async (_payload, ack?) => {
+    try {
+      const party = await assertMember(userId, partyId);
+      if (!party || !isHostOrCo(party, userId)) {
+        ack?.({ ok: false, error: "Host only" });
+        return;
+      }
+      nextVotes.delete(partyId);
+      io.to(roomKey(partyId)).emit("next_vote", { vote: null });
+      ack?.({ ok: true });
+    } catch (e) {
+      ack?.({
+        ok: false,
+        error: e instanceof Error ? e.message : "Failed",
+      });
+    }
+  });
+
+  socket.on(
+    "kick",
+    async (payload: { targetUserId?: string }, ack?) => {
+      try {
+        const targetUserId = String(payload?.targetUserId || "");
+        if (!targetUserId || targetUserId === userId) {
+          ack?.({ ok: false, error: "Invalid target" });
+          return;
+        }
+        const party = await assertMember(userId, partyId);
+        if (!party || !isHostOrCo(party, userId)) {
+          ack?.({ ok: false, error: "Host only" });
+          return;
+        }
+        if (party.hostId === targetUserId) {
+          ack?.({ ok: false, error: "Cannot remove the host" });
+          return;
+        }
+        const coHosts = parseCoHosts(party.coHostIdsJson).filter(
+          (id) => id !== targetUserId
+        );
+        await prisma.$transaction([
+          prisma.partyMember.deleteMany({
+            where: { partyId, userId: targetUserId },
+          }),
+          prisma.party.update({
+            where: { id: partyId },
+            data: { coHostIdsJson: JSON.stringify(coHosts) },
+          }),
+        ]);
+        const target = rooms.get(partyId)?.get(targetUserId);
+        if (target) {
+          for (const sid of Array.from(target.socketIds)) {
+            io.to(sid).emit("member_kicked", {
+              partyId,
+              userId: targetUserId,
+              byUserId: userId,
+            });
+            io.sockets.sockets.get(sid)?.disconnect(true);
+          }
+          rooms.get(partyId)?.delete(targetUserId);
+        }
+        videoRooms.get(partyId)?.delete(targetUserId);
+        io.to(roomKey(partyId)).emit("member_kicked", {
+          partyId,
+          userId: targetUserId,
+          byUserId: userId,
+        });
+        broadcastPresence(io, partyId);
+        ack?.({ ok: true });
+      } catch (e) {
+        ack?.({
+          ok: false,
+          error: e instanceof Error ? e.message : "Failed",
+        });
+      }
+    }
+  );
+
   /** Host 3–2–1 Go for own-account sync nights (ephemeral fan-out). */
   socket.on(
     "countdown",
@@ -342,15 +533,7 @@ io.on("connection", (socket) => {
           ack?.({ ok: false, error: "Not a member" });
           return;
         }
-        let coHosts: string[] = [];
-        try {
-          coHosts = JSON.parse(party.coHostIdsJson) as string[];
-        } catch {
-          coHosts = [];
-        }
-        const isHost =
-          party.hostId === userId || coHosts.includes(userId);
-        if (!isHost) {
+        if (!isHostOrCo(party, userId)) {
           ack?.({ ok: false, error: "Host only" });
           return;
         }

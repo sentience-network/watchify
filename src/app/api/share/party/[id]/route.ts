@@ -22,5 +22,13 @@ export async function GET(_req: Request, { params }: Props) {
     movieTitle: movie?.title || null,
     isLive: party.isLive,
     status: party.status,
+    party: {
+      id: party.id,
+      name: party.name,
+      movieId: party.movieId,
+      inviteCode: party.inviteCode,
+      isLive: party.isLive,
+      status: party.status,
+    },
   });
 }

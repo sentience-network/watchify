@@ -6,6 +6,7 @@ import type {
   PartyPlaybackSync,
   PartyPresenceMember,
   PartyReaction,
+  PartyReadyStatus,
 } from "./types";
 
 export type PartyCountdownEvent = {
@@ -16,6 +17,14 @@ export type PartyCountdownEvent = {
   startedBy: string;
 };
 
+export type PartyNextVote = {
+  partyId: string;
+  options: { movieId: string; title: string }[];
+  votes: Record<string, string>;
+  startedBy: string;
+  startedAt: string;
+};
+
 export type PartySocketHandlers = {
   onJoined?: (data: {
     partyId: string;
@@ -23,6 +32,7 @@ export type PartySocketHandlers = {
     playback: PartyPlaybackSync | null;
     /** Who is already in the face-to-face video room (for chat viewers). */
     videoPeers?: VideoPeer[];
+    nextVote?: PartyNextVote | null;
   }) => void;
   onMessage?: (message: PartyMessage) => void;
   onReaction?: (reaction: PartyReaction) => void;
@@ -30,6 +40,9 @@ export type PartySocketHandlers = {
   onPresence?: (members: PartyPresenceMember[]) => void;
   onTyping?: (userId: string, typing: boolean) => void;
   onCountdown?: (event: PartyCountdownEvent) => void;
+  onNextVote?: (vote: PartyNextVote | null) => void;
+  onMemberOnline?: (userId: string, name: string) => void;
+  onMemberKicked?: (userId: string, byUserId: string) => void;
   onConnectionChange?: (connected: boolean) => void;
   onError?: (message: string) => void;
   onVideoPeerJoined?: (peer: VideoPeer) => void;
@@ -37,7 +50,12 @@ export type PartySocketHandlers = {
   onWebrtcSignal?: (fromUserId: string, signal: WebrtcSignal) => void;
 };
 
-export type VideoPeer = { userId: string; name: string; camera: boolean; microphone: boolean };
+export type VideoPeer = {
+  userId: string;
+  name: string;
+  camera: boolean;
+  microphone: boolean;
+};
 export type WebrtcSignal =
   | { type: "offer"; sdp: RTCSessionDescriptionInit }
   | { type: "answer"; sdp: RTCSessionDescriptionInit }
@@ -215,15 +233,47 @@ export class PartyRealtimeClient {
       socket.on("countdown", (payload: PartyCountdownEvent) => {
         if (payload?.partyId) this.emitAll("onCountdown", payload);
       });
+      socket.on("next_vote", (payload: { vote?: PartyNextVote | null }) => {
+        this.emitAll("onNextVote", payload?.vote ?? null);
+      });
+      socket.on(
+        "member_online",
+        (payload: { userId?: string; name?: string }) => {
+          if (payload?.userId) {
+            this.emitAll(
+              "onMemberOnline",
+              payload.userId,
+              payload.name || ""
+            );
+          }
+        }
+      );
+      socket.on(
+        "member_kicked",
+        (payload: { userId?: string; byUserId?: string }) => {
+          if (payload?.userId) {
+            this.emitAll(
+              "onMemberKicked",
+              payload.userId,
+              payload.byUserId || ""
+            );
+          }
+        }
+      );
       socket.on("video_peer_joined", (payload: { peer: VideoPeer }) => {
         if (payload?.peer) this.emitAll("onVideoPeerJoined", payload.peer);
       });
       socket.on("video_peer_left", (payload: { userId: string }) => {
         if (payload?.userId) this.emitAll("onVideoPeerLeft", payload.userId);
       });
-      socket.on("webrtc_signal", (payload: { fromUserId: string; signal: WebrtcSignal }) => {
-        if (payload?.fromUserId && payload?.signal) this.emitAll("onWebrtcSignal", payload.fromUserId, payload.signal);
-      });
+      socket.on(
+        "webrtc_signal",
+        (payload: { fromUserId: string; signal: WebrtcSignal }) => {
+          if (payload?.fromUserId && payload?.signal) {
+            this.emitAll("onWebrtcSignal", payload.fromUserId, payload.signal);
+          }
+        }
+      );
       socket.on("error_msg", (payload: { message?: string }) => {
         this.emitAll("onError", payload.message || "Realtime error");
       });
@@ -278,6 +328,52 @@ export class PartyRealtimeClient {
     this.socket?.emit("typing", { typing });
   }
 
+  setReadyStatus(status: PartyReadyStatus) {
+    this.socket?.emit("ready_status", { status });
+  }
+
+  kickMember(targetUserId: string): Promise<boolean> {
+    const socket = this.socket;
+    if (!socket?.connected) return Promise.resolve(false);
+    return new Promise((resolve) => {
+      socket
+        .timeout(5000)
+        .emit(
+          "kick",
+          { targetUserId },
+          (err: Error | null, res?: { ok?: boolean }) => {
+            resolve(!err && Boolean(res?.ok));
+          }
+        );
+    });
+  }
+
+  startNextVote(
+    options: { movieId: string; title: string }[]
+  ): Promise<PartyNextVote | null> {
+    return this.emitAck("next_vote_start", { options });
+  }
+
+  castNextVote(movieId: string): Promise<PartyNextVote | null> {
+    return this.emitAck("next_vote_cast", { movieId });
+  }
+
+  endNextVote(): Promise<boolean> {
+    const socket = this.socket;
+    if (!socket?.connected) return Promise.resolve(false);
+    return new Promise((resolve) => {
+      socket
+        .timeout(5000)
+        .emit(
+          "next_vote_end",
+          {},
+          (err: Error | null, res?: { ok?: boolean }) => {
+            resolve(!err && Boolean(res?.ok));
+          }
+        );
+    });
+  }
+
   /** Host own-account 3–2–1 Go. */
   sendCountdown(
     seconds: number,
@@ -309,10 +405,20 @@ export class PartyRealtimeClient {
     const socket = this.socket;
     if (!socket?.connected) return Promise.resolve([]);
     return new Promise((resolve, reject) => {
-      socket.timeout(5000).emit("video_join", { camera, microphone }, (err: Error | null, response?: { ok: boolean; peers?: VideoPeer[]; error?: string }) => {
-        if (err || !response?.ok) reject(new Error(response?.error || "Video room unavailable"));
-        else resolve(response.peers || []);
-      });
+      socket
+        .timeout(5000)
+        .emit(
+          "video_join",
+          { camera, microphone },
+          (
+            err: Error | null,
+            response?: { ok: boolean; peers?: VideoPeer[]; error?: string }
+          ) => {
+            if (err || !response?.ok) {
+              reject(new Error(response?.error || "Video room unavailable"));
+            } else resolve(response.peers || []);
+          }
+        );
     });
   }
 
@@ -344,6 +450,7 @@ export class PartyRealtimeClient {
               message?: T;
               reaction?: T;
               sync?: T;
+              vote?: T;
             }
           ) => {
             if (err || !res?.ok) {
@@ -351,7 +458,11 @@ export class PartyRealtimeClient {
               return;
             }
             resolve(
-              (res.message || res.reaction || res.sync || null) as T | null
+              (res.message ||
+                res.reaction ||
+                res.sync ||
+                res.vote ||
+                null) as T | null
             );
           }
         );

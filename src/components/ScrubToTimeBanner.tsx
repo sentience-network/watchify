@@ -54,7 +54,7 @@ export function ScrubToTimeBanner({
           onClick={() => void copyStamp()}
           className="rounded-lg border border-line px-3 py-1.5 text-mist hover:text-white"
         >
-          {copied ? "Timestamp copied" : `Copy ${stamp}`}
+          {copied ? "Timestamp copied" : `Copy scrub to ${stamp}`}
         </button>
       </div>
     </div>
