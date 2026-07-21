@@ -6,6 +6,7 @@ import {
   releasePartyRealtime,
   type PartyCountdownEvent,
   type PartySocketHandlers,
+  type VideoPeer,
 } from "@/lib/party-realtime";
 import { useWatchify } from "@/lib/store";
 import type { PartyPresenceMember } from "@/lib/types";
@@ -22,6 +23,7 @@ export function usePartyRealtime(partyId: string, enabled: boolean) {
     setRealtimeConnected,
   } = useWatchify();
   const [presence, setPresence] = useState<PartyPresenceMember[]>([]);
+  const [videoPeers, setVideoPeers] = useState<VideoPeer[]>([]);
   const [live, setLive] = useState(false);
   const [countdown, setCountdown] = useState<PartyCountdownEvent | null>(null);
 
@@ -29,6 +31,7 @@ export function usePartyRealtime(partyId: string, enabled: boolean) {
     () => ({
       onJoined: (data) => {
         setPresence(data.members);
+        setVideoPeers(data.videoPeers || []);
         if (data.playback) applyPartyPlayback(data.playback);
       },
       onMessage: (message) => applyPartyMessage(message),
@@ -41,9 +44,20 @@ export function usePartyRealtime(partyId: string, enabled: boolean) {
           prev.map((m) => (m.userId === userId ? { ...m, typing } : m))
         );
       },
+      onVideoPeerJoined: (peer) => {
+        setVideoPeers((prev) => {
+          const next = prev.filter((p) => p.userId !== peer.userId);
+          next.push(peer);
+          return next;
+        });
+      },
+      onVideoPeerLeft: (userId) => {
+        setVideoPeers((prev) => prev.filter((p) => p.userId !== userId));
+      },
       onConnectionChange: (connected) => {
         setLive(connected);
         setRealtimeConnected(connected);
+        if (!connected) setVideoPeers([]);
       },
     }),
     [
@@ -58,6 +72,7 @@ export function usePartyRealtime(partyId: string, enabled: boolean) {
     if (!enabled || !partyId) {
       setLive(false);
       setPresence([]);
+      setVideoPeers([]);
       setCountdown(null);
       return;
     }
@@ -72,12 +87,14 @@ export function usePartyRealtime(partyId: string, enabled: boolean) {
       releasePartyRealtime(partyId, handlers);
       setLive(false);
       setPresence([]);
+      setVideoPeers([]);
       setCountdown(null);
     };
   }, [partyId, enabled, handlers]);
 
   return {
     presence,
+    videoPeers,
     live,
     countdown,
     clearCountdown: () => setCountdown(null),

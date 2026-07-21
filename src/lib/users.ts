@@ -117,6 +117,45 @@ export function allUsers(): User[] {
   return USERS;
 }
 
+/** Prefer live directory (testers + real accounts), then demo seed, then id. */
+export function resolveDirectoryUser(
+  id: string,
+  directoryUsers: readonly User[] = []
+): User | undefined {
+  return directoryUsers.find((u) => u.id === id) || getUser(id);
+}
+
+export type PartyUserLabel = {
+  name: string;
+  handle: string;
+  /** "Name (@handle)" when handle known, else name */
+  label: string;
+};
+
+/**
+ * Display name for party chat / video roster.
+ * Never silent "Someone" when we have a userId — fall back to truncated id.
+ */
+export function partyUserLabel(
+  id: string,
+  directoryUsers: readonly User[] = [],
+  hint?: { name?: string | null; handle?: string | null }
+): PartyUserLabel {
+  const user = resolveDirectoryUser(id, directoryUsers);
+  const name =
+    (user?.name?.trim() || hint?.name?.trim() || "").trim() ||
+    (id.length > 10 ? `${id.slice(0, 8)}…` : id || "Member");
+  const handle = (user?.handle?.trim() || hint?.handle?.trim() || "").replace(
+    /^@/,
+    ""
+  );
+  return {
+    name,
+    handle,
+    label: handle ? `${name} (@${handle})` : name,
+  };
+}
+
 export const SEED_WATCHLISTS: Watchlist[] = [
   {
     id: "wl1",

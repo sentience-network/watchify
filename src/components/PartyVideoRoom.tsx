@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePartyVideo } from "@/hooks/usePartyVideo";
+import { useWatchify } from "@/lib/store";
+import { partyUserLabel } from "@/lib/users";
 
 function VideoTile({ stream, label, muted }: { stream: MediaStream | null; label: string; muted?: boolean }) {
   const ref = useRef<HTMLVideoElement>(null);
@@ -20,6 +22,7 @@ function VideoTile({ stream, label, muted }: { stream: MediaStream | null; label
 
 export function PartyVideoRoom({ partyId }: { partyId: string }) {
   const video = usePartyVideo(partyId);
+  const { directoryUsers } = useWatchify();
   const [camera, setCamera] = useState(false);
   const [microphone, setMicrophone] = useState(false);
   useEffect(() => {
@@ -29,6 +32,27 @@ export function PartyVideoRoom({ partyId }: { partyId: string }) {
       setMicrophone(Boolean(saved.microphone));
     } catch {}
   }, []);
+
+  const peerLabels = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const [userId, peer] of Array.from(video.peers.entries())) {
+      map.set(
+        userId,
+        partyUserLabel(userId, directoryUsers, { name: peer.name }).name
+      );
+    }
+    for (const userId of Array.from(video.remoteStreams.keys())) {
+      if (!map.has(userId)) {
+        map.set(userId, partyUserLabel(userId, directoryUsers).name);
+      }
+    }
+    return map;
+  }, [video.peers, video.remoteStreams, directoryUsers]);
+
+  const onVideoNames = useMemo(() => {
+    const you = video.joined ? ["You"] : [];
+    return [...you, ...Array.from(peerLabels.values())];
+  }, [video.joined, peerLabels]);
 
   if (!video.joined) {
     return (
@@ -52,10 +76,20 @@ export function PartyVideoRoom({ partyId }: { partyId: string }) {
 
   return (
     <section className="mt-4 rounded-xl border border-line bg-ink/35 p-3">
+      {onVideoNames.length > 0 ? (
+        <p className="mb-2 text-[11px] text-mist/75">
+          <span className="font-medium text-teal-soft">On video:</span>{" "}
+          {onVideoNames.join(", ")}
+        </p>
+      ) : null}
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
         <VideoTile stream={video.localStream} label="You" muted />
         {Array.from(video.remoteStreams.entries()).map(([userId, stream]) => (
-          <VideoTile key={userId} stream={stream} label={video.peers.get(userId)?.name || "Party member"} />
+          <VideoTile
+            key={userId}
+            stream={stream}
+            label={peerLabels.get(userId) || partyUserLabel(userId, directoryUsers).name}
+          />
         ))}
       </div>
       <div className="mt-3 flex flex-wrap gap-2">

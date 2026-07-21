@@ -16,7 +16,7 @@ import {
 import { getMovie } from "@/lib/movies";
 import { isFreePlayable } from "@/lib/free-content";
 import { useWatchify } from "@/lib/store";
-import { getUser } from "@/lib/users";
+import { partyUserLabel } from "@/lib/users";
 import { usePartyRealtime } from "@/hooks/usePartyRealtime";
 import { getPartyRealtime } from "@/lib/party-realtime";
 import { FreePlayer } from "./FreePlayer";
@@ -39,6 +39,7 @@ export function PartySocialPanel({ partyId }: { partyId: string }) {
     startPartyWatchTracker,
     ready,
     currentUserId,
+    directoryUsers,
     refreshFromServer,
   } = useWatchify();
   const [text, setText] = useState("");
@@ -57,13 +58,13 @@ export function PartySocialPanel({ partyId }: { partyId: string }) {
         party.coHostIds?.includes(currentUserId))
   );
 
-  const { presence, live, countdown, clearCountdown } = usePartyRealtime(
-    partyId,
-    ready && isMember
-  );
+  const { presence, videoPeers, live, countdown, clearCountdown } =
+    usePartyRealtime(partyId, ready && isMember);
 
   const movie = party ? getMovie(party.movieId) : undefined;
-  const host = party ? getUser(party.hostId) : undefined;
+  const hostLabel = party
+    ? partyUserLabel(party.hostId, directoryUsers)
+    : undefined;
   const service = getStreamingService(party?.serviceId);
   const sync = state.partyPlaybackSync.find((p) => p.partyId === partyId);
   const mode = party?.syncMode || "social";
@@ -275,7 +276,7 @@ export function PartySocialPanel({ partyId }: { partyId: string }) {
         <span>
           {party.memberIds.length} members ·{" "}
           {presence.length ? `${presence.length} online` : "waiting for presence"}{" "}
-          · host {host?.name}
+          · host {hostLabel?.name}
           {service ? (
             <>
               {" "}
@@ -410,17 +411,34 @@ export function PartySocialPanel({ partyId }: { partyId: string }) {
 
       {presence.length > 0 ? (
         <ul className="mt-2 flex flex-wrap gap-1.5">
-          {presence.map((m) => (
-            <li
-              key={m.userId}
-              className="rounded-md border border-line/70 bg-panel/50 px-2 py-0.5 text-[11px] text-mist"
-            >
-              <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-teal" />
-              {m.name}
-              {m.typing ? " · typing…" : ""}
-            </li>
-          ))}
+          {presence.map((m) => {
+            const label = partyUserLabel(m.userId, directoryUsers, m);
+            return (
+              <li
+                key={m.userId}
+                className="rounded-md border border-line/70 bg-panel/50 px-2 py-0.5 text-[11px] text-mist"
+              >
+                <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-teal" />
+                {label.name}
+                {label.handle ? (
+                  <span className="text-mist/55"> @{label.handle}</span>
+                ) : null}
+                {m.typing ? " · typing…" : ""}
+              </li>
+            );
+          })}
         </ul>
+      ) : null}
+
+      {videoPeers.length > 0 ? (
+        <p className="mt-2 text-[11px] text-mist/75">
+          <span className="font-medium text-teal-soft">On video:</span>{" "}
+          {videoPeers
+            .map((p) =>
+              partyUserLabel(p.userId, directoryUsers, { name: p.name }).name
+            )
+            .join(", ")}
+        </p>
       ) : null}
 
       <div className="mt-2 flex flex-wrap gap-1">
@@ -452,10 +470,14 @@ export function PartySocialPanel({ partyId }: { partyId: string }) {
 
       <ul className="mt-3 max-h-40 space-y-2 overflow-y-auto text-sm">
         {messages.map((m) => {
-          const u = getUser(m.userId);
+          const author = partyUserLabel(m.userId, directoryUsers);
           return (
             <li key={m.id} className="text-mist">
-              <span className="font-medium text-white">{u?.name || "Someone"}</span>: {m.text}
+              <span className="font-medium text-white">{author.name}</span>
+              {author.handle ? (
+                <span className="text-mist/55"> @{author.handle}</span>
+              ) : null}
+              : {m.text}
             </li>
           );
         })}
@@ -466,7 +488,10 @@ export function PartySocialPanel({ partyId }: { partyId: string }) {
 
       {typingOthers.length > 0 ? (
         <p className="mt-1 text-[11px] text-mist/55">
-          {typingOthers.map((t) => t.name).join(", ")} typing…
+          {typingOthers
+            .map((t) => partyUserLabel(t.userId, directoryUsers, t).name)
+            .join(", ")}{" "}
+          typing…
         </p>
       ) : null}
 

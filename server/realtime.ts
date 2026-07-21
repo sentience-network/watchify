@@ -153,9 +153,13 @@ io.on("connection", (socket) => {
       });
     }
 
+    const videoPeers = Array.from(videoRooms.get(partyId)?.values() || []).map(
+      ({ socketId: _socketId, ...peer }) => peer
+    );
     socket.emit("joined", {
       partyId,
       members: presenceList(partyId),
+      videoPeers,
       playback: await prisma.partyPlaybackSync
         .findUnique({ where: { partyId } })
         .then((p) =>

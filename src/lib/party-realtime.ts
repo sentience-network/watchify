@@ -21,6 +21,8 @@ export type PartySocketHandlers = {
     partyId: string;
     members: PartyPresenceMember[];
     playback: PartyPlaybackSync | null;
+    /** Who is already in the face-to-face video room (for chat viewers). */
+    videoPeers?: VideoPeer[];
   }) => void;
   onMessage?: (message: PartyMessage) => void;
   onReaction?: (reaction: PartyReaction) => void;
