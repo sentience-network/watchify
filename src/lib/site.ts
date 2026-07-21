@@ -10,7 +10,7 @@ export function getAppUrl(): string {
 export const SITE_NAME = "Watchify";
 export const SITE_TAGLINE = "Spotify for movies";
 export const SITE_DESCRIPTION =
-  "Discover films, build watchlists, host watch parties, and share what you're watching with friends on Watchify.";
+  "Watch together on the apps you already stream — and on Watchify Free legal titles plus community uploads. Parties, presence, and shared taste. Not licensed Netflix in-app.";
 
 export function absoluteUrl(path: string): string {
   const base = getAppUrl();

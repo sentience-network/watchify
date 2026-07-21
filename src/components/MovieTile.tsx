@@ -36,7 +36,10 @@ export function MovieTile({ movie }: Props) {
           {movie.title}
         </p>
         <p className="text-xs text-mist/70">
-          {movie.year} · {movie.rating.toFixed(1)}
+          {movie.year}
+          {movie.rating > 0
+            ? ` · ${Math.round(movie.rating * 10)}%`
+            : ""}
           {label ? ` · ${label}` : ""}
         </p>
       </Link>

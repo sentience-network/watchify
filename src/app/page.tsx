@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db";
 import { loadHeroPosters } from "@/lib/hero-posters";
 import { funnelCounts } from "@/lib/server/analytics";
 import { getPlan, type PlanId } from "@/lib/plans";
+import { PRODUCT_TRUTH_COPY } from "@/lib/streaming";
 
 async function loadPulse() {
   try {
@@ -33,7 +34,21 @@ export default async function LandingPage() {
   ]);
   const signedIn = Boolean(session?.user?.id);
   const planId = (session?.user?.plan as PlanId | undefined) || "free";
-  const canHost = signedIn && getPlan(planId).limits.canHostParties;
+  let freeHostsRemaining = 0;
+  if (session?.user?.id) {
+    try {
+      const row = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { freeHostsRemaining: true },
+      });
+      freeHostsRemaining = row?.freeHostsRemaining ?? 0;
+    } catch {
+      freeHostsRemaining = 0;
+    }
+  }
+  const canHost =
+    signedIn &&
+    (getPlan(planId).limits.canHostParties || freeHostsRemaining > 0);
   const joins = pulse?.partyJoinsThisWeek ?? 0;
   const open = pulse?.openParties ?? 0;
   const pulseLine =
@@ -91,16 +106,18 @@ export default async function LandingPage() {
               Watch<span className="text-teal">ify</span>
             </p>
             <h1 className="mt-4 font-display text-2xl font-semibold leading-snug tracking-tight text-white/95 md:text-3xl">
-              Social watch parties + shared taste — on the apps you already
-              stream.
+              Watch together — on your streamers{" "}
+              <span className="text-white/70">and</span> free on Watchify.
             </h1>
             <p className="mt-4 max-w-md text-base leading-relaxed text-mist md:text-lg">
-              Sync playheads with friends, share presence, and get picks from
-              favorites. Everyone watches on their own Netflix, Max, or Disney+
-              — Watchify is the social layer, not another streamer.
+              Sync parties with friends on Netflix, Max, or Disney+ via deep
+              links (everyone uses their own login). Also stream Watchify Free
+              public-domain titles and legal community uploads in-app — never
+              licensed Netflix playback inside Watchify.
             </p>
             <p className="mt-3 max-w-md text-sm leading-relaxed text-teal-soft/90">
-              Discord has voice. Watchify has playheads + taste across services.
+              Discord has voice. Watchify has playheads + taste + a free legal
+              shelf.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               {signedIn ? (
@@ -151,8 +168,8 @@ export default async function LandingPage() {
               )}
             </div>
             <p className="mt-6 text-xs text-mist/55">
-              {pulseLine} · Own-account sync · No licensed Netflix playback
-              in-app
+              {pulseLine} · Own-account sync · Free/legal in-app · No licensed
+              Netflix in-app
             </p>
             <p className="mt-2 max-w-md text-[11px] leading-relaxed text-mist/45">
               Soft launch tip: the free Render host may sleep — first load can
@@ -163,19 +180,22 @@ export default async function LandingPage() {
       </header>
 
       <section className="mx-auto max-w-6xl px-5 py-16 md:px-8">
+        <p className="mb-10 max-w-2xl text-sm leading-relaxed text-mist/75">
+          {PRODUCT_TRUTH_COPY}
+        </p>
         <div className="grid gap-10 md:grid-cols-3">
           {[
             {
-              t: "Presence",
-              d: "See who's watching what — jump into chat without needing their streaming plan.",
+              t: "Sync on your apps",
+              d: "Own-account parties: deep links + playhead cues for Netflix, Max, Disney+, and more — each person uses their own legal login.",
             },
             {
-              t: "Parties",
-              d: "Synced playheads + deep links for paid apps you already subscribe to. Real shared playback only for Watchify Free titles.",
+              t: "Free & community on Watchify",
+              d: "Public-domain / CC library with real in-app sync, plus legal community uploads after a safety check. Post your own rights-cleared video.",
             },
             {
-              t: "Taste",
-              d: "Recommendations from favorites and friends — a social graph catalogs can't copy.",
+              t: "Taste + parties",
+              d: "Presence, face video for every joiner (hosting may need Party), and recommendations from friends — the social layer catalogs can't copy.",
             },
           ].map((card) => (
             <div key={card.t} className="animate-fade-up">

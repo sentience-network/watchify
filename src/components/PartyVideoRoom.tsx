@@ -162,6 +162,7 @@ export function PartyVideoRoom({ partyId }: { partyId: string }) {
           Face-to-face video · up to 6
         </h3>
         <p className="mt-1 text-xs leading-relaxed text-mist/70">
+          Free for every party member — cam/mic join does not require Party plan.
           Optional camera and microphone for people only. Nothing is recorded,
           and this cannot share or bypass paid video services.
         </p>

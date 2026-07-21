@@ -42,10 +42,21 @@ export default function SafetyPage() {
           Report & block
         </h2>
         <p>
-          On any profile, use <strong className="text-white">Report</strong> or{" "}
+          On any profile or in Messages, use <strong className="text-white">Report</strong> or{" "}
           <strong className="text-white">Block</strong>. Blocking hides that
-          person&apos;s activity, parties, and requests from your feeds. Reports
-          are logged for review (API + local ops log).
+          person&apos;s activity, parties, DMs, and invites from your surfaces.
+          On Free / community titles, use <strong className="text-white">Report video</strong>.
+          Staff review the queue at Admin → Reports (dismiss / warn / soft-ban /
+          quarantine content).
+        </p>
+        <h2 className="font-display text-xl font-semibold text-white">
+          Community uploads
+        </h2>
+        <p>
+          Legal non-licensed videos only. Soft-launch moderation uses title /
+          description keyword checks plus URL MIME/size sanity — not a fake AI
+          porn scanner. Obvious violations are rejected or quarantined for human
+          review before they appear publicly.
         </p>
         <h2 className="font-display text-xl font-semibold text-white">
           Sharing carefully

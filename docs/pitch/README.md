@@ -12,4 +12,4 @@ Investor-facing assets for demos, screenshots, and deck drafting.
 
 **Live soft launch:** https://watchify-web-9rx1.onrender.com  
 
-**Product truth:** Watchify = social watch parties + presence + taste. Not an in-app Netflix streamer.
+**Product truth:** Watchify = social watch parties + presence + taste **and** free/legal in-app titles + community uploads. Sync parties on your streamers via deep links; never licensed Netflix playback in-app. Mobile soft launch = installable PWA (native stores next).

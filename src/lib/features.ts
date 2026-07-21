@@ -1,4 +1,4 @@
-﻿/** Runtime feature switches — prefer env so local/prod behave honestly. */
+/** Runtime feature switches — prefer env so local/prod behave honestly. */
 
 export function isProduction(): boolean {
   return process.env.NODE_ENV === "production";

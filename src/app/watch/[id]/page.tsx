@@ -7,8 +7,10 @@ import { AppShell } from "@/components/AppShell";
 import { FreePlayer } from "@/components/FreePlayer";
 import { InviteFriendsPrompt } from "@/components/InviteFriendsPrompt";
 import { ProviderDeepLinks } from "@/components/ScrubToTimeBanner";
+import { ReportVideoButton } from "@/components/ReportVideoButton";
 import { ScreenSharePanel } from "@/components/ScreenSharePanel";
 import { ShareMenu } from "@/components/ShareMenu";
+import { TitleRatingPanel } from "@/components/TitleRatingPanel";
 import { DEMO_CATALOG_NOTE, RENT_BUY_COPY } from "@/lib/deep-links";
 import { getMovie, rememberCatalogMovies } from "@/lib/movies";
 import { isFreePlayable } from "@/lib/free-content";
@@ -217,8 +219,15 @@ function WatchInner() {
                   : `Watching ${movie.title} on Watchify`
               }
             />
+            {(free || movie.id.startsWith("ugc-")) && (
+              <ReportVideoButton movieId={movie.id} />
+            )}
           </div>
         </div>
+
+        {(free || movie.id.startsWith("ugc-") || movie.rating > 0) && (
+          <TitleRatingPanel movieId={movie.id} catalogScore={movie.rating} />
+        )}
 
         <div className="mt-6">
           {free ? (

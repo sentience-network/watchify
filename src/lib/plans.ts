@@ -32,6 +32,7 @@ export const PLANS: PlanDefinition[] = [
       "Link up to 2 streaming services",
       "Public watching + basic sharing",
       "Join unlimited watch parties",
+      "Join party face video (cam/mic) free",
       "1 free hosted party (lifetime)",
       "Friends feed & taste graph",
     ],
@@ -76,9 +77,8 @@ export const PLANS: PlanDefinition[] = [
     features: [
       "Host unlimited live watch parties",
       "Co-hosts, recurring rooms, invite links",
-      "Face video rooms for up to 6 people",
       "Priority join request inbox",
-      "Everything in Plus",
+      "Everything in Plus (joiners already get face video)",
       "Best for people who gather friends weekly",
     ],
     limits: {

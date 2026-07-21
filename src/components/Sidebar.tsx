@@ -9,6 +9,7 @@ import { useWatchify } from "@/lib/store";
 const baseLinks = [
   { href: "/discover", label: "Discover", badgeKey: null as string | null },
   { href: "/library", label: "Free", badgeKey: null },
+  { href: "/upload", label: "Upload", badgeKey: null },
   { href: "/parties", label: "Parties", badgeKey: "joins" },
   { href: "/feed", label: "Friends", badgeKey: "friends" },
   { href: "/messages", label: "Messages", badgeKey: "dms" },
@@ -67,6 +68,7 @@ export function Sidebar() {
       ? [{ href: `/profile/${currentUserId}`, label: "Profile", badgeKey: null as string | null }]
       : [{ href: "/auth/signin", label: "Sign in", badgeKey: null as string | null }]),
     { href: "/watchlists", label: "Lists", badgeKey: null },
+    { href: "/upload", label: "Upload", badgeKey: null },
     { href: "/tv", label: "TV mode", badgeKey: null },
     { href: "/settings", label: "Settings", badgeKey: null },
     { href: "/pricing", label: "Pricing", badgeKey: null },

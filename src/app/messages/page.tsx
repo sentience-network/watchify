@@ -35,7 +35,7 @@ type ChatMessage = {
 
 function MessagesInner() {
   const search = useSearchParams();
-  const { currentUserId, ready } = useWatchify();
+  const { currentUserId, ready, blockUser } = useWatchify();
   const [threads, setThreads] = useState<Thread[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [other, setOther] = useState<User | null>(null);
@@ -43,6 +43,7 @@ function MessagesInner() {
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [safetyMsg, setSafetyMsg] = useState("");
 
   const refreshThreads = useCallback(async () => {
     const res = await fetch("/api/messages");
@@ -182,7 +183,7 @@ function MessagesInner() {
             </div>
           ) : (
             <>
-              <header className="flex items-center justify-between border-b border-line px-4 py-3">
+              <header className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3">
                 <div>
                   <p className="font-display font-semibold text-white">
                     {other?.name || "Chat"}
@@ -196,7 +197,54 @@ function MessagesInner() {
                     </Link>
                   )}
                 </div>
+                {other ? (
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        blockUser(other.id);
+                        setSafetyMsg(`Blocked @${other.handle}. They can’t DM or invite you.`);
+                        setActiveId(null);
+                        setOther(null);
+                        void refreshThreads();
+                      }}
+                      className="rounded-lg border border-line px-2.5 py-1 text-[11px] text-mist hover:border-amber/40 hover:text-amber-soft"
+                    >
+                      Block
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void fetch("/api/report", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            targetUserId: other.id,
+                            targetKind: "user",
+                            reason: "inappropriate_user",
+                            details: `Reported from messages thread`,
+                          }),
+                        }).then(async (res) => {
+                          const data = await res.json();
+                          setSafetyMsg(
+                            res.ok
+                              ? "Report submitted. Thanks for helping keep Watchify safer."
+                              : data.error || "Report failed"
+                          );
+                        });
+                      }}
+                      className="rounded-lg border border-line px-2.5 py-1 text-[11px] text-mist hover:border-amber/40 hover:text-amber-soft"
+                    >
+                      Report
+                    </button>
+                  </div>
+                ) : null}
               </header>
+              {safetyMsg ? (
+                <p className="border-b border-line px-4 py-2 text-[11px] text-mist/80">
+                  {safetyMsg}
+                </p>
+              ) : null}
               <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-4">
                 {messages.map((m) => {
                   const mine = m.senderId === currentUserId;

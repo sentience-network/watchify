@@ -113,7 +113,8 @@ export function InstallAppBanner() {
         </ol>
       ) : (
         <p className="mt-1 text-xs text-mist/80">
-          Add to your home screen for one-tap parties and living-room companion.
+          Add to your home screen for one-tap parties — this is the soft-launch
+          mobile app (PWA). Native store builds come later.
         </p>
       )}
       <div className="mt-2 flex gap-2">

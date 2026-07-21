@@ -8,6 +8,10 @@ import {
   moderateReport,
   type ReportStatus,
 } from "@/lib/server/reports";
+import {
+  listUploadsForAdmin,
+  moderateUploadStatus,
+} from "@/lib/server/uploads-db";
 
 export const runtime = "nodejs";
 
@@ -31,8 +35,39 @@ export async function GET(req: Request) {
   const status = (url.searchParams.get("status") || "open") as
     | ReportStatus
     | "all";
-  const reports = await listReports({ status });
-  return NextResponse.json({ reports });
+  const [reports, uploads] = await Promise.all([
+    listReports({ status }),
+    listUploadsForAdmin({
+      status: status === "all" ? "all" : undefined,
+      limit: 40,
+    }).then((rows) =>
+      status === "all"
+        ? rows
+        : rows.filter((u) =>
+            ["pending", "quarantined"].includes(u.status)
+          )
+    ),
+  ]);
+  return NextResponse.json({
+    reports,
+    uploads: uploads.map((u) => ({
+      id: u.id,
+      title: u.title,
+      description: u.description,
+      sourceUrl: u.sourceUrl,
+      status: u.status,
+      flags: (() => {
+        try {
+          return JSON.parse(u.flagReasonsJson || "[]");
+        } catch {
+          return [];
+        }
+      })(),
+      createdAt: u.createdAt.toISOString(),
+      owner: u.owner,
+      catalogId: `ugc-${u.id}`,
+    })),
+  });
 }
 
 export async function PATCH(req: Request) {
@@ -41,7 +76,8 @@ export async function PATCH(req: Request) {
 
   let body: {
     reportId?: string;
-    action?: "dismiss" | "warn" | "ban";
+    uploadId?: string;
+    action?: "dismiss" | "warn" | "ban" | "quarantine" | "approve" | "reject";
     note?: string;
   };
   try {
@@ -50,20 +86,36 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
+  if (body.uploadId && body.action) {
+    if (!["approve", "quarantine", "reject"].includes(body.action)) {
+      return NextResponse.json({ error: "Invalid upload action" }, { status: 400 });
+    }
+    const result = await moderateUploadStatus({
+      uploadId: body.uploadId,
+      reviewerId: auth.user.id,
+      action: body.action as "approve" | "quarantine" | "reject",
+      note: body.note,
+    });
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
+    }
+    return NextResponse.json({ ok: true });
+  }
+
   if (!body.reportId || !body.action) {
     return NextResponse.json(
       { error: "reportId and action required" },
       { status: 400 }
     );
   }
-  if (!["dismiss", "warn", "ban"].includes(body.action)) {
+  if (!["dismiss", "warn", "ban", "quarantine"].includes(body.action)) {
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });
   }
 
   const result = await moderateReport({
     reportId: body.reportId,
     reviewerId: auth.user.id,
-    action: body.action,
+    action: body.action as "dismiss" | "warn" | "ban" | "quarantine",
     note: body.note,
   });
   if (!result.ok) {

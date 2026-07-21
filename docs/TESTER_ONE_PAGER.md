@@ -8,11 +8,12 @@ Logins for the Party tester cohort live in the gitignored file `friend-tester-lo
 ## Expect this
 
 1. **Cold start** — Free Render may sleep. First open / sign-in can take **~30–60 seconds**. Wait, refresh once, try again. Wrong-password messages after a hang are often wake delays.
-2. **No Netflix (etc.) exact stream** — Watchify does **not** play Netflix/Max/Disney+ video. Parties for those services = chat + presence + “open on your app” + scrub helper. Each person uses their **own** streaming login.
+2. **No Netflix (etc.) exact stream** — Watchify does **not** play Netflix/Max/Disney+ video. Parties for those services = chat + presence + “open on your app” + scrub helper. Each person uses their **own** streaming login. Watchify **also** hosts free/legal titles and legal community uploads in-app.
 3. **TMDB ≠ streams** — Catalog metadata/posters come from TMDB. That does **not** mean Watchify hosts the movie.
-4. **Party plan to host** — Hosting live rooms needs the Party plan (or your one free host credit). Soft-launch **tester01–tester20** already have permanent Party. **New signups** get a **30-day Party trial** automatically. Free users can **join**, follow friends, and use Watchify Free titles.
-5. **Watchify Free = real sync** — Public-domain / allowed free titles can actually play/pause/seek together in-app.
+4. **Party plan to host** — Hosting live rooms needs the Party plan (or your one free host credit). Soft-launch **tester01–tester20** already have permanent Party. **New signups** get a **30-day Party trial** automatically. Free users can **join** parties (including **face video cam/mic**) and use Watchify Free titles.
+5. **Watchify Free = real sync** — Public-domain / allowed free titles can actually play/pause/seek together in-app. Community uploads (legal links) appear after a safety check.
 6. **Instagram = share, not login** — Share menus copy a link for Stories/DMs. Instagram is not an account login for Watchify (unless Meta OAuth is enabled later).
+7. **Mobile app = PWA** — On phone: open the site in Chrome/Safari → **Install** / **Add to Home Screen**. Native App Store / Play builds are a later phase.
 
 ## How to find friends
 
@@ -27,7 +28,9 @@ Logins for the Party tester cohort live in the gitignored file `friend-tester-lo
 2. Friends → search another tester → confirm Friends or send request  
 3. Parties → create or join a **Watchify Free** room (e.g. Big Buck Bunny)  
 4. Second device joins via invite link → chat / reactions  
-5. Optional: face video (TURN is configured on live Metered — use two networks to smoke-test)
+5. Optional: face video (free for all joiners — TURN is configured on live Metered — use two networks to smoke-test)
+6. Optional: rate a Free title · Report video · Upload a legal link from **/upload**
+7. Phone: Add to Home Screen (Install banner) and reopen as standalone
 
 ## Please don’t
 

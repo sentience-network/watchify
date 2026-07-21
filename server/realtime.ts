@@ -560,7 +560,8 @@ io.on("connection", (socket) => {
   socket.on("video_join", async (payload: { camera?: boolean; microphone?: boolean }, ack?) => {
     const party = await assertMember(userId, partyId);
     if (!party) return ack?.({ ok: false, error: "Not a party member" });
-    if (party.host.plan !== "party") return ack?.({ ok: false, error: "Video rooms require a Party-plan host" });
+    // Face video is free for all party members (joiners included). Hosting/create
+    // stays gated by Party plan / trial / free host credit — not A/V join.
     let room = videoRooms.get(partyId);
     if (!room) {
       room = new Map();

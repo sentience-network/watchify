@@ -2,7 +2,7 @@
 
 **Product:** Watchify — social watch-party + taste app  
 **Live (soft launch):** https://watchify-web-9rx1.onrender.com  
-**One-liner:** Discord has voice. Watchify has playheads + taste across the streaming apps you already pay for.
+**One-liner:** Discord has voice. Watchify has playheads + taste across the streaming apps you already pay for — plus a free/legal shelf and community uploads.
 
 ---
 
@@ -12,15 +12,15 @@ Friends already watch the same shows on Netflix, Max, Disney+, and more — but 
 
 ## Solution
 
-Watchify is the **social layer on top of streaming**, not a Netflix replacement:
+Watchify is the **social layer on top of streaming**, and a place for **free/legal in-app watching**:
 
-- **Parties** — synced rooms with presence, chat, and playhead coordination  
+- **Parties** — synced rooms with presence, chat, playhead coordination, and face video for joiners  
 - **Own-account sync** — each person opens their own streaming app; Watchify deep-links + syncs social state  
-- **Watchify Free** — real in-app synced playback for allowed free titles  
+- **Watchify Free + community uploads** — real in-app synced playback for allowed free titles; users can post legal non-licensed videos after safety checks  
 - **Taste** — recommendations from favorites and friends (For you, Watch Match)  
 - **Profiles** — shareable identity, cosmetics, “what I’m watching”
 
-**We do not** stream licensed Netflix/Max/Disney+ video inside Watchify.
+**We do not** stream licensed Netflix/Max/Disney+ video inside Watchify. Both modes are true: sync on your streamers *and* watch free/legal content on Watchify.
 
 ## How it works
 

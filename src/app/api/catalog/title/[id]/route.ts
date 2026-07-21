@@ -4,6 +4,7 @@ import {
   parseArchiveCatalogId,
 } from "@/lib/archive-org";
 import { getMovie, rememberCatalogMovies } from "@/lib/movies";
+import { fetchApprovedUploadMovie } from "@/lib/server/uploads-db";
 import { fetchTmdbTitle, parseTmdbCatalogId, tmdbConfigured } from "@/lib/tmdb";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +15,18 @@ export async function GET(
 ) {
   const id = decodeURIComponent(params.id || "");
   const local = getMovie(id);
+
+  if (id.startsWith("ugc-")) {
+    const movie = await fetchApprovedUploadMovie(id);
+    if (!movie) {
+      return NextResponse.json(
+        { error: "Upload not found or not approved yet" },
+        { status: 404 }
+      );
+    }
+    rememberCatalogMovies([movie]);
+    return NextResponse.json({ movie, source: "ugc" });
+  }
 
   // Archive titles: always refresh metadata so we resolve a playable MP4 when possible.
   if (parseArchiveCatalogId(id)) {

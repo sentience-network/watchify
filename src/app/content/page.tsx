@@ -46,6 +46,12 @@ export default function ContentPage() {
               playback. Trailers for paid catalog titles are YouTube embeds only.
             </li>
             <li>
+              <strong className="text-white">Community uploads</strong> — users
+              may post legal non-licensed videos via HTTPS / YouTube links after
+              keyword + MIME/size safety checks (quarantine/reject for porn or
+              clearly illegal content). Not licensed Netflix (etc.) in-app.
+            </li>
+            <li>
               <strong className="text-white">Deep links to your services</strong> —
               curated catalog with official search/title URLs for Netflix, Max,
               Hulu, Prime, Disney+, Peacock, Paramount+, Apple TV+. With{" "}
@@ -98,8 +104,10 @@ export default function ContentPage() {
               negotiated rights packages (never scraping DRM apps).
             </li>
             <li>
-              <strong className="text-white">Originals & UGC</strong> — Watchify
-              originals plus creator uploads with DMCA notice-and-takedown.
+              <strong className="text-white">Originals & richer UGC hosting</strong>{" "}
+              — Watchify originals plus first-party binary storage with full DMCA
+              notice-and-takedown (soft launch uses link submissions + moderation
+              queue today).
             </li>
           </ul>
         </section>
@@ -119,6 +127,10 @@ export default function ContentPage() {
           Try the{" "}
           <Link href="/library" className="text-teal-soft hover:underline">
             free library
+          </Link>
+          ,{" "}
+          <Link href="/upload" className="text-teal-soft hover:underline">
+            post a legal video
           </Link>
           , connect services in{" "}
           <Link href="/settings" className="text-teal-soft hover:underline">

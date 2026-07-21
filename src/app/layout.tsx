@@ -41,10 +41,13 @@ export const metadata: Metadata = {
   other: {
     "mobile-web-app-capable": "yes",
   },
-  icons: {
-    icon: [{ url: "/icons/icon-192.svg", type: "image/svg+xml" }],
-    apple: [{ url: "/icons/icon-192.svg" }],
-  },
+    icons: {
+      icon: [
+        { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+        { url: "/icons/icon-192.svg", type: "image/svg+xml" },
+      ],
+      apple: [{ url: "/icons/icon-192.png" }],
+    },
   openGraph: {
     type: "website",
     siteName: SITE_NAME,

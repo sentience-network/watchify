@@ -124,7 +124,10 @@ export function whereToWatchUrl(title: string): string {
 }
 
 export const STREAMING_HONEST_COPY =
-  "Friends can see what you’re watching and join the party chat — they don’t need your streaming login. To watch the movie itself, each person uses their own account or a free source.";
+  "Friends can see what you’re watching and join the party chat — they don’t need your streaming login. To watch the movie itself, each person uses their own account, a Watchify Free title, or a legal community upload — never licensed Netflix (etc.) inside Watchify.";
+
+export const PRODUCT_TRUTH_COPY =
+  "Two ways to watch together: (1) sync parties on Netflix/Max/Disney+ via deep links — everyone uses their own login; (2) Watchify-hosted free/legal titles and legal community uploads with real in-app playback. We never claim licensed Netflix in-app.";
 
 export const NO_CREDENTIAL_COPY =
   "Never share your streaming passwords with Watchify or friends. Linking a service only marks that you subscribe — it does not sign into Netflix (or any other streamer) and cannot open your paid library.";

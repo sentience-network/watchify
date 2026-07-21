@@ -1,10 +1,13 @@
 /* Watchify PWA — cache shell assets only; never cache auth/API.
  * HTML navigations are network-first so deploys (e.g. spiral hero) show immediately. */
-const CACHE = "watchify-shell-v3";
+const CACHE = "watchify-shell-v4";
 const PRECACHE = [
   "/manifest.webmanifest",
   "/icons/icon-192.svg",
   "/icons/icon-512.svg",
+  "/icons/icon-192.png",
+  "/icons/icon-512.png",
+  "/offline.html",
 ];
 
 self.addEventListener("install", (event) => {
@@ -43,7 +46,9 @@ self.addEventListener("fetch", (event) => {
           }
           return res;
         })
-        .catch(() => caches.match(req))
+        .catch(() =>
+          caches.match(req).then((cached) => cached || caches.match("/offline.html"))
+        )
     );
     return;
   }
