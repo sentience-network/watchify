@@ -1021,64 +1021,12 @@ export async function goLivePartyDb(userId: string, partyId: string) {
     include: { members: true },
   });
 
-  // Low-risk: email members when Resend/SMTP is configured (no cron needed).
-  void notifyPartyMembersGoLive({
-    partyId: row.id,
-    partyName: row.name,
-    movieId: row.movieId,
-    hostName: party.host.name,
-    inviteCode: row.inviteCode || row.id,
-    memberIds: row.members.map((m) => m.userId),
-    hostId: row.hostId,
-  });
+  // Single live path — reminders.ts dedupes via SoftKv (avoids double email).
   void import("./reminders")
     .then((m) => m.dispatchPartyReminders({ partyId: row.id, forceLive: true }))
     .catch(() => undefined);
 
   return { ok: true as const, party: mapParty(row) };
-}
-
-async function notifyPartyMembersGoLive(input: {
-  partyId: string;
-  partyName: string;
-  movieId: string;
-  hostName: string;
-  inviteCode: string;
-  memberIds: string[];
-  hostId: string;
-}) {
-  try {
-    const { productEmailEnabled, partyLiveEmailContent, sendEmail } =
-      await import("../email");
-    if (!productEmailEnabled()) return;
-    const { getMovie } = await import("../movies");
-    const { absoluteUrl } = await import("../site");
-    const movie = getMovie(input.movieId);
-    const content = partyLiveEmailContent({
-      partyName: input.partyName,
-      movieTitle: movie?.title || "a title",
-      hostName: input.hostName,
-      inviteUrl: absoluteUrl(`/share/party/${input.inviteCode}`),
-    });
-    const recipients = await prisma.user.findMany({
-      where: {
-        id: { in: input.memberIds.filter((id) => id !== input.hostId) },
-        bannedAt: null,
-      },
-      select: { email: true },
-    });
-    for (const r of recipients) {
-      if (!r.email) continue;
-      await sendEmail({
-        to: r.email,
-        subject: content.subject,
-        text: content.text,
-        html: content.html,
-      });
-    }
-  } catch (err) {
-    console.error("[watchify] party live email failed", err);
-  }
 }
 
 /**
@@ -1507,6 +1455,19 @@ export async function joinPartyByInviteDb(userId: string, invite: string) {
     include: { members: true },
   });
   if (!refreshed) return { error: "Party missing after join" };
+
+  // First time room hits ≥2 people — pitch metric (rooms multi)
+  if (refreshed.members.length === 2) {
+    void import("./analytics")
+      .then((m) =>
+        m.recordEvent("party_multi", {
+          userId,
+          properties: { partyId: refreshed.id, source: "join" },
+        })
+      )
+      .catch(() => undefined);
+  }
+
   return {
     ok: true as const,
     party: mapParty(refreshed),

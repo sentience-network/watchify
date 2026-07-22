@@ -1,14 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, Suspense, useEffect, useRef, useState } from "react";
 import { PasswordInput } from "@/components/PasswordInput";
+import { clearGuestUid } from "@/components/GuestMergeBridge";
 
 function SignInForm() {
   const router = useRouter();
   const params = useSearchParams();
+  const { data: session } = useSession();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -22,6 +24,11 @@ function SignInForm() {
     facebook: false,
   });
   const callbackUrl = params.get("callbackUrl") || "/discover";
+  const fromGuest = params.get("from") === "guest";
+  const sessionIsGuest =
+    Boolean(session?.user?.isGuest) ||
+    Boolean(session?.user?.email?.endsWith("@guest.watchify.local"));
+  const linkingGuest = fromGuest && sessionIsGuest;
 
   useEffect(() => {
     fetch("/api/config")
@@ -53,6 +60,22 @@ function SignInForm() {
       setWaking(true);
     }, 4000);
     try {
+      if (linkingGuest) {
+        const mergeRes = await fetch("/api/auth/guest-convert", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mode: "link", email, password }),
+        });
+        const mergeData = await mergeRes.json();
+        if (!mergeRes.ok) {
+          window.clearTimeout(wakeTimer);
+          setLoading(false);
+          setWaking(false);
+          setError(mergeData.error || "Could not link guest session");
+          return;
+        }
+      }
+
       const res = await Promise.race([
         signIn("credentials", {
           email,
@@ -84,6 +107,12 @@ function SignInForm() {
         );
         return;
       }
+      clearGuestUid();
+      try {
+        sessionStorage.removeItem("watchify_guest_convert");
+      } catch {
+        /* ignore */
+      }
       router.push(callbackUrl);
     } catch {
       window.clearTimeout(wakeTimer);
@@ -98,7 +127,15 @@ function SignInForm() {
   return (
     <div className="mx-auto w-full max-w-md rounded-2xl border border-line bg-panel/60 p-6">
       <p className="text-xs uppercase tracking-[0.16em] text-teal">Watchify</p>
-      <h1 className="mt-2 font-display text-3xl font-bold text-white">Sign in</h1>
+      <h1 className="mt-2 font-display text-3xl font-bold text-white">
+        {linkingGuest ? "Link guest session" : "Sign in"}
+      </h1>
+      {linkingGuest ? (
+        <p className="mt-2 text-sm text-mist/80">
+          Sign in with your full account — we&apos;ll move this party membership
+          and chat history onto it.
+        </p>
+      ) : null}
       <div className="mt-3 rounded-xl border border-amber/30 bg-amber/10 px-3 py-2">
         <p className="text-xs font-medium text-amber-soft">Waking server?</p>
         <p className="mt-1 text-xs leading-relaxed text-mist/75">
@@ -201,7 +238,10 @@ function SignInForm() {
         </p>
         <p className="mt-3 text-sm text-mist">
           New here?{" "}
-          <Link href={`/auth/signup?callbackUrl=${encodeURIComponent(callbackUrl)}`} className="text-teal-soft hover:underline">
+          <Link
+            href={`/auth/signup?${linkingGuest ? "from=guest&" : ""}callbackUrl=${encodeURIComponent(callbackUrl)}`}
+            className="text-teal-soft hover:underline"
+          >
             Create an account
           </Link>
         </p>

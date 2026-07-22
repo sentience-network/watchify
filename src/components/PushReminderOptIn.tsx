@@ -45,25 +45,28 @@ export function PushReminderOptIn() {
         setStatus("Could not save push subscription");
         return;
       }
-      setStatus("Push reminders on — T−24h / T−1h / live even if the tab is closed.");
+      setStatus(
+        "Push on — “come back tonight” (~1h) + live alerts even if the tab is closed."
+      );
     } catch {
       setStatus("Push setup failed — email reminders still work if Resend/SMTP is set.");
     }
   }
 
   return (
-    <div className="mt-3 rounded-xl border border-line bg-ink/30 p-3">
-      <p className="text-xs font-medium text-white">Phone-closed reminders</p>
+    <div className="mt-3 rounded-xl border border-teal/25 bg-teal/5 p-3">
+      <p className="text-xs font-medium text-white">Come back tonight (opt-in)</p>
       <p className="mt-1 text-[11px] text-mist/70">
-        Optional web push (VAPID). Email reminders also fire when Resend/SMTP is
-        configured.
+        Web push for T−1h and live party reminders when your phone is locked.
+        Email covers the same windows when Resend/SMTP is configured. In-app
+        toasts above still respect All / Invites / Muted.
       </p>
       <button
         type="button"
         onClick={() => void enable()}
-        className="mt-2 rounded-lg bg-teal/20 px-3 py-1.5 text-[11px] font-semibold text-teal-soft"
+        className="mt-2 rounded-lg bg-teal px-3 py-1.5 text-[11px] font-semibold text-ink"
       >
-        Enable push reminders
+        Enable “come back tonight” push
       </button>
       {status ? (
         <p className="mt-2 text-[11px] text-mist/80" role="status">

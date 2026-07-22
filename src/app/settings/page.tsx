@@ -404,7 +404,9 @@ export default function SettingsPage() {
             Notifications
           </h2>
           <p className="mt-1 text-xs leading-relaxed text-mist/75">
-            In-app toasts always respect this setting. Browser alerts are
+            In-app toasts always respect this setting. Choose{" "}
+            <strong className="text-mist">Invites &amp; party reminders</strong>{" "}
+            (or All) to get “come back tonight” cues. Browser / push alerts are
             optional and never auto-prompted on sign-in.
           </p>
           <fieldset className="mt-3 space-y-2">

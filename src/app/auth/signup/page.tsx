@@ -1,14 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { PasswordInput } from "@/components/PasswordInput";
+import { clearGuestUid } from "@/components/GuestMergeBridge";
 import { track } from "@/lib/analytics-client";
 
 export default function SignUpPage() {
   const router = useRouter();
+  const { data: session } = useSession();
   const [name, setName] = useState("");
   const [handle, setHandle] = useState("");
   const [email, setEmail] = useState("");
@@ -17,20 +19,49 @@ export default function SignUpPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [callbackUrl, setCallbackUrl] = useState("/discover");
+  const [fromGuest, setFromGuest] = useState(false);
+
+  const sessionIsGuest =
+    Boolean(session?.user?.isGuest) ||
+    Boolean(session?.user?.email?.endsWith("@guest.watchify.local"));
 
   useEffect(() => {
-    setCallbackUrl(new URLSearchParams(window.location.search).get("callbackUrl") || "/discover");
+    const params = new URLSearchParams(window.location.search);
+    setCallbackUrl(params.get("callbackUrl") || "/discover");
+    setFromGuest(params.get("from") === "guest");
   }, []);
+
+  useEffect(() => {
+    if (sessionIsGuest && session?.user?.name && !name) {
+      setName(session.user.name);
+      setAgeConfirmed(true);
+    }
+  }, [sessionIsGuest, session?.user?.name, name]);
+
+  const convertingGuest = fromGuest && sessionIsGuest;
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError("");
     track("signup_started");
-    const res = await fetch("/api/auth/signup", {
+
+    const endpoint = convertingGuest ? "/api/auth/guest-convert" : "/api/auth/signup";
+    const body = convertingGuest
+      ? {
+          mode: "upgrade",
+          name,
+          handle,
+          email,
+          password,
+          ageConfirmed,
+        }
+      : { name, handle, email, password, ageConfirmed };
+
+    const res = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, handle, email, password, ageConfirmed }),
+      body: JSON.stringify(body),
     });
     const data = await res.json();
     if (!res.ok) {
@@ -55,13 +86,25 @@ export default function SignUpPage() {
       router.push(`/auth/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`);
       return;
     }
-    track("signup_completed", { newUser: true, partyTrial: true });
+    clearGuestUid();
+    try {
+      sessionStorage.removeItem("watchify_guest_convert");
+    } catch {
+      /* ignore */
+    }
+    track("signup_completed", {
+      newUser: true,
+      partyTrial: true,
+      source: convertingGuest ? "guest_upgrade" : "credentials",
+    });
     const next =
-      callbackUrl === "/discover"
-        ? "/discover?onboard=1&trial=1"
-        : callbackUrl.includes("?")
-          ? `${callbackUrl}&trial=1`
-          : `${callbackUrl}?trial=1`;
+      convertingGuest && callbackUrl.startsWith("/parties")
+        ? callbackUrl
+        : callbackUrl === "/discover"
+          ? "/discover?onboard=1&trial=1"
+          : callbackUrl.includes("?")
+            ? `${callbackUrl}&trial=1`
+            : `${callbackUrl}?trial=1`;
     router.push(next);
   }
 
@@ -70,12 +113,22 @@ export default function SignUpPage() {
       <div className="mx-auto w-full max-w-md rounded-2xl border border-line bg-panel/60 p-6">
         <p className="text-xs uppercase tracking-[0.16em] text-teal">Watchify</p>
         <h1 className="mt-2 font-display text-3xl font-bold text-white">
-          Create account
+          {convertingGuest ? "Save your guest session" : "Create account"}
         </h1>
         <p className="mt-2 text-sm text-mist/80">
-          Includes <strong className="text-teal-soft">30 days of Party</strong>{" "}
-          free — host live rooms, face video, and Party cosmetics. Then Free
-          (with one free host credit) unless you upgrade.
+          {convertingGuest ? (
+            <>
+              Keep the party you just joined, your display name, and Ready
+              history — then unlock{" "}
+              <strong className="text-teal-soft">30 days of Party</strong>.
+            </>
+          ) : (
+            <>
+              Includes <strong className="text-teal-soft">30 days of Party</strong>{" "}
+              free — host live rooms, face video, and Party cosmetics. Then Free
+              (with one free host credit) unless you upgrade.
+            </>
+          )}
         </p>
         <form onSubmit={onSubmit} className="mt-6 space-y-3">
           <input
@@ -139,13 +192,23 @@ export default function SignUpPage() {
             disabled={loading || !ageConfirmed}
             className="w-full rounded-xl bg-teal px-4 py-3 text-sm font-semibold text-ink hover:bg-teal-soft disabled:opacity-60"
           >
-            {loading ? "Creating…" : "Sign up"}
+            {loading
+              ? convertingGuest
+                ? "Saving…"
+                : "Creating…"
+              : convertingGuest
+                ? "Save account & keep party"
+                : "Sign up"}
           </button>
         </form>
         <p className="mt-6 text-sm text-mist">
           Already have an account?{" "}
-          <Link href={`/auth/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`} className="text-teal-soft hover:underline">
+          <Link
+            href={`/auth/signin?from=${convertingGuest ? "guest" : ""}&callbackUrl=${encodeURIComponent(callbackUrl)}`}
+            className="text-teal-soft hover:underline"
+          >
             Sign in
+            {convertingGuest ? " to link this guest session" : ""}
           </Link>
         </p>
       </div>

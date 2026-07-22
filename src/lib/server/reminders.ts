@@ -30,6 +30,20 @@ async function markSent(
   await softKvSet(dispatchKey(partyId, kind, userId), { at: Date.now() }, 14 * 86_400_000);
 }
 
+function formatWhenLocal(startsAt: Date | null | undefined) {
+  if (!startsAt) return "tonight";
+  try {
+    return startsAt.toLocaleString("en-US", {
+      weekday: "short",
+      hour: "numeric",
+      minute: "2-digit",
+      timeZoneName: "short",
+    });
+  } catch {
+    return startsAt.toLocaleString();
+  }
+}
+
 function reminderEmail(input: {
   kind: ReminderKind;
   partyName: string;
@@ -39,21 +53,25 @@ function reminderEmail(input: {
 }) {
   if (input.kind === "live") {
     return {
-      subject: `Live now: ${input.partyName}`,
-      text: `${input.partyName} (${input.movieTitle}) is live on Watchify.\n\nJoin: ${input.inviteUrl}\n`,
-      html: `<p><strong>${input.partyName}</strong> (${input.movieTitle}) is live.</p><p><a href="${input.inviteUrl}">Join the party</a></p>`,
+      subject: `Come back — ${input.partyName} is live`,
+      text: `${input.partyName} (${input.movieTitle}) is live on Watchify right now.\n\nJoin: ${input.inviteUrl}\n`,
+      html: `<p><strong>Come back tonight</strong> — <strong>${input.partyName}</strong> (${input.movieTitle}) is live.</p><p><a href="${input.inviteUrl}">Join the party</a></p>`,
     };
   }
-  const when =
-    input.kind === "t24h"
-      ? "tomorrow"
-      : input.startsAt
-        ? `in about an hour (${input.startsAt.toLocaleString()})`
-        : "in about an hour";
+  if (input.kind === "t24h") {
+    const when = formatWhenLocal(input.startsAt);
+    return {
+      subject: `Tomorrow: ${input.partyName}`,
+      text: `Come back tomorrow — “${input.partyName}” for ${input.movieTitle} starts ${when}.\n\nOpen the room: ${input.inviteUrl}\n`,
+      html: `<p><strong>Come back tomorrow</strong> — <strong>${input.partyName}</strong> for ${input.movieTitle} starts ${when}.</p><p><a href="${input.inviteUrl}">Open the room</a></p><p style="color:#888;font-size:12px">Server reminder — works even if Watchify is closed.</p>`,
+    };
+  }
+  // t1h
+  const when = formatWhenLocal(input.startsAt);
   return {
-    subject: `Reminder: ${input.partyName} ${when}`,
-    text: `Heads up — “${input.partyName}” for ${input.movieTitle} starts ${when}.\n\nOpen the room: ${input.inviteUrl}\n\n(This email fires even if the Watchify tab is closed.)`,
-    html: `<p>Heads up — <strong>${input.partyName}</strong> for ${input.movieTitle} starts ${when}.</p><p><a href="${input.inviteUrl}">Open the room</a></p><p style="color:#888;font-size:12px">Sent server-side so you still get it with the phone closed.</p>`,
+    subject: `Come back tonight — ${input.partyName} in ~1 hour`,
+    text: `Come back tonight — “${input.partyName}” for ${input.movieTitle} starts around ${when}.\n\nOpen the room: ${input.inviteUrl}\n\n(This email fires even if the Watchify tab is closed.)`,
+    html: `<p><strong>Come back tonight</strong> — <strong>${input.partyName}</strong> for ${input.movieTitle} starts around ${when}.</p><p><a href="${input.inviteUrl}">Open the room</a></p><p style="color:#888;font-size:12px">Sent server-side so you still get it with the phone closed.</p>`,
   };
 }
 
@@ -72,6 +90,7 @@ async function notifyMember(input: {
   }
 
   const inviteUrl = absoluteUrl(`/share/party/${input.inviteCode}`);
+  const partyPath = `/parties/${input.partyId}`;
   const content = reminderEmail({
     kind: input.kind,
     partyName: input.partyName,
@@ -94,14 +113,12 @@ async function notifyMember(input: {
   const push = await sendWebPushToUser(input.userId, {
     title: content.subject,
     body: `${input.movieTitle} · Watchify`,
-    url: `/parties/${input.partyId}`,
+    url: inviteUrl.includes("/share/") ? `/share/party/${input.inviteCode}` : partyPath,
   });
 
   if (emailed || push.sent > 0) {
     await markSent(input.partyId, input.kind, input.userId);
   } else if (!productEmailEnabled() && push.skipped === "vapid_unset") {
-    // Dev/console: still mark so we don't spam logs every tick; operators see one console email path via sendEmail fallback when ethereal.
-    // Prefer marking only when ethereal/console ran — re-check with console transport for ops visibility.
     if (input.email) {
       await sendEmail({
         to: input.email,
@@ -111,6 +128,13 @@ async function notifyMember(input: {
       });
       await markSent(input.partyId, input.kind, input.userId);
     }
+  } else if (
+    // Mark when nothing can deliver (no email product + no push) so we don't hammer every tick
+    !productEmailEnabled() &&
+    (push.skipped === "no_subscription" || push.skipped === "vapid_unset") &&
+    !input.email
+  ) {
+    await markSent(input.partyId, input.kind, input.userId);
   }
 
   return { email: emailed, push: push.sent > 0, skipped: false };
@@ -134,7 +158,8 @@ export async function dispatchPartyReminders(opts?: {
       members: true,
       host: { select: { id: true, email: true, name: true } },
     },
-    take: 80,
+    orderBy: { startsAt: "asc" },
+    take: 200,
   });
 
   let notified = 0;
@@ -155,9 +180,10 @@ export async function dispatchPartyReminders(opts?: {
       kinds = ["live"];
     } else if (party.startsAt) {
       const msLeft = party.startsAt.getTime() - now;
-      if (msLeft > 23 * 60 * 60 * 1000 && msLeft <= 25 * 60 * 60 * 1000) {
+      // Wider windows so opportunistic ticks / free external cron don't miss
+      if (msLeft > 20 * 60 * 60 * 1000 && msLeft <= 26 * 60 * 60 * 1000) {
         kinds = ["t24h"];
-      } else if (msLeft > 0 && msLeft <= 70 * 60 * 1000) {
+      } else if (msLeft > 0 && msLeft <= 75 * 60 * 1000) {
         kinds = ["t1h"];
       }
     }

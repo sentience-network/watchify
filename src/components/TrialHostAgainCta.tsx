@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useWatchify } from "@/lib/store";
 
 /**
- * Trial / free-host → second party conversion (post-recap + ~day-25 nudge).
+ * Trial / free-host → second party conversion (post-recap + mid-trial + day-N nudge).
  */
 export function TrialHostAgainCta({
   variant = "banner",
@@ -13,15 +13,18 @@ export function TrialHostAgainCta({
   variant?: "banner" | "inline";
 }) {
   const { state, canHostParties, openParties, currentUserId } = useWatchify();
+  const [hostedLifetime, setHostedLifetime] = useState(0);
 
-  const hostedCount = openParties.filter((p) => p.hostId === currentUserId).length;
-  const endedHint = useMemo(() => {
+  useEffect(() => {
     try {
-      return Number(localStorage.getItem("watchify_hosted_lifetime") || "0");
+      setHostedLifetime(Number(localStorage.getItem("watchify_hosted_lifetime") || "0"));
     } catch {
-      return 0;
+      setHostedLifetime(0);
     }
-  }, []);
+  }, [openParties.length]);
+
+  const openHosted = openParties.filter((p) => p.hostId === currentUserId).length;
+  const hostedCount = Math.max(openHosted, hostedLifetime);
 
   const onTrial =
     state.plan === "party" &&
@@ -37,30 +40,44 @@ export function TrialHostAgainCta({
   const freeCredit =
     state.plan !== "party" && (state.freeHostsRemaining ?? 0) > 0;
 
-  const day25 =
-    onTrial && daysLeft != null && daysLeft <= 5 && daysLeft >= 0;
+  const dayN =
+    onTrial && daysLeft != null && daysLeft <= 7 && daysLeft >= 0;
   const postFirst =
-    canHostParties && (hostedCount >= 1 || endedHint >= 1) && (onTrial || freeCredit);
+    canHostParties && hostedCount >= 1 && (onTrial || freeCredit);
+  const midTrialNudge =
+    onTrial && hostedCount >= 1 && daysLeft != null && daysLeft <= 23 && daysLeft > 7;
 
-  if (!day25 && !postFirst && !freeCredit) return null;
+  // Free credit alone before first host — only show after they've hosted once
+  // or when trial is ending / post-first.
+  if (!dayN && !postFirst && !midTrialNudge) return null;
+  // Avoid noisy free-credit banner for never-hosted users (HostOnboarding covers that)
+  if (freeCredit && !onTrial && hostedCount < 1) return null;
 
   const className =
     variant === "inline"
       ? "mt-3 rounded-xl border border-teal/35 bg-teal/10 p-3"
       : "mb-4 rounded-xl border border-teal/35 bg-teal/10 p-4";
 
+  const headline = dayN
+    ? "Trial wrapping up"
+    : midTrialNudge
+      ? "Second host this week"
+      : "Host again tonight";
+
+  const body = dayN
+    ? `About ${daysLeft} day(s) left on Party trial — host one more room while it's unlocked.`
+    : midTrialNudge
+      ? "You already hosted once. Lock a second party this week (or same time next week) while trial is live."
+      : freeCredit && !onTrial
+        ? "You still have a free host credit — start another party before the night ends."
+        : "Great first party. Host again within 7 days while trial / credit is live.";
+
   return (
     <aside className={className} aria-label="Host again">
       <p className="text-xs font-semibold uppercase tracking-wider text-teal">
-        {day25 ? "Trial wrapping up" : "Host again"}
+        {headline}
       </p>
-      <p className="mt-1 text-sm text-white">
-        {day25
-          ? `About ${daysLeft} day(s) left on Party trial — lock a second room while hosting is unlocked.`
-          : freeCredit && !onTrial
-            ? "You still have a free host credit — start another party before it expires with the night."
-            : "Great first party. Host again this week while trial / credit is live."}
-      </p>
+      <p className="mt-1 text-sm text-white">{body}</p>
       <div className="mt-3 flex flex-wrap gap-2">
         <Link
           href="/parties?create=1"
@@ -69,10 +86,10 @@ export function TrialHostAgainCta({
           Host another party
         </Link>
         <Link
-          href="/pricing"
+          href="/parties?create=1&club=1"
           className="rounded-lg border border-line px-3 py-1.5 text-xs text-mist hover:text-white"
         >
-          Keep Party
+          Same time next week
         </Link>
       </div>
     </aside>

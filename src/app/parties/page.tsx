@@ -126,15 +126,17 @@ function PartiesInner() {
     });
   }, [search, ready, currentUserId, joinPartyByInvite, router]);
 
-  // Prefill from ?movieId= / ?create=1&movieId= / ?syncMode=
+  // Prefill from ?movieId= / ?create=1&movieId= / ?syncMode= / ?club=1
   useEffect(() => {
     if (prefillsHandled.current) return;
     const mid = search.get("movieId");
     const mode = search.get("syncMode") as WatchParty["syncMode"] | null;
     const create = search.get("create");
-    if (!mid && !create && !mode) return;
+    const club = search.get("club");
+    if (!mid && !create && !mode && !club) return;
     prefillsHandled.current = true;
-    if (create === "1" || mid) setCreateExpanded(true);
+    if (create === "1" || mid || club === "1") setCreateExpanded(true);
+    if (club === "1") setRecurring(true);
     if (mode === "own_account" || mode === "watchify_free" || mode === "social") {
       setSyncMode(mode);
     }

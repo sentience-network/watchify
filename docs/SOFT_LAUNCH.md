@@ -1,7 +1,8 @@
 # Watchify soft launch
 
 > **Ops / Render / DNS / TURN / Neon:** see [`SOFT_LAUNCH_OPS.md`](./SOFT_LAUNCH_OPS.md)  
-> **Friend-facing one-pager:** see [`TESTER_ONE_PAGER.md`](./TESTER_ONE_PAGER.md)
+> **Friend-facing one-pager:** see [`TESTER_ONE_PAGER.md`](./TESTER_ONE_PAGER.md)  
+> **This week party-night checklist:** see [`THIS_WEEK_OPS.md`](./THIS_WEEK_OPS.md)
 
 ## Production deployment
 

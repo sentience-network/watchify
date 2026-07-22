@@ -17,16 +17,25 @@ export function FunnelReturnTracker() {
       if (prev && prev !== today) {
         const prevMs = Date.parse(`${prev}T12:00:00Z`);
         const dayGap = Math.round((Date.now() - prevMs) / 86_400_000);
-        if (dayGap >= 1) {
-          track("d1_return", { day: dayGap, source: "app_shell" });
+        // Strict D1: first return the calendar day after last visit
+        if (dayGap === 1) {
+          track("d1_return", { day: 1, source: "app_shell" });
+        } else if (dayGap > 1) {
+          track("return_visit", { day: dayGap, source: "app_shell" });
         }
       }
       localStorage.setItem(key, today);
     } catch {
       /* ignore */
     }
-    // Best-effort server reminders while any signed-in user is online
-    void fetch("/api/cron/reminders").catch(() => undefined);
+
+    const tick = () => {
+      void fetch("/api/cron/reminders").catch(() => undefined);
+    };
+    tick();
+    // Keep reminders reliable without paid Render cron while anyone is signed in
+    const id = window.setInterval(tick, 10 * 60 * 1000);
+    return () => window.clearInterval(id);
   }, [session?.user?.id]);
 
   return null;

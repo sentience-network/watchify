@@ -689,6 +689,15 @@ export function WatchifyProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ ...input, syncMode }),
       });
       if (!result.ok) return { ok: false, error: result.error };
+      try {
+        const prev = Number(localStorage.getItem("watchify_hosted_lifetime") || "0");
+        localStorage.setItem(
+          "watchify_hosted_lifetime",
+          String(Number.isFinite(prev) ? prev + 1 : 1)
+        );
+      } catch {
+        /* ignore */
+      }
       await refreshFromServer();
       return { ok: true, value: result.data.party };
     },

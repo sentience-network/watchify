@@ -5,6 +5,7 @@ import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { track } from "@/lib/analytics-client";
+import { rememberGuestUid } from "@/components/GuestMergeBridge";
 
 /**
  * Party share link → display name → signed guest session (chat / Ready / face video).
@@ -66,6 +67,7 @@ export function GuestJoinForm({
         return;
       }
       track("guest_joined", { partyId: data.partyId, source: "share" });
+      if (data.userId) rememberGuestUid(data.userId);
       try {
         sessionStorage.setItem("watchify_guest_convert", "1");
       } catch {

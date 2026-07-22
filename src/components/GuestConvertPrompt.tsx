@@ -4,25 +4,20 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 
-/** After guest join — prompt convert to a real account. */
+/** After guest join — prompt convert to a real account (merge preserves party history). */
 export function GuestConvertPrompt() {
   const { data: session } = useSession();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    if (!session?.user?.isGuest && !session?.user?.email?.endsWith("@guest.watchify.local")) {
+    const isGuest =
+      Boolean(session?.user?.isGuest) ||
+      Boolean(session?.user?.email?.endsWith("@guest.watchify.local"));
+    if (!isGuest) {
       setOpen(false);
       return;
     }
-    try {
-      if (sessionStorage.getItem("watchify_guest_convert") === "1") {
-        setOpen(true);
-      } else {
-        setOpen(true);
-      }
-    } catch {
-      setOpen(true);
-    }
+    setOpen(true);
   }, [session?.user]);
 
   if (!open || !session?.user) return null;
@@ -30,6 +25,10 @@ export function GuestConvertPrompt() {
     session.user.isGuest ||
     session.user.email?.endsWith("@guest.watchify.local");
   if (!isGuest) return null;
+
+  const callback = "/parties";
+  const signupHref = `/auth/signup?from=guest&callbackUrl=${encodeURIComponent(callback)}`;
+  const signinHref = `/auth/signin?from=guest&callbackUrl=${encodeURIComponent(callback)}`;
 
   return (
     <aside
@@ -40,15 +39,21 @@ export function GuestConvertPrompt() {
         Guest session
       </p>
       <p className="mt-1 text-sm text-white">
-        You&apos;re in the room — create a free account to keep friends, Ready
-        history, and party invites after this device clears cookies.
+        You&apos;re in the room — save a free account to keep this party,
+        chat, and Ready history on the same profile (not a new empty account).
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
         <Link
-          href="/auth/signup?from=guest"
+          href={signupHref}
           className="rounded-lg bg-teal px-3 py-1.5 text-xs font-semibold text-ink"
         >
           Save my account
+        </Link>
+        <Link
+          href={signinHref}
+          className="rounded-lg border border-line px-3 py-1.5 text-xs text-mist hover:text-white"
+        >
+          Link existing account
         </Link>
         <button
           type="button"

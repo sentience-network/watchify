@@ -15,9 +15,9 @@
 | 0:00–0:12 | **Landing** | “Watchify is the social layer for watching together. Discord has voice — Watchify has playheads and taste across the services you already pay for.” Point at brand + headline. CTA: 30-day Party trial. |
 | 0:12–0:22 | **Sign up / signed-in Discover** | “New accounts get 30 days of Party so hosting is instant. Soft launch is live on Render.” Open Discover / For you. |
 | 0:22–0:40 | **Parties → create** | “Create a party. For paid titles, everyone opens Netflix (etc.) on their own account — Watchify syncs the room, chat, and playhead hints plus deep links. For Watchify Free titles, we actually sync playback in-app.” |
-| 0:40–0:55 | **Join / in-party** | Second browser or invite link joins. Show presence, ready/lobby, chat or reactions. “Legal own-account sync — no password sharing, no pirated streams.” |
+| 0:40–0:55 | **Guest join / in-party** | Second browser: open invite → **Join as guest** (display name only). Show presence, ready/lobby, chat or reactions. Optional: “Save my account” keeps the same party history. “Legal own-account sync — no password sharing, no pirated streams.” |
 | 0:55–1:15 | **Taste + profile** | Discover “For you · from your favorites,” optional Watch Match, then a customized profile. “The moat is the social taste graph, not another catalog.” |
-| 1:15–1:30 | **Settings / Link** | “Link = subscribe badges + deep links. Trakt imports history. We never claim to unlock Netflix playback.” Close: soft launch live; ask for [FILL $]. |
+| 1:15–1:30 | **Settings / Link** | “Link = subscribe badges + deep links. Trakt imports history. Come-back-tonight push is opt-in. We never claim to unlock Netflix playback.” Close: soft launch live; ask for [FILL $]. |
 
 **Close line:** “We’re not competing with Netflix. We’re the Discord for watching together across Netflix.”
 
@@ -29,7 +29,7 @@
 2. **Signup / trial** (20s) — 30-day Party; free users still join + follow.  
 3. **Discover / For you** (30s) — TMDB metadata ≠ hosted video; favorites → recommendations.  
 4. **Create party** (40s) — Pick title; explain Free vs own-account modes on the lobby.  
-5. **Guest join** (40s) — Invite link; lobby ready; in-party chat/presence. Prefer a Free title for real synced play/pause.  
+5. **Guest join** (40s) — Invite link → Join as guest (no signup) → lobby ready → chat/presence; mention convert keeps membership. Prefer a Free title for real synced play/pause.  
 6. **Profile customize** (20s) — Cosmetics / identity as shareable social surface.  
 7. **Settings → Link + Trakt** (20s) — Badges, deep links, history import; honesty about limits.  
 8. **Watch Match** (optional 15s) — Overlap picks with a friend.  

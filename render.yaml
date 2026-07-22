@@ -74,6 +74,17 @@ services:
         sync: false
       - key: GITHUB_SECRET
         sync: false
+      # Already set in Render dashboard — do not regenerate
+      - key: CRON_SECRET
+        sync: false
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_SUBJECT
+        sync: false
+      - key: NEXT_PUBLIC_VAPID_PUBLIC_KEY
+        sync: false
 
   - type: web
     name: watchify-realtime
