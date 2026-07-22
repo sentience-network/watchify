@@ -17,6 +17,25 @@
   --background: var(--ink);
   --foreground: #eef5f1;
   --profile-accent: var(--teal);
+  /* Mobile chrome stack: NowWatchingBar → bottom tabs → banners */
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+  --now-bar-h: 3.75rem;
+  --mobile-tab-h: 3.5rem;
+  --chrome-above-now: calc(var(--now-bar-h) + var(--safe-bottom));
+  --chrome-stack: calc(var(--now-bar-h) + var(--mobile-tab-h) + var(--safe-bottom));
+  --banner-offset: calc(var(--chrome-stack) + 0.75rem);
+  --tap-min: 2.75rem;
+}
+
+@media (min-width: 768px) {
+  :root {
+    --mobile-tab-h: 0px;
+    --now-bar-h: 4.25rem;
+    --chrome-above-now: calc(var(--now-bar-h) + var(--safe-bottom));
+    --chrome-stack: calc(var(--now-bar-h) + var(--safe-bottom));
+    --banner-offset: calc(var(--chrome-stack) + 0.75rem);
+  }
 }
 
 * {
@@ -26,6 +45,7 @@
 html,
 body {
   min-height: 100%;
+  overflow-x: hidden;
   padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) 0
     env(safe-area-inset-left, 0);
 }
@@ -997,5 +1017,18 @@ textarea::placeholder {
   .hero-spiral__card,
   .hero-spiral__img {
     animation: none !important;
+  }
+}
+
+/* Phone party focus room — keep player usable above chrome */
+.party-theater {
+  padding-bottom: 0.5rem;
+}
+
+@media (max-width: 767px) {
+  .party-theater-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
   }
 }

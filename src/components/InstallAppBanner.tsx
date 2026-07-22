@@ -92,7 +92,7 @@ export function InstallAppBanner() {
   }
 
   return (
-    <div className="fixed bottom-[148px] left-1/2 z-50 w-[min(420px,92vw)] -translate-x-1/2 rounded-2xl border border-teal/40 bg-ink/95 p-3 shadow-xl backdrop-blur md:bottom-28">
+    <div className="fixed bottom-[var(--banner-offset)] left-1/2 z-50 w-[min(420px,92vw)] -translate-x-1/2 rounded-2xl border border-teal/40 bg-ink/95 p-3 shadow-xl backdrop-blur">
       <p className="font-display text-sm font-semibold text-white">
         {iosGuide ? "Add Watchify to Home Screen" : "Install Watchify"}
       </p>
@@ -122,7 +122,7 @@ export function InstallAppBanner() {
           <button
             type="button"
             onClick={() => void install()}
-            className="rounded-lg bg-teal px-3 py-1.5 text-xs font-semibold text-ink"
+            className="min-h-[var(--tap-min)] rounded-lg bg-teal px-4 py-2 text-xs font-semibold text-ink"
           >
             Install
           </button>
@@ -130,7 +130,7 @@ export function InstallAppBanner() {
         <button
           type="button"
           onClick={dismiss}
-          className="rounded-lg px-3 py-1.5 text-xs text-mist hover:text-white"
+          className="min-h-[var(--tap-min)] rounded-lg px-4 py-2 text-xs text-mist hover:text-white"
         >
           {iosGuide ? "Got it" : "Not now"}
         </button>

@@ -47,7 +47,7 @@ export function ConfusingFeedback() {
   }
 
   return (
-    <div className="pointer-events-none fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom,0px))] right-3 z-[55] md:bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))]">
+    <div className="pointer-events-none fixed bottom-[calc(var(--chrome-stack)+0.75rem)] right-3 z-[55] md:bottom-[calc(var(--chrome-stack)+0.5rem)]">
       {!open ? (
         <button
           type="button"

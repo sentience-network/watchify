@@ -17,7 +17,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen">
       <Sidebar />
-      <main className="flex-1 overflow-x-hidden px-4 pb-[calc(9rem+env(safe-area-inset-bottom,0px))] pt-[max(1.5rem,env(safe-area-inset-top,0px))] md:px-8 md:pb-[calc(7rem+env(safe-area-inset-bottom,0px))] md:pt-8">
+      <main className="flex-1 overflow-x-hidden px-4 pb-[calc(var(--chrome-stack)+1.25rem)] pt-[max(1.5rem,env(safe-area-inset-top,0px))] md:px-8 md:pb-[calc(var(--chrome-stack)+1.5rem)] md:pt-8">
         <SoftLaunchChrome />
         <FunnelReturnTracker />
         <GuestMergeBridge />

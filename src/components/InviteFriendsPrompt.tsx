@@ -50,7 +50,7 @@ export function InviteFriendsPrompt({
 
   return (
     <div
-      className="fixed bottom-20 left-1/2 z-40 w-[min(420px,92vw)] -translate-x-1/2 rounded-2xl border border-teal/40 bg-ink/95 p-4 shadow-xl backdrop-blur md:bottom-8"
+      className="fixed bottom-[var(--banner-offset)] left-1/2 z-40 w-[min(420px,92vw)] -translate-x-1/2 rounded-2xl border border-teal/40 bg-ink/95 p-4 shadow-xl backdrop-blur md:bottom-8"
       role="dialog"
       aria-label="Invite friends"
     >

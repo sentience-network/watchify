@@ -13,7 +13,14 @@ Logins for the Party tester cohort live in the gitignored file `friend-tester-lo
 4. **Party plan to host** — Hosting live rooms needs the Party plan (or your one free host credit). Soft-launch **tester01–tester20** already have permanent Party. **New signups** get a **30-day Party trial** automatically. Free users can **join** parties (including **face video cam/mic**) and use Watchify Free titles.
 5. **Watchify Free = real sync** — Public-domain / allowed free titles can actually play/pause/seek together in-app. Community uploads (legal links) appear after a safety check.
 6. **Instagram = share, not login** — Share menus copy a link for Stories/DMs. Instagram is not an account login for Watchify (unless Meta OAuth is enabled later).
-7. **Mobile app = PWA** — On phone: open the site in Chrome/Safari → **Install** / **Add to Home Screen**. Native App Store / Play builds are a later phase.
+7. **Mobile app = PWA** — On phone: open the site in Chrome/Safari → **Install** / **Add to Home Screen** (details below). Native App Store / Play builds are a later phase — see [MOBILE.md](./MOBILE.md).
+
+### Add to Home Screen
+
+- **iPhone/iPad (Safari):** Share → **Add to Home Screen** → Add. Open the Watchify icon (fullscreen app).
+- **Android (Chrome):** Install banner, or ⋮ → **Install app** / **Add to Home screen**.
+
+Settings → **Mobile app (PWA)** repeats this in-product.
 
 ## How to find friends
 

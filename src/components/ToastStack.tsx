@@ -54,7 +54,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <Ctx.Provider value={value}>
       {children}
       <div
-        className="pointer-events-none fixed bottom-[calc(10rem+env(safe-area-inset-bottom,0px))] left-1/2 z-[60] flex w-[min(420px,92vw)] -translate-x-1/2 flex-col gap-2 md:bottom-32"
+        className="pointer-events-none fixed bottom-[calc(var(--chrome-stack)+2.5rem)] left-1/2 z-[60] flex w-[min(420px,92vw)] -translate-x-1/2 flex-col gap-2 md:bottom-32"
         aria-live="polite"
       >
         {toasts.map((t) => (

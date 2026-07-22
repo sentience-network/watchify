@@ -606,7 +606,7 @@ export function PartySocialPanel({
         <div
           className={`mt-3 ${
             theater
-              ? "sticky top-0 z-20 -mx-1 rounded-lg bg-ink/95 pb-2 pt-1 backdrop-blur md:static md:bg-transparent md:pb-0 md:pt-0"
+              ? "sticky top-[env(safe-area-inset-top,0px)] z-20 -mx-1 rounded-lg bg-ink/95 pb-2 pt-1 backdrop-blur md:static md:bg-transparent md:pb-0 md:pt-0"
               : ""
           }`}
         >

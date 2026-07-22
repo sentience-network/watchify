@@ -175,6 +175,10 @@ export default async function LandingPage() {
               Soft launch tip: the free Render host may sleep — first load can
               take ~30–60s. If Sign in hangs, wait and retry.
             </p>
+            <p className="mt-3 max-w-md text-[11px] leading-relaxed text-teal-soft/70">
+              On phone: Safari Share → Add to Home Screen, or Chrome → Install
+              app. That&apos;s the soft-launch mobile app (PWA).
+            </p>
           </div>
         </div>
       </header>

@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" fill="none">
-  <rect width="192" height="192" rx="40" fill="#0a1210"/>
-  <rect x="16" y="16" width="160" height="160" rx="32" fill="#0f1f1c"/>
-  <circle cx="96" cy="96" r="48" fill="#0d9488"/>
-  <path d="M82 72v48l42-24-42-24z" fill="#0a1210"/>
-  <text x="96" y="168" text-anchor="middle" fill="#5eead4" font-family="system-ui,sans-serif" font-size="18" font-weight="700">W</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192" fill="none">
+  <rect width="192" height="192" rx="42" fill="#0a1210"/>
+  <rect x="15" y="15" width="162" height="162" rx="31" fill="#0f1f1c"/>
+  <circle cx="96" cy="92.16" r="51.84" fill="#14b8a6"/>
+  <path d="M84.336 63.647999999999996 v57.02400000000001 l53.6544 -28.512000000000004 z" fill="#0a1210"/>
+  <text x="96" y="183.75" text-anchor="middle" fill="#5eead4" font-family="system-ui,Segoe UI,sans-serif" font-size="18" font-weight="700">W</text>
 </svg>

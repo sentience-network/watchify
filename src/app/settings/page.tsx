@@ -352,6 +352,31 @@ export default function SettingsPage() {
 
         <section className="mb-8 rounded-2xl border border-line bg-panel/50 p-5">
           <h2 className="font-display text-lg font-semibold text-white">
+            Mobile app (PWA)
+          </h2>
+          <p className="mt-2 text-sm text-mist">
+            Soft launch ships as an installable web app — not App Store / Play
+            yet. Add to Home Screen for one-tap parties and offline shell.
+          </p>
+          <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-mist/85">
+            <li>
+              <span className="text-white">iPhone / iPad (Safari):</span> Share →
+              Add to Home Screen → Add.
+            </li>
+            <li>
+              <span className="text-white">Android (Chrome):</span> menu (⋮) →
+              Install app / Add to Home screen — or tap the Install banner when
+              it appears.
+            </li>
+          </ol>
+          <p className="mt-3 text-xs text-mist/60">
+            Open the home-screen icon (standalone). Native store wrappers are
+            documented in docs/MOBILE.md when we are ready.
+          </p>
+        </section>
+
+        <section className="mb-8 rounded-2xl border border-line bg-panel/50 p-5">
+          <h2 className="font-display text-lg font-semibold text-white">
             Privacy
           </h2>
           <label className="mt-3 flex items-center gap-2 text-sm text-mist">

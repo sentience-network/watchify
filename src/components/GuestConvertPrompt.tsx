@@ -32,7 +32,7 @@ export function GuestConvertPrompt() {
 
   return (
     <aside
-      className="fixed bottom-[4.5rem] left-3 right-3 z-50 mx-auto max-w-lg rounded-2xl border border-amber/40 bg-panel/95 p-4 shadow-2xl backdrop-blur md:left-auto md:right-6"
+      className="fixed bottom-[calc(var(--banner-offset)+6.5rem)] left-3 right-3 z-50 mx-auto max-w-lg rounded-2xl border border-amber/40 bg-panel/95 p-4 shadow-2xl backdrop-blur md:bottom-[var(--banner-offset)] md:left-auto md:right-6"
       role="status"
     >
       <p className="text-xs font-semibold uppercase tracking-wider text-amber-soft">
@@ -45,13 +45,13 @@ export function GuestConvertPrompt() {
       <div className="mt-3 flex flex-wrap gap-2">
         <Link
           href={signupHref}
-          className="rounded-lg bg-teal px-3 py-1.5 text-xs font-semibold text-ink"
+          className="inline-flex min-h-[var(--tap-min)] items-center rounded-lg bg-teal px-4 py-2 text-xs font-semibold text-ink"
         >
           Save my account
         </Link>
         <Link
           href={signinHref}
-          className="rounded-lg border border-line px-3 py-1.5 text-xs text-mist hover:text-white"
+          className="inline-flex min-h-[var(--tap-min)] items-center rounded-lg border border-line px-4 py-2 text-xs text-mist hover:text-white"
         >
           Link existing account
         </Link>
@@ -65,7 +65,7 @@ export function GuestConvertPrompt() {
             }
             setOpen(false);
           }}
-          className="rounded-lg border border-line px-3 py-1.5 text-xs text-mist"
+          className="min-h-[var(--tap-min)] rounded-lg border border-line px-4 py-2 text-xs text-mist"
         >
           Keep watching as guest
         </button>

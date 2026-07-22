@@ -10,6 +10,9 @@ import { useWatchify } from "@/lib/store";
 import { isFreePlayable } from "@/lib/free-content";
 import { signalFinishedBeat } from "@/components/FinishedSocialBeat";
 
+const tap =
+  "inline-flex min-h-[var(--tap-min)] items-center justify-center rounded-lg px-3 py-2 text-xs font-medium";
+
 export function NowWatchingBar() {
   const {
     state,
@@ -33,10 +36,10 @@ export function NowWatchingBar() {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-line bg-ink pb-[env(safe-area-inset-bottom,0px)] shadow-bar">
-      <div className="mx-auto flex max-w-7xl items-center gap-3 px-3 py-2.5 md:px-6">
+      <div className="mx-auto flex min-h-[var(--now-bar-h)] max-w-7xl items-center gap-2 px-3 py-2 md:gap-3 md:px-6 md:py-2.5">
         {movie ? (
           <>
-            <div className="relative h-12 w-8 shrink-0 overflow-hidden rounded md:h-14 md:w-10">
+            <div className="relative h-11 w-7 shrink-0 overflow-hidden rounded md:h-14 md:w-10">
               <SafePosterImage movie={movie} alt="" size="w342" sizes="40px" />
             </div>
             <div className="min-w-0 flex-1">
@@ -47,20 +50,21 @@ export function NowWatchingBar() {
               <p className="truncate font-display text-sm font-semibold text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.65)] md:text-base">
                 {movie.title}
               </p>
-              <p className="truncate text-xs text-mist">
+              <p className="hidden truncate text-xs text-mist sm:block">
                 {movie.year} · {movie.genres.slice(0, 2).join(" · ")}
               </p>
               {state.currentlyWatchingServiceId && (
-                <div className="mt-0.5">
+                <div className="mt-0.5 hidden sm:block">
                   <ServiceBadge serviceId={state.currentlyWatchingServiceId} />
                 </div>
               )}
             </div>
-            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+            {/* Horizontal scroll on narrow screens — avoids wrap overflow covering CTAs */}
+            <div className="scrollbar-thin -mr-1 flex max-w-[58%] shrink-0 items-center gap-1.5 overflow-x-auto overscroll-x-contain pb-0.5 sm:max-w-none sm:flex-wrap sm:overflow-visible md:gap-2">
               {(isFreePlayable(movie) || movie.trailerYoutubeId) && (
                 <Link
                   href={`/watch/${movie.id}`}
-                  className="rounded-lg border border-teal/50 bg-teal/10 px-2.5 py-2 text-[11px] font-medium text-teal-soft hover:bg-teal/20"
+                  className={`${tap} shrink-0 border border-teal/50 bg-teal/10 text-teal-soft hover:bg-teal/20`}
                 >
                   {isFreePlayable(movie) ? "Play" : "Trailer"}
                 </Link>
@@ -68,10 +72,10 @@ export function NowWatchingBar() {
               <button
                 type="button"
                 onClick={() => setWatchingPublic(!state.watchingPublic)}
-                className="rounded-lg border border-line bg-white/5 px-2.5 py-2 text-[11px] text-white/90 hover:bg-white/10 hover:text-white"
+                className={`${tap} shrink-0 border border-line bg-white/5 text-white/90 hover:bg-white/10 hover:text-white`}
                 title="Toggle whether strangers can see what you're watching"
               >
-                {state.watchingPublic ? "Hide" : "Go public"}
+                {state.watchingPublic ? "Hide" : "Public"}
               </button>
               <ShareMenu
                 compact
@@ -86,9 +90,9 @@ export function NowWatchingBar() {
                 href={`/parties?create=1&movieId=${encodeURIComponent(movie.id)}&syncMode=${
                   isFreePlayable(movie) ? "watchify_free" : "own_account"
                 }`}
-                className="rounded-lg bg-teal px-2.5 py-2 text-[11px] font-semibold text-ink hover:bg-teal-soft"
+                className={`${tap} shrink-0 bg-teal font-semibold text-ink hover:bg-teal-soft`}
               >
-                Create party
+                Party
               </Link>
               <button
                 type="button"
@@ -96,39 +100,39 @@ export function NowWatchingBar() {
                   signalFinishedBeat(movie.id);
                   markFinished(movie.id);
                 }}
-                className="rounded-lg bg-amber px-3 py-2 text-xs font-semibold text-ink hover:bg-amber-soft"
+                className={`${tap} shrink-0 bg-amber font-semibold text-ink hover:bg-amber-soft`}
               >
-                Finished
+                Done
               </button>
               <button
                 type="button"
                 onClick={() => setCurrentlyWatching(null)}
-                className="rounded-lg border border-line bg-white/5 px-3 py-2 text-xs text-white/90 hover:bg-white/10 hover:text-white"
+                className={`${tap} shrink-0 border border-line bg-white/5 text-white/90 hover:bg-white/10 hover:text-white`}
               >
                 Clear
               </button>
             </div>
           </>
         ) : (
-          <div className="flex w-full items-center justify-between gap-3 py-1">
-            <div>
+          <div className="flex w-full items-center justify-between gap-3 py-0.5">
+            <div className="min-w-0">
               <p className="font-display text-sm font-semibold text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.65)]">
                 Nothing queued
               </p>
-              <p className="text-xs text-mist">
-                Pick a title, go public, invite friends — that&apos;s the flywheel.
+              <p className="truncate text-xs text-mist">
+                Pick a title, go public, invite friends.
               </p>
             </div>
             <div className="flex shrink-0 gap-2">
               <Link
                 href="/discover"
-                className="rounded-lg bg-teal px-3 py-2 text-xs font-semibold text-ink"
+                className={`${tap} bg-teal font-semibold text-ink`}
               >
-                Pick a title
+                Pick
               </Link>
               <Link
                 href="/parties"
-                className="rounded-lg border border-teal/40 bg-teal/15 px-3 py-2 text-xs font-medium text-teal-soft"
+                className={`${tap} border border-teal/40 bg-teal/15 text-teal-soft`}
               >
                 Parties
               </Link>

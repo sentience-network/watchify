@@ -135,7 +135,7 @@ export function ShareMenu({ url, title, text, compact, onBeforeShare, onShared }
         }}
         className={
           compact
-            ? "rounded-md border border-line bg-white/5 px-2.5 py-1 text-xs text-white/90 hover:border-teal/50 hover:bg-white/10 hover:text-teal-soft"
+            ? "inline-flex min-h-[var(--tap-min)] items-center rounded-lg border border-line bg-white/5 px-3 py-2 text-xs text-white/90 hover:border-teal/50 hover:bg-white/10 hover:text-teal-soft"
             : "rounded-lg border border-line bg-panel/70 px-3 py-2 text-sm text-mist transition hover:border-teal/40 hover:text-teal-soft"
         }
       >

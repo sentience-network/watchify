@@ -117,7 +117,7 @@ export function GuestJoinForm({
           type="button"
           disabled={busy || name.trim().length < 2 || !ageOk}
           onClick={() => void joinAsGuest()}
-          className="rounded-xl bg-teal px-5 py-3 text-sm font-semibold text-ink disabled:opacity-60"
+          className="min-h-[var(--tap-min)] rounded-xl bg-teal px-5 py-3 text-sm font-semibold text-ink disabled:opacity-60"
         >
           {busy
             ? waking
@@ -134,7 +134,7 @@ export function GuestJoinForm({
           onClick={() =>
             localStorage.setItem("watchify_pending_invite", inviteCode)
           }
-          className="rounded-xl border border-line px-4 py-3 text-sm text-mist hover:text-white"
+          className="inline-flex min-h-[var(--tap-min)] items-center rounded-xl border border-line px-4 py-3 text-sm text-mist hover:text-white"
         >
           Create account instead
         </Link>

@@ -12,6 +12,7 @@ Related: [TESTER_ONE_PAGER.md](./TESTER_ONE_PAGER.md) · [SOFT_LAUNCH.md](./SOFT
 2. **Wake Render** 5–10 minutes early (`https://watchify-web-9rx1.onrender.com` + health). Free host sleep is ~30–60s.
 3. **Confirm env (do not regenerate):** `CRON_SECRET`, `VAPID_*`, Resend/SMTP. Reminders also tick every 10m while any tester is signed in.
 4. **Host path smoke:** Free title party → invite link → guest join on a second device → chat/Ready → optional face video.
+5. **Phone install (optional but good demo):** one tester Add to Home Screen (iOS Safari Share → Add to Home Screen; Android Chrome Install). See [MOBILE.md](./MOBILE.md).
 
 ---
 

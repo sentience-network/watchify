@@ -193,7 +193,10 @@ export function Sidebar() {
         </div>
       </aside>
 
-      <nav className="fixed bottom-[72px] left-0 right-0 z-30 flex border-t border-line bg-ink px-0.5 py-2 md:hidden">
+      <nav
+        className="fixed bottom-[var(--chrome-above-now)] left-0 right-0 z-30 flex min-h-[var(--mobile-tab-h)] border-t border-line bg-ink px-0.5 md:hidden"
+        aria-label="Primary"
+      >
         {mobileLinks.map((link) => {
           const active =
             pathname === link.href || pathname.startsWith(link.href + "/");
@@ -202,7 +205,7 @@ export function Sidebar() {
             <Link
               key={link.href}
               href={link.href}
-              className={`relative flex flex-1 flex-col items-center rounded-md py-1.5 text-center text-[10px] font-medium ${
+              className={`relative flex min-h-[var(--tap-min)] flex-1 flex-col items-center justify-center rounded-md px-0.5 text-center text-[11px] font-medium ${
                 active ? "text-teal-soft" : "text-mist"
               }`}
             >
@@ -221,7 +224,7 @@ export function Sidebar() {
           <button
             type="button"
             onClick={() => setMoreOpen((o) => !o)}
-            className={`relative flex w-full flex-col items-center rounded-md py-1.5 text-center text-[10px] font-medium ${
+            className={`relative flex min-h-[var(--tap-min)] w-full flex-col items-center justify-center rounded-md px-0.5 text-center text-[11px] font-medium ${
               moreOpen || moreActive ? "text-teal-soft" : "text-mist"
             }`}
             aria-expanded={moreOpen}
