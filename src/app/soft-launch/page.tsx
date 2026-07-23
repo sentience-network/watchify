@@ -32,7 +32,8 @@ const STEPS = [
   {
     n: 5,
     title: "Face video + screen share",
-    detail: "Join video room, mute/camera toggle, Share screen with party (not paid streamers).",
+    detail:
+      "Join video room, mute/camera toggle. Desktop: Share screen with party. iPhone: expect Share options (camera / upload / TV) — Safari has no getDisplayMedia.",
     href: "/parties",
   },
   {

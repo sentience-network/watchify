@@ -1,8 +1,14 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePartyVideo } from "@/hooks/usePartyVideo";
 import { track } from "@/lib/analytics-client";
+import {
+  getScreenShareCapability,
+  SCREEN_SHARE_ALTERNATIVES,
+  type ScreenShareCapability,
+} from "@/lib/media-capabilities";
 import { useWatchify } from "@/lib/store";
 import { partyUserLabel } from "@/lib/users";
 
@@ -115,11 +121,74 @@ function VideoTile({
   );
 }
 
+function ScreenShareAlternatives({
+  capability,
+  cameraOn,
+  onEnableCamera,
+}: {
+  capability: ScreenShareCapability;
+  cameraOn: boolean;
+  onEnableCamera: () => void;
+}) {
+  return (
+    <div
+      className="mt-2 rounded-lg border border-line/80 bg-ink/50 px-3 py-2.5"
+      role="status"
+    >
+      <p className="text-[11px] font-medium text-amber-soft">
+        Screen share unavailable here
+      </p>
+      <p className="mt-1 text-[11px] leading-relaxed text-mist/80">
+        {capability.unsupportedReason ||
+          "This browser cannot capture the display."}
+      </p>
+      <ul className="mt-2 space-y-1.5 text-[11px] leading-relaxed text-mist/85">
+        {SCREEN_SHARE_ALTERNATIVES.map((alt) => (
+          <li key={alt.id}>
+            <span className="font-medium text-white">{alt.title}</span>
+            {" — "}
+            {alt.id === "camera" ? (
+              cameraOn ? (
+                <span>Camera is on — peers can see you.</span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={onEnableCamera}
+                  className="text-teal-soft underline underline-offset-2"
+                >
+                  Turn camera on
+                </button>
+              )
+            ) : "href" in alt && alt.href ? (
+              <>
+                {alt.detail}{" "}
+                <Link
+                  href={alt.href}
+                  className="text-teal-soft underline underline-offset-2"
+                >
+                  Open
+                </Link>
+              </>
+            ) : (
+              alt.detail
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export function PartyVideoRoom({ partyId }: { partyId: string }) {
   const video = usePartyVideo(partyId);
   const { directoryUsers } = useWatchify();
   const [camera, setCamera] = useState(false);
   const [microphone, setMicrophone] = useState(false);
+  const [screenShare, setScreenShare] = useState<ScreenShareCapability | null>(
+    null
+  );
+  const [showAlts, setShowAlts] = useState(false);
+
   useEffect(() => {
     try {
       const saved = JSON.parse(
@@ -130,6 +199,11 @@ export function PartyVideoRoom({ partyId }: { partyId: string }) {
     } catch {
       /* ignore */
     }
+  }, []);
+
+  useEffect(() => {
+    // Client-only feature detection (not UA-only gate).
+    setScreenShare(getScreenShareCapability());
   }, []);
 
   const peerLabels = useMemo(() => {
@@ -152,6 +226,8 @@ export function PartyVideoRoom({ partyId }: { partyId: string }) {
     const you = video.joined ? ["You"] : [];
     return [...you, ...Array.from(peerLabels.values())];
   }, [video.joined, peerLabels]);
+
+  const canScreenShare = screenShare?.supported === true;
 
   if (!video.joined) {
     return (
@@ -202,6 +278,13 @@ export function PartyVideoRoom({ partyId }: { partyId: string }) {
             still work if video cannot connect.
           </p>
         )}
+        {screenShare && !screenShare.supported ? (
+          <p className="mt-2 text-[11px] leading-relaxed text-mist/70">
+            Screen share needs a desktop browser with display capture. On this
+            device you can still join with camera, upload a free/owned video, or
+            host screen share from a computer / TV mode.
+          </p>
+        ) : null}
         {video.error && (
           <p className="mt-2 text-xs text-amber-soft" role="alert">
             {video.error}
@@ -266,13 +349,24 @@ export function PartyVideoRoom({ partyId }: { partyId: string }) {
         >
           {camera ? "Turn camera off" : "Turn camera on"}
         </button>
-        <button
-          type="button"
-          onClick={() => void video.shareScreen()}
-          className="rounded-lg border border-teal/40 px-3 py-2 text-xs text-teal-soft"
-        >
-          Share screen with party
-        </button>
+        {canScreenShare ? (
+          <button
+            type="button"
+            onClick={() => void video.shareScreen()}
+            className="rounded-lg border border-teal/40 px-3 py-2 text-xs text-teal-soft"
+          >
+            Share screen with party
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setShowAlts((v) => !v)}
+            className="rounded-lg border border-line px-3 py-2 text-xs text-mist"
+            aria-expanded={showAlts}
+          >
+            {showAlts ? "Hide share options" : "Share options (no screen)"}
+          </button>
+        )}
         <button
           type="button"
           onClick={video.leave}
@@ -281,11 +375,31 @@ export function PartyVideoRoom({ partyId }: { partyId: string }) {
           Leave call
         </button>
       </div>
-      <p className="mt-2 text-[11px] text-mist/60">
-        Speaking ring + connection badge show who&apos;s talking and weak links.
-        Screen share fans out live to party peers (WebRTC). Do not share paid
-        streamer app windows.
-      </p>
+      {canScreenShare ? (
+        <p className="mt-2 text-[11px] text-mist/60">
+          Speaking ring + connection badge show who&apos;s talking and weak links.
+          Screen share fans out live to party peers (WebRTC). Do not share paid
+          streamer app windows.
+        </p>
+      ) : (
+        <p className="mt-2 text-[11px] text-mist/60">
+          Speaking ring + connection badge show who&apos;s talking and weak links.
+          Display capture is not available in this browser — use the share
+          options below.
+        </p>
+      )}
+      {!canScreenShare && screenShare && (showAlts || screenShare.isIos) ? (
+        <ScreenShareAlternatives
+          capability={screenShare}
+          cameraOn={camera}
+          onEnableCamera={() => {
+            void video.toggle("camera").then((on) => {
+              setCamera(on);
+              setShowAlts(true);
+            });
+          }}
+        />
+      ) : null}
       {video.error && (
         <p className="mt-2 text-xs text-amber-soft" role="alert">
           {video.error}

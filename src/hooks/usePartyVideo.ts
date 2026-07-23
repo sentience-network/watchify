@@ -228,8 +228,11 @@ export function usePartyVideo(partyId: string) {
       setError("Join the video room first, then share your screen with the party.");
       return false;
     }
-    if (!navigator.mediaDevices?.getDisplayMedia) {
-      setError("Screen share is not supported in this browser.");
+    // Feature-detect only — do not block non-iOS mobile that gains getDisplayMedia.
+    if (typeof navigator.mediaDevices?.getDisplayMedia !== "function") {
+      setError(
+        "Screen share is not available in this browser. On iPhone/iPad, use camera share, upload a video, or open Watchify on a desktop/TV host."
+      );
       return false;
     }
     try {
@@ -271,8 +274,16 @@ export function usePartyVideo(partyId: string) {
       });
       clientRef.current?.updateVideoState(true, Boolean(localRef.current.getAudioTracks().some((t) => t.enabled)));
       return true;
-    } catch {
-      setError("Screen share canceled or denied. Paid streamer windows must not be shared.");
+    } catch (reason) {
+      if (reason instanceof DOMException && reason.name === "NotAllowedError") {
+        setError("Screen share canceled or denied. Paid streamer windows must not be shared.");
+      } else if (reason instanceof DOMException && reason.name === "NotSupportedError") {
+        setError(
+          "Screen share is not supported on this device. Use camera share, upload a video, or host from desktop/TV."
+        );
+      } else {
+        setError("Screen share canceled or denied. Paid streamer windows must not be shared.");
+      }
       return false;
     }
   }, []);

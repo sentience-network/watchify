@@ -39,6 +39,7 @@ Settings → **Mobile app (PWA)** repeats these steps in-product.
 - Native store listing, IAP, push via APNs/FCM store channels — not started
 - Cold start on free Render still hurts first open on cellular
 - Face video / WebRTC quality varies by mobile network (TURN helps; not a native SFU app)
+- **iOS Safari screen share:** Apple does not expose `getDisplayMedia` to web apps. Watchify detects this and offers camera share, `/upload`, `/tv` host, and AirPlay guidance instead of a broken button. Desktop Chrome/Edge/Firefox screen share still works.
 
 ## Capacitor / store builds (next, when ready)
 
