@@ -1,0 +1,33 @@
+# Optional self-hosted TURN (path C) — NOT required while Metered free TURN works.
+# Do not deploy to a paid cloud host without explicit approval.
+#
+# Usage (on a host you already own with public UDP/TCP 3478 + 5349 and UDP 49152-65535):
+#   export TURN_USER=watchify TURN_PASS='…' TURN_REALM=watchify.app EXTERNAL_IP=x.x.x.x
+#   docker compose -f scripts/coturn/docker-compose.yml up -d
+#
+# Then set on watchify-web:
+#   TURN_URL=turn:YOUR_HOST:3478
+#   TURN_USER / TURN_PASS
+# Prefer Metered (METERED_DOMAIN + METERED_TURN_API_KEY) for soft launch.
+
+services:
+  coturn:
+    image: coturn/coturn:4.6.2
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      DETECT_EXTERNAL_IP: "yes"
+    command:
+      - -n
+      - --log-file=stdout
+      - --listening-port=3478
+      - --tls-listening-port=5349
+      - --fingerprint
+      - --lt-cred-mech
+      - --user=${TURN_USER}:${TURN_PASS}
+      - --realm=${TURN_REALM:-watchify.local}
+      - --external-ip=${EXTERNAL_IP:-}
+      - --min-port=49152
+      - --max-port=65535
+      - --no-multicast-peers
+      - --no-cli

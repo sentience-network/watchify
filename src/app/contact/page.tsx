@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SiteFooter } from "@/components/SiteFooter";
+import {
+  contactMailto,
+  getContactEmail,
+  getNicoleEmail,
+} from "@/lib/company-email";
 import { buildPageMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildPageMetadata({
@@ -15,6 +20,9 @@ export default function ContactPage({
   searchParams?: { topic?: string };
 }) {
   const softLaunch = searchParams?.topic === "soft-launch";
+  const contactEmail = getContactEmail();
+  const nicoleEmail = getNicoleEmail();
+  const softLaunchMailto = contactMailto("Watchify soft-launch bug");
 
   return (
     <main className="mx-auto min-h-screen max-w-3xl px-5 py-10">
@@ -30,10 +38,10 @@ export default function ContactPage({
             <p>
               Thanks for testing Watchify. Email{" "}
               <a
-                href="mailto:hello@watchify.app?subject=Watchify%20soft-launch%20bug"
+                href={softLaunchMailto}
                 className="text-teal-soft hover:underline"
               >
-                hello@watchify.app
+                {contactEmail}
               </a>{" "}
               with subject <strong className="text-white">soft-launch bug</strong>.
             </p>
@@ -63,16 +71,33 @@ export default function ContactPage({
               For privacy requests, safety escalations, or billing questions,
               email{" "}
               <a
-                href="mailto:hello@watchify.app"
+                href={contactMailto()}
                 className="text-teal-soft hover:underline"
               >
-                hello@watchify.app
+                {contactEmail}
               </a>
               .
             </p>
             <p>
               Include your account email, approximate timestamps, and any report
               IDs shown after submitting a report.
+            </p>
+            <p>
+              Team: Dorian (
+              <a
+                href={contactMailto()}
+                className="text-teal-soft hover:underline"
+              >
+                {contactEmail}
+              </a>
+              , primary) · Nicole (
+              <a
+                href={`mailto:${nicoleEmail}`}
+                className="text-teal-soft hover:underline"
+              >
+                {nicoleEmail}
+              </a>
+              ).
             </p>
             <p>
               In-product: use <strong className="text-white">Report</strong> on

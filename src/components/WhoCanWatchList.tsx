@@ -40,6 +40,16 @@ export function WhoCanWatchList({
     );
   }
 
+  if (syncMode === "screen_share") {
+    return (
+      <p className="mt-2 text-[11px] text-mist/70">
+        Screen party — friends watch the host&apos;s shared screen (TikTok /
+        Shorts / Reels-style or free/owned media) plus chat. No paid-streamer
+        bypass; each person does not need a matching Netflix/Max login.
+      </p>
+    );
+  }
+
   if (!can.length) {
     return (
       <p className="mt-2 text-[11px] text-amber-soft/90">

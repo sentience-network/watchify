@@ -1,0 +1,43 @@
+name: Watchify
+options:
+  bundleIdPrefix: com.watchify
+  deploymentTarget:
+    iOS: "15.0"
+  xcodeVersion: "15.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    TARGETED_DEVICE_FAMILY: "1,2"
+    IPHONEOS_DEPLOYMENT_TARGET: "15.0"
+targets:
+  Watchify:
+    type: application
+    platform: iOS
+    sources:
+      - path: App
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.watchify.app
+        INFOPLIST_FILE: App/Info.plist
+        CODE_SIGN_ENTITLEMENTS: App/App.entitlements
+        DEVELOPMENT_TEAM: "" # set in Xcode
+    dependencies:
+      - target: WatchifyBroadcast
+        embed: true
+    scheme:
+      testTargets: []
+
+  WatchifyBroadcast:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: WatchifyBroadcast
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.watchify.app.Broadcast
+        INFOPLIST_FILE: WatchifyBroadcast/Info.plist
+        CODE_SIGN_ENTITLEMENTS: WatchifyBroadcast/WatchifyBroadcast.entitlements
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"

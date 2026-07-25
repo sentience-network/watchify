@@ -45,4 +45,6 @@ Settings → **Mobile app (PWA)** repeats this in-product.
 - Expect paid-service pixel-perfect sync  
 - Share credential files outside the private friend group  
 
-Ops details for the founder: [SOFT_LAUNCH_OPS.md](./SOFT_LAUNCH_OPS.md)
+**Bugs / feedback:** email [dorian@watchify.app](mailto:dorian@watchify.app?subject=Watchify%20soft-launch%20bug) (subject: soft-launch bug) or use in-app Report.
+
+Ops details for the founder: [SOFT_LAUNCH_OPS.md](./SOFT_LAUNCH_OPS.md) · [COMPANY_EMAIL.md](./COMPANY_EMAIL.md)

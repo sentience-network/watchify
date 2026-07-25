@@ -24,8 +24,16 @@ services:
         value: https://watchify-realtime.onrender.com
       - key: ALLOWED_ORIGINS
         value: https://watchify-web-9rx1.onrender.com
+      # After watchify.app DNS is verified in Resend, set EMAIL_FROM in dashboard
+      # (or keep this default). Until then, Resend only allows onboarding@resend.dev.
       - key: EMAIL_FROM
-        value: "Watchify <onboarding@resend.dev>"
+        value: "Watchify <hello@watchify.app>"
+      - key: CONTACT_EMAIL
+        value: "dorian@watchify.app"
+      - key: SUPPORT_EMAIL
+        value: "dorian@watchify.app"
+      - key: ADMIN_EMAIL
+        value: "dorian@watchify.app"
       - key: REALTIME_SECRET
         generateValue: true
       - key: TOKEN_ENCRYPTION_SECRET
@@ -41,6 +49,13 @@ services:
       - key: METERED_DOMAIN
         value: watchify.metered.live
       - key: METERED_TURN_API_KEY
+        sync: false
+      # Static Metered fallback if credential API is briefly unavailable
+      - key: TURN_URL
+        sync: false
+      - key: TURN_USER
+        sync: false
+      - key: TURN_PASS
         sync: false
       - key: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
         sync: false

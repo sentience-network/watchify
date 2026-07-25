@@ -217,6 +217,7 @@ export const SEED_ACTIVITIES: Activity[] = [
     movieId: "m7",
     serviceId: "hulu",
     progressPercent: 67,
+    visibility: "public",
     createdAt: "2026-07-16T14:20:00.000Z",
   },
   {
@@ -225,6 +226,7 @@ export const SEED_ACTIVITIES: Activity[] = [
     type: "finished",
     movieId: "m2",
     serviceId: "prime",
+    visibility: "public",
     createdAt: "2026-07-16T12:05:00.000Z",
   },
   {
@@ -233,6 +235,7 @@ export const SEED_ACTIVITIES: Activity[] = [
     type: "watchlist_add",
     movieId: "m32",
     watchlistId: "wl2",
+    visibility: "friends",
     createdAt: "2026-07-16T10:40:00.000Z",
   },
   {
@@ -242,6 +245,7 @@ export const SEED_ACTIVITIES: Activity[] = [
     movieId: "m5",
     serviceId: "disney",
     progressPercent: 30,
+    visibility: "public",
     createdAt: "2026-07-15T23:10:00.000Z",
   },
   {
@@ -250,6 +254,7 @@ export const SEED_ACTIVITIES: Activity[] = [
     type: "watchlist_add",
     movieId: "m11",
     watchlistId: "wl5",
+    visibility: "public",
     createdAt: "2026-07-15T21:00:00.000Z",
   },
   {
@@ -258,6 +263,7 @@ export const SEED_ACTIVITIES: Activity[] = [
     type: "finished",
     movieId: "m13",
     serviceId: "hulu",
+    visibility: "public",
     createdAt: "2026-07-15T18:30:00.000Z",
   },
   {
@@ -267,6 +273,7 @@ export const SEED_ACTIVITIES: Activity[] = [
     movieId: "m6",
     serviceId: "netflix",
     progressPercent: 55,
+    visibility: "public",
     createdAt: "2026-07-15T16:00:00.000Z",
   },
   {
@@ -275,6 +282,7 @@ export const SEED_ACTIVITIES: Activity[] = [
     type: "finished",
     movieId: "m8",
     serviceId: "disney",
+    visibility: "public",
     createdAt: "2026-07-14T22:45:00.000Z",
   },
   {
@@ -284,6 +292,7 @@ export const SEED_ACTIVITIES: Activity[] = [
     movieId: "m1",
     serviceId: "max",
     progressPercent: 42,
+    visibility: "public",
     createdAt: "2026-07-14T20:00:00.000Z",
   },
   {
@@ -292,6 +301,7 @@ export const SEED_ACTIVITIES: Activity[] = [
     type: "watchlist_add",
     movieId: "m19",
     watchlistId: "wl1",
+    visibility: "friends",
     createdAt: "2026-07-14T15:00:00.000Z",
   },
   {
@@ -301,6 +311,7 @@ export const SEED_ACTIVITIES: Activity[] = [
     movieId: "m12",
     serviceId: "netflix",
     progressPercent: 12,
+    visibility: "public",
     createdAt: "2026-07-16T15:00:00.000Z",
   },
   {
@@ -310,6 +321,7 @@ export const SEED_ACTIVITIES: Activity[] = [
     movieId: "m15",
     partyId: "wp3",
     serviceId: "max",
+    visibility: "public",
     createdAt: "2026-07-16T13:30:00.000Z",
   },
   {
@@ -319,7 +331,44 @@ export const SEED_ACTIVITIES: Activity[] = [
     movieId: "m7",
     partyId: "wp1",
     serviceId: "hulu",
+    visibility: "public",
     createdAt: "2026-07-16T11:00:00.000Z",
+  },
+  {
+    id: "a14",
+    userId: "u1",
+    type: "post",
+    movieId: "m1",
+    text: "Just started Dune — anyone free for a party later?",
+    visibility: "public",
+    createdAt: "2026-07-16T15:30:00.000Z",
+  },
+  {
+    id: "a15",
+    userId: "u2",
+    type: "post",
+    movieId: "m7",
+    text: "Horror Friday is live — drop in if you dare.",
+    visibility: "friends",
+    createdAt: "2026-07-16T14:25:00.000Z",
+  },
+  {
+    id: "a16",
+    userId: "u6",
+    type: "post",
+    movieId: "m12",
+    text: "Halfway through and already need a watch buddy.",
+    visibility: "public",
+    createdAt: "2026-07-16T15:10:00.000Z",
+  },
+  {
+    id: "a17",
+    userId: "u3",
+    type: "party_joined",
+    movieId: "m7",
+    partyId: "wp1",
+    visibility: "public",
+    createdAt: "2026-07-16T11:15:00.000Z",
   },
 ];
 

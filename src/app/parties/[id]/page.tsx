@@ -231,8 +231,10 @@ export default function PartyFocusPage() {
                     ) : null}
                   </p>
                   <p className="mt-1 text-[11px] uppercase tracking-wider text-mist/50">
-                    {party.syncMode || "social"} · {party.memberIds.length} in
-                    room
+                    {party.syncMode === "screen_share"
+                      ? "Screen party"
+                      : party.syncMode || "social"}{" "}
+                    · {party.memberIds.length} in room
                     {party.isLive ? " · Live" : ""}
                   </p>
                   <p className="mt-2 text-[11px] leading-relaxed text-mist/60">
@@ -370,8 +372,18 @@ export default function PartyFocusPage() {
             ) : null}
 
             {isMember ? (
-              <div className="space-y-3 rounded-2xl border border-teal/25 bg-panel/40 p-3 md:p-4">
-                <PartyVideoRoom partyId={party.id} />
+              <div
+                className={`space-y-3 rounded-2xl border border-teal/25 bg-panel/40 p-3 md:p-4 ${
+                  party.syncMode === "screen_share"
+                    ? "md:grid md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] md:items-start md:gap-3 md:space-y-0"
+                    : ""
+                }`}
+              >
+                <PartyVideoRoom
+                  partyId={party.id}
+                  canHostShare={isHost || isCoHost}
+                  screenParty={party.syncMode === "screen_share"}
+                />
                 <PartySocialPanel partyId={party.id} theater />
               </div>
             ) : (

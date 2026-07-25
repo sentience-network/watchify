@@ -40,7 +40,7 @@ export function partyServiceMismatch(input: {
   const freeFallback = Boolean(movie && isFreePlayable(movie));
   const mode = input.party.syncMode || "social";
 
-  if (mode === "watchify_free" || mode === "social") {
+  if (mode === "watchify_free" || mode === "social" || mode === "screen_share") {
     return { mismatch: false, freeFallback, message: null };
   }
 
@@ -73,7 +73,11 @@ export function whoCanWatchTitle(input: {
 }): { user: User; via: StreamingServiceId[] }[] {
   const movie = input.movie;
   const free = movie && isFreePlayable(movie);
-  if (input.syncMode === "watchify_free" || free) {
+  if (
+    input.syncMode === "watchify_free" ||
+    input.syncMode === "screen_share" ||
+    free
+  ) {
     return input.friends.map((user) => ({ user, via: [] as StreamingServiceId[] }));
   }
 

@@ -1,0 +1,22 @@
+{
+  "name": "watchify-screen-share",
+  "version": "0.1.0",
+  "description": "Capacitor plugin definitions for Watchify iOS ReplayKit screen share",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "peerDependencies": {
+    "@capacitor/core": ">=6.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/core": "^6.2.0",
+    "typescript": "^5.6.3"
+  },
+  "files": [
+    "dist/",
+    "ios/",
+    "WatchifyScreenShare.podspec"
+  ]
+}

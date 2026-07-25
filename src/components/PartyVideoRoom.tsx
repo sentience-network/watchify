@@ -5,8 +5,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { usePartyVideo } from "@/hooks/usePartyVideo";
 import { track } from "@/lib/analytics-client";
 import {
+  iosAppOpenHref,
+  probeNativeIosScreenShare,
+} from "@/lib/ios-screen-share";
+import {
   getScreenShareCapability,
   SCREEN_SHARE_ALTERNATIVES,
+  SCREEN_SHARE_SOFT_LIMITS,
   type ScreenShareCapability,
 } from "@/lib/media-capabilities";
 import { useWatchify } from "@/lib/store";
@@ -66,11 +71,17 @@ function VideoTile({
   label,
   muted,
   connection,
+  dominant,
+  screenBadge,
+  mirror,
 }: {
   stream: MediaStream | null;
   label: string;
   muted?: boolean;
   connection?: string;
+  dominant?: boolean;
+  screenBadge?: boolean;
+  mirror?: boolean;
 }) {
   const ref = useRef<HTMLVideoElement>(null);
   const speaking = useSpeaking(stream, Boolean(stream) && !muted);
@@ -90,7 +101,9 @@ function VideoTile({
 
   return (
     <div
-      className={`relative aspect-video overflow-hidden rounded-xl border bg-ink ${
+      className={`relative overflow-hidden rounded-xl border bg-ink ${
+        dominant ? "aspect-[9/16] max-h-[70vh] w-full sm:aspect-video" : "aspect-video"
+      } ${
         speaking
           ? "border-teal shadow-[0_0_0_2px_rgba(45,212,191,0.45)]"
           : "border-line"
@@ -101,15 +114,18 @@ function VideoTile({
         autoPlay
         playsInline
         muted={muted}
-        className={`h-full w-full object-cover ${muted ? "-scale-x-100" : ""}`}
+        className={`h-full w-full ${
+          dominant ? "object-contain bg-black" : "object-cover"
+        } ${mirror ? "-scale-x-100" : ""}`}
       />
       {!hasVideo && (
         <div className="absolute inset-0 grid place-items-center text-sm text-mist">
-          Camera off
+          {screenBadge ? "Screen off" : "Camera off"}
         </div>
       )}
       <span className="absolute bottom-2 left-2 rounded bg-black/70 px-2 py-1 text-xs text-white">
         {label}
+        {screenBadge ? " · screen" : ""}
         {speaking ? " · speaking" : ""}
       </span>
       {weak ? (
@@ -125,25 +141,44 @@ function ScreenShareAlternatives({
   capability,
   cameraOn,
   onEnableCamera,
+  partyId,
 }: {
   capability: ScreenShareCapability;
   cameraOn: boolean;
   onEnableCamera: () => void;
+  partyId: string;
 }) {
+  const alts = SCREEN_SHARE_ALTERNATIVES.filter((alt) => {
+    if (alt.id === "ios_app" && (!capability.isIos || capability.nativeIosBridge)) {
+      return false;
+    }
+    return true;
+  });
+
   return (
     <div
       className="mt-2 rounded-lg border border-line/80 bg-ink/50 px-3 py-2.5"
       role="status"
     >
       <p className="text-[11px] font-medium text-amber-soft">
-        Screen share unavailable here
+        {capability.isIos && !capability.nativeIosBridge
+          ? "Safari cannot share other apps"
+          : "Screen share unavailable here"}
       </p>
       <p className="mt-1 text-[11px] leading-relaxed text-mist/80">
         {capability.unsupportedReason ||
           "This browser cannot capture the display."}
       </p>
+      {capability.isIos && !capability.nativeIosBridge ? (
+        <a
+          href={iosAppOpenHref(partyId)}
+          className="mt-2 inline-flex rounded-lg bg-teal px-3 py-2 text-[11px] font-semibold text-ink"
+        >
+          Open in Watchify iOS app
+        </a>
+      ) : null}
       <ul className="mt-2 space-y-1.5 text-[11px] leading-relaxed text-mist/85">
-        {SCREEN_SHARE_ALTERNATIVES.map((alt) => (
+        {alts.map((alt) => (
           <li key={alt.id}>
             <span className="font-medium text-white">{alt.title}</span>
             {" — "}
@@ -159,6 +194,16 @@ function ScreenShareAlternatives({
                   Turn camera on
                 </button>
               )
+            ) : alt.id === "ios_app" ? (
+              <>
+                {alt.detail}{" "}
+                <a
+                  href={iosAppOpenHref(partyId)}
+                  className="text-teal-soft underline underline-offset-2"
+                >
+                  Open app
+                </a>
+              </>
             ) : "href" in alt && alt.href ? (
               <>
                 {alt.detail}{" "}
@@ -179,7 +224,26 @@ function ScreenShareAlternatives({
   );
 }
 
-export function PartyVideoRoom({ partyId }: { partyId: string }) {
+function shareButtonLabel(
+  capability: ScreenShareCapability | null,
+  busy: boolean
+): string {
+  if (busy) return "Starting…";
+  if (capability?.nativeIosBridge) return "Share Screen (iOS)";
+  return "Share screen";
+}
+
+export function PartyVideoRoom({
+  partyId,
+  canHostShare = false,
+  screenParty = false,
+}: {
+  partyId: string;
+  /** Host or co-host — gets the primary Share screen CTA. */
+  canHostShare?: boolean;
+  /** Party created as screen / TikTok-style mode. */
+  screenParty?: boolean;
+}) {
   const video = usePartyVideo(partyId);
   const { directoryUsers } = useWatchify();
   const [camera, setCamera] = useState(false);
@@ -188,6 +252,7 @@ export function PartyVideoRoom({ partyId }: { partyId: string }) {
     null
   );
   const [showAlts, setShowAlts] = useState(false);
+  const [busyShare, setBusyShare] = useState(false);
 
   useEffect(() => {
     try {
@@ -202,8 +267,15 @@ export function PartyVideoRoom({ partyId }: { partyId: string }) {
   }, []);
 
   useEffect(() => {
-    // Client-only feature detection (not UA-only gate).
-    setScreenShare(getScreenShareCapability());
+    let cancelled = false;
+    setScreenShare(getScreenShareCapability({ nativeIosBridge: false }));
+    void probeNativeIosScreenShare().then((nativeIosBridge) => {
+      if (cancelled) return;
+      setScreenShare(getScreenShareCapability({ nativeIosBridge }));
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const peerLabels = useMemo(() => {
@@ -227,7 +299,42 @@ export function PartyVideoRoom({ partyId }: { partyId: string }) {
     return [...you, ...Array.from(peerLabels.values())];
   }, [video.joined, peerLabels]);
 
-  const canScreenShare = screenShare?.supported === true;
+  const canScreenShare = screenShare?.canShare === true;
+  const showHostShareCta = canHostShare;
+
+  const remoteScreenPeerId = useMemo(() => {
+    for (const [userId, peer] of Array.from(video.peers.entries())) {
+      if (peer.screen && video.remoteStreams.has(userId)) return userId;
+    }
+    return null;
+  }, [video.peers, video.remoteStreams]);
+
+  const screenLayout =
+    video.sharingScreen || Boolean(remoteScreenPeerId) || screenParty;
+
+  async function startShare() {
+    setBusyShare(true);
+    try {
+      if (!video.joined) {
+        track("video_joined", {
+          partyId,
+          source: "screen_share_cta",
+        });
+        const joinedOk = await video.join(false, true);
+        if (!joinedOk) return;
+      }
+      const ok = await video.shareScreen();
+      if (ok) {
+        track("screen_share_started", {
+          partyId,
+          source: screenParty ? "screen_party" : "party_video_room",
+          nativeIos: Boolean(screenShare?.nativeIosBridge),
+        });
+      }
+    } finally {
+      setBusyShare(false);
+    }
+  }
 
   if (!video.joined) {
     return (
@@ -236,13 +343,25 @@ export function PartyVideoRoom({ partyId }: { partyId: string }) {
         aria-labelledby={`video-${partyId}`}
       >
         <h3 id={`video-${partyId}`} className="font-semibold text-white">
-          Face-to-face video · up to 6
+          {screenParty
+            ? "Screen party · face + chat"
+            : "Face-to-face video · up to 6"}
         </h3>
         <p className="mt-1 text-xs leading-relaxed text-mist/70">
-          Free for every party member — cam/mic join does not require Party plan.
-          Optional camera and microphone for people only. Nothing is recorded,
-          and this cannot share or bypass paid video services.
+          {screenParty
+            ? "Host shares their phone or desktop screen (TikTok, Shorts, Reels, free/owned media). Friends watch along with chat and optional face cams. Watchify relays the host capture — it does not proxy app CDNs or bypass paid streamers."
+            : "Free for every party member — cam/mic join does not require Party plan. Optional camera and microphone for people only. Nothing is recorded, and this cannot share or bypass paid video services."}
         </p>
+        {showHostShareCta && canScreenShare ? (
+          <button
+            type="button"
+            disabled={busyShare}
+            onClick={() => void startShare()}
+            className="mt-3 w-full rounded-xl bg-teal px-4 py-3 text-sm font-semibold text-ink transition hover:bg-teal-soft disabled:opacity-60 sm:w-auto"
+          >
+            {shareButtonLabel(screenShare, busyShare)}
+          </button>
+        ) : null}
         <div className="mt-3 flex flex-wrap gap-4 text-sm text-mist">
           <label className="flex items-center gap-2">
             <input
@@ -267,7 +386,7 @@ export function PartyVideoRoom({ partyId }: { partyId: string }) {
             track("video_joined", { partyId, source: "party_video_room" });
             video.join(camera, microphone);
           }}
-          className="mt-3 rounded-lg bg-teal px-3 py-2 text-xs font-semibold text-ink"
+          className="mt-3 rounded-lg border border-line px-3 py-2 text-xs font-semibold text-mist hover:text-white"
         >
           Join video room
         </button>
@@ -278,13 +397,38 @@ export function PartyVideoRoom({ partyId }: { partyId: string }) {
             still work if video cannot connect.
           </p>
         )}
-        {screenShare && !screenShare.supported ? (
+        {screenShare?.mobileHostTip ? (
           <p className="mt-2 text-[11px] leading-relaxed text-mist/70">
-            Screen share needs a desktop browser with display capture. On this
-            device you can still join with camera, upload a free/owned video, or
-            host screen share from a computer / TV mode.
+            {screenShare.mobileHostTip}
           </p>
         ) : null}
+        {screenShare && !screenShare.canShare ? (
+          <>
+            <p className="mt-2 text-[11px] leading-relaxed text-mist/70">
+              {screenShare.unsupportedReason}
+            </p>
+            {(showAlts || screenShare.isIos || screenParty) && (
+              <ScreenShareAlternatives
+                capability={screenShare}
+                cameraOn={camera}
+                onEnableCamera={() => setCamera(true)}
+                partyId={partyId}
+              />
+            )}
+            {!screenShare.isIos && !screenParty ? (
+              <button
+                type="button"
+                onClick={() => setShowAlts((v) => !v)}
+                className="mt-2 text-[11px] text-teal-soft underline underline-offset-2"
+              >
+                {showAlts ? "Hide options" : "Show share options"}
+              </button>
+            ) : null}
+          </>
+        ) : null}
+        <p className="mt-2 text-[10px] leading-relaxed text-mist/55">
+          {SCREEN_SHARE_SOFT_LIMITS}
+        </p>
         {video.error && (
           <p className="mt-2 text-xs text-amber-soft" role="alert">
             {video.error}
@@ -301,13 +445,60 @@ export function PartyVideoRoom({ partyId }: { partyId: string }) {
     (s) => s === "reconnecting" || s === "connecting"
   );
 
+  const faceTiles: {
+    key: string;
+    stream: MediaStream | null;
+    label: string;
+    muted?: boolean;
+    connection?: string;
+    mirror?: boolean;
+  }[] = [];
+
+  if (video.sharingScreen && video.facePreviewStream) {
+    faceTiles.push({
+      key: "you-face",
+      stream: video.facePreviewStream,
+      label: "You",
+      muted: true,
+      mirror: true,
+    });
+  } else if (!video.sharingScreen) {
+    faceTiles.push({
+      key: "you",
+      stream: video.localStream,
+      label: "You",
+      muted: true,
+      mirror: true,
+    });
+  }
+
+  for (const [userId, stream] of Array.from(video.remoteStreams.entries())) {
+    if (userId === remoteScreenPeerId && !video.sharingScreen) continue;
+    faceTiles.push({
+      key: userId,
+      stream,
+      label:
+        peerLabels.get(userId) ||
+        partyUserLabel(userId, directoryUsers).name,
+      connection: video.connectionStates.get(userId) || "connected",
+    });
+  }
+
   return (
     <section className="mt-4 rounded-xl border border-line bg-ink/35 p-3">
+      {screenParty || video.sharingScreen || remoteScreenPeerId ? (
+        <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-teal">
+          {screenParty ? "Screen party" : "Screen share live"}
+        </p>
+      ) : null}
       {anyFailed ? (
-        <p className="mb-2 rounded-lg border border-amber/40 bg-amber/10 px-2.5 py-2 text-[11px] leading-relaxed text-amber-soft" role="status">
+        <p
+          className="mb-2 rounded-lg border border-amber/40 bg-amber/10 px-2.5 py-2 text-[11px] leading-relaxed text-amber-soft"
+          role="status"
+        >
           ICE failed for at least one peer — usually strict NAT without TURN.
-          Leave call and rejoin, or stay on chat. We are not faking a paid stream;
-          this is face video only.
+          Tap Reconnect, or stay on chat. This is host screen / face video only
+          — not a paid stream proxy.
         </p>
       ) : reconnecting ? (
         <p className="mb-2 text-[11px] text-mist/75" role="status">
@@ -320,21 +511,83 @@ export function PartyVideoRoom({ partyId }: { partyId: string }) {
           {onVideoNames.join(", ")}
         </p>
       ) : null}
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-        <VideoTile stream={video.localStream} label="You" muted />
-        {Array.from(video.remoteStreams.entries()).map(([userId, stream]) => (
+
+      {video.sharingScreen ? (
+        <VideoTile
+          stream={video.localStream}
+          label="Your screen"
+          muted
+          dominant
+          screenBadge
+        />
+      ) : remoteScreenPeerId ? (
+        <VideoTile
+          stream={video.remoteStreams.get(remoteScreenPeerId) || null}
+          label={`${
+            peerLabels.get(remoteScreenPeerId) || "Host"
+          }'s screen`}
+          connection={
+            video.connectionStates.get(remoteScreenPeerId) || "connected"
+          }
+          dominant
+          screenBadge
+        />
+      ) : null}
+
+      <div
+        className={`mt-2 grid gap-2 ${
+          screenLayout
+            ? "grid-cols-3 sm:grid-cols-4"
+            : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+        }`}
+      >
+        {faceTiles.map((tile) => (
           <VideoTile
-            key={userId}
-            stream={stream}
-            label={
-              peerLabels.get(userId) ||
-              partyUserLabel(userId, directoryUsers).name
-            }
-            connection={video.connectionStates.get(userId) || "connected"}
+            key={tile.key}
+            stream={tile.stream}
+            label={tile.label}
+            muted={tile.muted}
+            connection={tile.connection}
+            mirror={tile.mirror}
           />
         ))}
       </div>
+
       <div className="mt-3 flex flex-wrap gap-2">
+        {showHostShareCta && canScreenShare && !video.sharingScreen ? (
+          <button
+            type="button"
+            disabled={busyShare}
+            onClick={() => void startShare()}
+            className="rounded-xl bg-teal px-4 py-2.5 text-sm font-semibold text-ink disabled:opacity-60"
+          >
+            {shareButtonLabel(screenShare, busyShare)}
+          </button>
+        ) : null}
+        {video.sharingScreen ? (
+          <button
+            type="button"
+            onClick={() => {
+              void video.stopScreenShare();
+              track("screen_share_stopped", { partyId });
+            }}
+            className="rounded-xl border border-amber/50 bg-amber/15 px-4 py-2.5 text-sm font-semibold text-amber-soft"
+          >
+            Stop sharing
+          </button>
+        ) : null}
+        {!showHostShareCta && canScreenShare && !video.sharingScreen ? (
+          <button
+            type="button"
+            disabled={busyShare}
+            onClick={() => void startShare()}
+            className="rounded-lg border border-teal/40 px-3 py-2 text-xs text-teal-soft disabled:opacity-60"
+          >
+            {screenShare?.nativeIosBridge
+              ? "Share Screen (iOS)"
+              : "Share screen with party"}
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={() => void video.toggle("microphone").then(setMicrophone)}
@@ -346,18 +599,11 @@ export function PartyVideoRoom({ partyId }: { partyId: string }) {
           type="button"
           onClick={() => void video.toggle("camera").then(setCamera)}
           className="rounded-lg border border-line px-3 py-2 text-xs text-mist"
+          disabled={video.sharingScreen}
         >
           {camera ? "Turn camera off" : "Turn camera on"}
         </button>
-        {canScreenShare ? (
-          <button
-            type="button"
-            onClick={() => void video.shareScreen()}
-            className="rounded-lg border border-teal/40 px-3 py-2 text-xs text-teal-soft"
-          >
-            Share screen with party
-          </button>
-        ) : (
+        {!canScreenShare ? (
           <button
             type="button"
             onClick={() => setShowAlts((v) => !v)}
@@ -366,7 +612,14 @@ export function PartyVideoRoom({ partyId }: { partyId: string }) {
           >
             {showAlts ? "Hide share options" : "Share options (no screen)"}
           </button>
-        )}
+        ) : null}
+        <button
+          type="button"
+          onClick={() => void video.reconnectVideo()}
+          className="rounded-lg border border-line px-3 py-2 text-xs text-mist"
+        >
+          Reconnect
+        </button>
         <button
           type="button"
           onClick={video.leave}
@@ -375,19 +628,21 @@ export function PartyVideoRoom({ partyId }: { partyId: string }) {
           Leave call
         </button>
       </div>
+
       {canScreenShare ? (
         <p className="mt-2 text-[11px] text-mist/60">
-          Speaking ring + connection badge show who&apos;s talking and weak links.
-          Screen share fans out live to party peers (WebRTC). Do not share paid
-          streamer app windows.
+          {screenShare?.mobileHostTip ||
+            "Screen share fans out live to party peers (WebRTC). Social apps (TikTok, Shorts, Reels) and free/owned media are OK; do not share paid streamer app windows."}
         </p>
       ) : (
         <p className="mt-2 text-[11px] text-mist/60">
-          Speaking ring + connection badge show who&apos;s talking and weak links.
           Display capture is not available in this browser — use the share
           options below.
         </p>
       )}
+      <p className="mt-1 text-[10px] leading-relaxed text-mist/50">
+        {SCREEN_SHARE_SOFT_LIMITS}
+      </p>
       {!canScreenShare && screenShare && (showAlts || screenShare.isIos) ? (
         <ScreenShareAlternatives
           capability={screenShare}
@@ -398,6 +653,7 @@ export function PartyVideoRoom({ partyId }: { partyId: string }) {
               setShowAlts(true);
             });
           }}
+          partyId={partyId}
         />
       ) : null}
       {video.error && (

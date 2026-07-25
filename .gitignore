@@ -29,6 +29,8 @@ yarn-error.log*
 .env
 .env*.local
 .env.production
+.env.test
+.env.live
 .stripe-webhook-secret.json
 .render-*
 testers-credentials.txt

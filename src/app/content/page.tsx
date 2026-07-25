@@ -69,9 +69,11 @@ export default function ContentPage() {
               <code className="text-teal-soft">AMAZON_AFFILIATE_TAG</code>).
             </li>
             <li>
-              <strong className="text-white">Screen share of free/owned media</strong>{" "}
-              — party video rooms fan out display capture to peers; paid streamer
-              windows stay blocked.
+              <strong className="text-white">Host screen share</strong>{" "}
+              — party video rooms fan out the host&apos;s display capture
+              (TikTok / Shorts / Reels-style social apps and free/owned media).
+              Paid streamer windows stay blocked. Watchify does not proxy those
+              apps&apos; CDNs.
             </li>
           </ul>
         </section>

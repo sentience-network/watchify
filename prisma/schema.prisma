@@ -399,16 +399,21 @@ model Activity {
   id              String   @id @default(cuid())
   userId          String
   type            String
-  movieId         String
+  movieId         String?
   watchlistId     String?
   partyId         String?
   serviceId       String?
   progressPercent Int?
+  /// Short watch-related post body (type=post)
+  text            String?
+  /// public = Discover; friends = Following only
+  visibility      String   @default("friends")
   createdAt       DateTime @default(now())
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
   @@index([createdAt])
+  @@index([visibility, createdAt])
 }
 
 /// 1:1 friend DMs (pairKey = sorted userIdA:userIdB).

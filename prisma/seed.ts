@@ -215,11 +215,13 @@ async function main() {
         id: a.id,
         userId: a.userId,
         type: a.type,
-        movieId: a.movieId,
+        movieId: a.movieId ?? null,
         watchlistId: a.watchlistId,
         partyId: a.partyId,
         serviceId: a.serviceId ?? null,
         progressPercent: a.progressPercent ?? null,
+        text: a.text ?? null,
+        visibility: a.visibility ?? "friends",
         createdAt: new Date(a.createdAt),
       },
     });
@@ -243,6 +245,7 @@ async function main() {
   console.log("  jordan@watchify.app (u2) — mod");
   console.log("  morgan@watchify.app (u6) — pending friend/party requests");
   console.log("Moderation: /admin/reports");
+  console.log("Company contact (real mailbox — see docs/COMPANY_EMAIL.md): dorian@watchify.app");
 }
 
 main()

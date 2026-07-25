@@ -1,0 +1,19 @@
+{
+  "name": "watchify-native",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Capacitor iOS shell for Watchify ReplayKit screen share. Build on macOS/Xcode only.",
+  "scripts": {
+    "sync": "npx cap sync ios",
+    "open": "npx cap open ios",
+    "gen:xcode": "cd ios && xcodegen generate"
+  },
+  "dependencies": {
+    "@capacitor/core": "^6.2.0",
+    "@capacitor/ios": "^6.2.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.2.0",
+    "typescript": "^5.6.3"
+  }
+}

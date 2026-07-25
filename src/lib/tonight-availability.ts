@@ -76,7 +76,7 @@ export function computeTonightAvailability(input: {
     for (const id of f.favoriteMovieIds || []) candidateIds.add(id);
   }
   for (const a of input.state.activities) {
-    if (input.friends.some((f) => f.id === a.userId)) {
+    if (a.movieId && input.friends.some((f) => f.id === a.userId)) {
       candidateIds.add(a.movieId);
     }
   }

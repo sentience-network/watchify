@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { contactMailto, getContactEmail } from "@/lib/company-email";
 
 const links = [
   { href: "/pricing", label: "Pricing" },
@@ -11,6 +12,8 @@ const links = [
 ];
 
 export function SiteFooter() {
+  const contactEmail = getContactEmail();
+
   return (
     <footer className="mt-16 border-t border-line pt-8 pb-4">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -26,6 +29,9 @@ export function SiteFooter() {
               {l.label}
             </Link>
           ))}
+          <a href={contactMailto()} className="hover:text-teal-soft">
+            {contactEmail}
+          </a>
         </nav>
       </div>
     </footer>

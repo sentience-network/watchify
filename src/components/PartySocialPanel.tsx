@@ -389,7 +389,9 @@ export function PartySocialPanel({
             ? "Watchify free sync"
             : mode === "own_account"
               ? "Own-account sync"
-              : "Social sync"}
+              : mode === "screen_share"
+                ? "Screen party"
+                : "Social sync"}
         </p>
         <div className="flex items-center gap-2">
           <label className="flex items-center gap-1.5 text-[10px] text-mist/70">
@@ -425,7 +427,9 @@ export function PartySocialPanel({
           ? "Everyone plays the free Watchify file together — real synced playback."
           : mode === "own_account"
             ? "Teleparty-style: each person opens the title on their own account. We sync playhead hints + chat — never your password or stream."
-            : "Chat and reactions only. Not a shared video stream."}{" "}
+            : mode === "screen_share"
+              ? "Host shares their screen (TikTok / Shorts / Reels-style or free/owned media). Friends watch the capture + chat — Watchify does not proxy app CDNs or bypass paid streamers."
+              : "Chat and reactions only. Not a shared video stream."}{" "}
         {STREAMING_HONEST_COPY}
       </p>
 

@@ -24,17 +24,31 @@ App path: `GET /api/realtime/ice` (auth required). Prefers Metered credential AP
 | `TURN_URL` / `TURN_USER` / `TURN_PASS` | Static TURN fallback (optional while Metered works) |
 | `WATCHIFY_OPEN_RELAY_TURN` | Keep `false` in prod |
 
-### Live verification (2026-07-20)
+### Live verification (2026-07-24 recheck)
 
 | Check | Result |
 |-------|--------|
 | Metered REST credentials API | **PASS** — HTTP 200, TURN+STUN URLs, usernames present |
+| Live `/api/config` | **PASS** — `turnEnvConfigured: true` |
+| Live `/api/health` + realtime `/` | **PASS** |
 | Live ICE (anonymous) | **401** Sign in required (expected) |
-| Live ICE (tester01 session) | **PASS** — `turnConfigured: true`, `provider: "metered"`, `turn`/`turns` servers |
+| Live ICE (tester01 session, 2026-07-20) | **PASS** — `turnConfigured: true`, `provider: "metered"` |
 | Local `.env` / `.env.production` | Metered + static `TURN_*` present |
 | `watchify-realtime` | Signaling only — **no TURN env needed** |
+| Blueprint | `METERED_*` + optional static `TURN_*` (`sync: false`) on **watchify-web** |
 
-**Verdict: TURN is working on production.** No purchase required. Optional hardening: also set static `TURN_*` on Render as Metered fallback.
+**Verdict: TURN is working on production (Metered free tier).** No purchase required.
+
+**Optional hardening (dashboard):** also set static `TURN_URL` / `TURN_USER` / `TURN_PASS` on **watchify-web** from local `.env.production` so ICE can fall back if the Metered credential API flakes. No Render CLI / `RENDER_API_KEY` on this PC — paste in dashboard only; do not commit.
+
+Self-hosted coturn (path C) is **not** needed while Metered works. Optional compose stub: `scripts/coturn/docker-compose.yml` (requires an owned host + open UDP/TCP TURN ports — do not buy a VPS without approval).
+
+### How to test video across strict NAT
+
+1. Two clients on **different NATs** (Wi‑Fi vs cellular, or two carriers). Same Wi‑Fi is insufficient.
+2. Join the same party → enable camera or screen share → confirm media within ~10s.
+3. Desktop: `chrome://webrtc-internals` → peer connection → candidate pairs should include **relay** when STUN fails.
+4. Regressions: signed-in `GET /api/realtime/ice` should report `provider: "metered"` (or `"static"`). `stun-only` means env missing.
 
 If ICE ever regresses to `provider: "stun-only"`:
 
@@ -114,9 +128,28 @@ Sign up at https://affiliate-program.amazon.com/ (free), then set on **watchify-
 
 Do **not** invent a fake tag. Links work without it — they just won't attribute.
 
+## Company email (founder inbox)
+
+**Address:** `dorian@watchify.app` (contact / support / admin)  
+**App From:** `Watchify <hello@watchify.app>`  
+
+Full steps (domain ownership check, Cloudflare Email Routing + Resend, SPF/DKIM/DMARC): **[COMPANY_EMAIL.md](./COMPANY_EMAIL.md)**.
+
+| Variable | Value |
+|----------|-------|
+| `EMAIL_FROM` | `Watchify <hello@watchify.app>` |
+| `CONTACT_EMAIL` / `SUPPORT_EMAIL` / `ADMIN_EMAIL` | `dorian@watchify.app` |
+| `RESEND_API_KEY` | Render secret (`sync: false`) |
+| `VAPID_SUBJECT` | `mailto:dorian@watchify.app` |
+
+**Blocker:** `watchify.app` must be owned with DNS you control (currently parked on Afternic NS — see COMPANY_EMAIL.md). Do not purchase domains from this checklist without your explicit approval.
+
 ## Related docs
 
+- [COMPANY_EMAIL.md](./COMPANY_EMAIL.md) — mailbox + DNS + Resend  
 - [SOFT_LAUNCH.md](./SOFT_LAUNCH.md) — product soft-launch checklist  
 - [TESTER_ONE_PAGER.md](./TESTER_ONE_PAGER.md) — friend-facing expectations  
+- [THIS_WEEK_OPS.md](./THIS_WEEK_OPS.md) — party-night runbook  
+- [LAUNCH_2_WEEKS.md](./LAUNCH_2_WEEKS.md) — 14-day plan  
 - [POSTGRES.md](./POSTGRES.md) — local → Postgres switch  
 - Gitignored logins: `friend-tester-logins.txt`, `testers-credentials.txt`

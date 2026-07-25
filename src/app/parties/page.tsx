@@ -384,8 +384,36 @@ function PartiesInner() {
                 </div>
                 <div>
                   <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-mist/60">
-                    Sync mode
+                    Party mode
                   </label>
+                  <div className="mb-2 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSyncMode("screen_share");
+                        if (!name.trim()) setName("TikTok party");
+                        setCreateExpanded(true);
+                      }}
+                      className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${
+                        syncMode === "screen_share"
+                          ? "bg-teal text-ink"
+                          : "border border-teal/40 text-teal-soft"
+                      }`}
+                    >
+                      TikTok / screen party
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSyncMode("screen_share");
+                        if (!name.trim()) setName("Screen party");
+                        setCreateExpanded(true);
+                      }}
+                      className="rounded-lg border border-line px-3 py-1.5 text-xs text-mist"
+                    >
+                      Screen party
+                    </button>
+                  </div>
                   <select
                     value={syncMode}
                     onChange={(e) =>
@@ -399,6 +427,10 @@ function PartiesInner() {
                     <option value="own_account">
                       Own account — Netflix/Max/etc. (timing + playhead hints)
                     </option>
+                    <option value="screen_share">
+                      Screen party — host shares phone/desktop (TikTok / Shorts /
+                      Reels-style)
+                    </option>
                     <option value="social">
                       Social only — chat + presence
                     </option>
@@ -408,6 +440,16 @@ function PartiesInner() {
                       Watchify does not stream paid apps. After you press play on
                       your service, start the watch tracker so friends know when
                       to join and what time to scrub to.
+                    </p>
+                  ) : null}
+                  {syncMode === "screen_share" ? (
+                    <p className="mt-1.5 text-[11px] leading-relaxed text-mist/60">
+                      Host screen share + chat. Android Chrome / desktop use
+                      browser capture; iPhone needs the Watchify iOS app
+                      (ReplayKit) — Safari cannot share other apps. Relays the
+                      host&apos;s capture, not a TikTok CDN proxy. Do not share
+                      paid streamer apps (Netflix, Max, etc.). Pick any title as
+                      the vibe label.
                     </p>
                   ) : null}
                 </div>
@@ -426,6 +468,7 @@ function PartiesInner() {
                   />
                 ) : null}
                 {syncMode !== "watchify_free" &&
+                  syncMode !== "screen_share" &&
                   state.linkedServices.length > 0 && (
                     <select
                       value={serviceId}

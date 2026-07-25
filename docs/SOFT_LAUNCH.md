@@ -1,6 +1,7 @@
 # Watchify soft launch
 
 > **Ops / Render / DNS / TURN / Neon:** see [`SOFT_LAUNCH_OPS.md`](./SOFT_LAUNCH_OPS.md)  
+> **Company email (dorian@watchify.app):** see [`COMPANY_EMAIL.md`](./COMPANY_EMAIL.md)  
 > **Friend-facing one-pager:** see [`TESTER_ONE_PAGER.md`](./TESTER_ONE_PAGER.md)  
 > **This week party-night checklist:** see [`THIS_WEEK_OPS.md`](./THIS_WEEK_OPS.md)
 
@@ -10,8 +11,9 @@
 - Run Next (`npm start`, port 3344) and realtime (`npm run start:realtime`, port 3345) as separate supervised processes. Route WebSocket upgrades to realtime and set `NEXT_PUBLIC_REALTIME_URL`.
 - Set unique production `NEXTAUTH_SECRET`, `REALTIME_SECRET`, and 32+ character `TOKEN_ENCRYPTION_SECRET`. Back up the encryption secret separately; losing it makes Trakt tokens unreadable.
 - Configure Stripe webhook `/api/stripe/webhook`, HTTPS email links, and exact Trakt callback `/api/trakt/callback`.
+- **Stripe billing mode (2026-07-24):** production still uses **test** keys (`sk_test_` / `pk_test_`) until account activation completes. Target is **live** mode (real charges) with live Plus/Party prices, live webhook to `https://watchify-web-9rx1.onrender.com/api/stripe/webhook`, and Render env updated. Account `acct_1TuqGUH14A0jEoKl` currently has `charges_enabled` / `payouts_enabled` / `details_submitted` = false.
 - Set canonical HTTPS `NEXT_PUBLIC_APP_URL`, `NEXTAUTH_URL`, `ALLOWED_ORIGINS`, and restricted CORS/firewall rules.
-- Video uses Google STUN locally. Production should set `TURN_URL`, `TURN_USER`, `TURN_PASS`; use expiring credentials where supported. The first release is a peer mesh capped at 6; larger rooms require an SFU and bandwidth/cost planning.
+- **TURN (live):** Metered.ca free TURN via `METERED_DOMAIN` + `METERED_TURN_API_KEY` (expiring credentials from `/api/realtime/ice`). Optional static `TURN_URL` / `TURN_USER` / `TURN_PASS` fallback. Local Open Relay only when `WATCHIFY_OPEN_RELAY_TURN` allows. Details + NAT test: [`SOFT_LAUNCH_OPS.md`](./SOFT_LAUNCH_OPS.md). Peer mesh capped at 6; larger rooms need an SFU.
 - Monitor `/api/health`, realtime root, WebSocket disconnect rate, OAuth/webhook failures, DB saturation, disk/backups, email bounces, TURN allocation failures, and error logs. Do not log tokens, chat content, or SDP.
 - Run daily encrypted DB backups with retention and a monthly restore drill. Document incident ownership and token/key rotation.
 
@@ -31,6 +33,7 @@
 - [ ] CC attribution links checked; no uncertain title labelled licensed
 - [ ] Responsive keyboard/screen-reader smoke test
 - [ ] Health monitoring, alerts, backups, restore, domains, TLS, CORS complete
+- [ ] Company email live: `dorian@watchify.app` receives mail; Resend sends as `hello@watchify.app` ([COMPANY_EMAIL.md](./COMPANY_EMAIL.md))
 - [ ] PWA installable; `/tv` companion usable on living-room browser
 - [ ] `npm run launch:check:prod` exits GO
 - [ ] `WATCHIFY_DEV_BILLING` / demo login off in production
@@ -55,6 +58,7 @@ Share menus appear on watchlists, parties/invites, profiles, watching-now, free 
 4. Tester reviews access/safety details, signs in or signs up, returns to the invite, and joins.
 5. Send chat/reactions and test free-title play/pause/seek. Disable realtime briefly and confirm reconnect feedback.
 6. Join face video with camera off, then repeat with granted camera/mic. Test mute, camera off, permission denial, leave, and reconnect. Do not screen-share paid services.
+6b. **Screen party (Android Chrome):** Host creates a **TikTok / screen party**, taps **Share screen** in the focus room, allows capture, opens TikTok/Shorts/Reels. Guest confirms dominant shared screen + chat. Stop sharing and reconnect. On **iPhone Safari**, confirm honest “unavailable” + **Open in Watchify iOS app** (no fake `getDisplayMedia` button). On a signed **Watchify iOS** build, confirm **Share Screen (iOS)** → ReplayKit broadcast → guest sees the screen.
 7. Host revokes the old invite and creates a new seven-day invite; verify the old URL fails.
 8. Report a test account/content issue and have staff review moderation and `/admin/analytics`.
 9. Record browser/device/network, confusing copy, failures, and whether you would invite another person.

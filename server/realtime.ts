@@ -44,7 +44,14 @@ type NextVoteState = {
 
 /** Ephemeral room presence — membership remains in DB. */
 const rooms = new Map<string, Map<string, PresenceMember>>();
-type VideoMember = { userId: string; name: string; camera: boolean; microphone: boolean; socketId: string };
+type VideoMember = {
+  userId: string;
+  name: string;
+  camera: boolean;
+  microphone: boolean;
+  screen: boolean;
+  socketId: string;
+};
 const videoRooms = new Map<string, Map<string, VideoMember>>();
 const nextVotes = new Map<string, NextVoteState>();
 const VIDEO_MESH_LIMIT = 6;
@@ -557,7 +564,12 @@ io.on("connection", (socket) => {
     }
   );
 
-  socket.on("video_join", async (payload: { camera?: boolean; microphone?: boolean }, ack?) => {
+  socket.on(
+    "video_join",
+    async (
+      payload: { camera?: boolean; microphone?: boolean; screen?: boolean },
+      ack?
+    ) => {
     const party = await assertMember(userId, partyId);
     if (!party) return ack?.({ ok: false, error: "Not a party member" });
     // Face video is free for all party members (joiners included). Hosting/create
@@ -570,19 +582,47 @@ io.on("connection", (socket) => {
     if (!room.has(userId) && room.size >= VIDEO_MESH_LIMIT) {
       return ack?.({ ok: false, error: "Video room is full (6-person soft-launch limit)" });
     }
-    const peer = { userId, name, camera: Boolean(payload?.camera), microphone: Boolean(payload?.microphone), socketId: socket.id };
-    const peers = Array.from(room.values()).filter((p) => p.userId !== userId).map(({ socketId: _socketId, ...publicPeer }) => publicPeer);
+    const peer = {
+      userId,
+      name,
+      camera: Boolean(payload?.camera),
+      microphone: Boolean(payload?.microphone),
+      screen: Boolean(payload?.screen),
+      socketId: socket.id,
+    };
+    const peers = Array.from(room.values())
+      .filter((p) => p.userId !== userId)
+      .map(({ socketId: _socketId, ...publicPeer }) => publicPeer);
     room.set(userId, peer);
-    socket.to(roomKey(partyId)).emit("video_peer_joined", { peer: { userId, name, camera: peer.camera, microphone: peer.microphone } });
+    socket.to(roomKey(partyId)).emit("video_peer_joined", {
+      peer: {
+        userId,
+        name,
+        camera: peer.camera,
+        microphone: peer.microphone,
+        screen: peer.screen,
+      },
+    });
     ack?.({ ok: true, peers });
   });
 
-  socket.on("video_state", (payload: { camera?: boolean; microphone?: boolean }) => {
+  socket.on(
+    "video_state",
+    (payload: { camera?: boolean; microphone?: boolean; screen?: boolean }) => {
     const member = videoRooms.get(partyId)?.get(userId);
     if (!member || member.socketId !== socket.id) return;
     member.camera = Boolean(payload?.camera);
     member.microphone = Boolean(payload?.microphone);
-    socket.to(roomKey(partyId)).emit("video_peer_joined", { peer: { userId, name, camera: member.camera, microphone: member.microphone } });
+    member.screen = Boolean(payload?.screen);
+    socket.to(roomKey(partyId)).emit("video_peer_joined", {
+      peer: {
+        userId,
+        name,
+        camera: member.camera,
+        microphone: member.microphone,
+        screen: member.screen,
+      },
+    });
   });
 
   socket.on("webrtc_signal", async (payload: { targetUserId?: string; signal?: unknown }) => {

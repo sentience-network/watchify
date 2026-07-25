@@ -44,7 +44,10 @@ export function computeWatchMatches(input: {
   const candidateIds = new Set<string>();
   for (const a of input.state.activities) {
     if (!input.selectedFriendIds.includes(a.userId)) continue;
-    if (a.type === "finished" || a.type === "watching" || a.type === "watchlist_add") {
+    if (
+      a.movieId &&
+      (a.type === "finished" || a.type === "watching" || a.type === "watchlist_add")
+    ) {
       candidateIds.add(a.movieId);
     }
   }

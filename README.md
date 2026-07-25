@@ -90,7 +90,10 @@ Hardens billing, auth recovery, moderation, and soft-launch ops. **DB plan is so
 | Forgot / reset | `/auth/forgot` → `/auth/reset?token=` |
 | Demo users | Seeded with `emailVerifiedAt` set |
 
-Email transport order: **Resend** → **SMTP (Nodemailer)** → **console**.
+Email transport order: **Resend** → **SMTP (Nodemailer)** → **Ethereal** → **console**.
+
+Company addresses (soft launch): **From** `Watchify <hello@watchify.app>` · **Contact/admin** `dorian@watchify.app`.  
+Mailbox + DNS setup: [`docs/COMPANY_EMAIL.md`](./docs/COMPANY_EMAIL.md). Env: `EMAIL_FROM`, `CONTACT_EMAIL`, `SUPPORT_EMAIL`, `ADMIN_EMAIL`, `RESEND_API_KEY`.
 
 ### Soft moderation
 
@@ -110,7 +113,7 @@ Email transport order: **Resend** → **SMTP (Nodemailer)** → **console**.
 - [ ] `npm run db:seed` (demo users + sample report)
 - [ ] Two-process dev: `npm run dev` (Next **3344** + realtime **3345**)
 - [ ] Stripe: products/prices, webhook URL, portal; or accept demo mode banner
-- [ ] Email: `RESEND_API_KEY` or SMTP, or rely on console links in logs
+- [ ] Email: `RESEND_API_KEY` + verified `EMAIL_FROM=Watchify <hello@watchify.app>`, or SMTP, or console links in logs; contact `dorian@watchify.app` ([docs/COMPANY_EMAIL.md](./docs/COMPANY_EMAIL.md))
 - [ ] Hit `/api/health` and realtime root (`:3345`)
 - [ ] Mod: sign in as alex → `/admin/reports` → act on seeded report
 
@@ -182,7 +185,7 @@ Stripe missing → honest demo mode (plan still saved in DB via authenticated AP
 - **Social share** — friends see watching metadata without needing your membership
 - **Own-account sync** — each person uses their own streaming login + deep links
 - **Watchify Free** — CC/PD/sample titles with in-app playback + party sync
-- **Screen share** — free/owned media only; paid streamer apps blocked
+- **Screen share** — host display capture for social apps (TikTok / Shorts / Reels) and free/owned media; paid streamer apps blocked. Not a CDN proxy. Android/desktop use `getDisplayMedia`; iPhone needs the Watchify iOS app (ReplayKit) — Safari cannot share other apps.
 
 ## Catalog & deep links
 

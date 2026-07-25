@@ -11,6 +11,7 @@ import { isStreamingServiceId } from "../streaming";
 import type {
   Activity,
   ActivityType,
+  ActivityVisibility,
   AppState,
   FriendRequest,
   PartyJoinRequest,
@@ -325,19 +326,7 @@ export async function loadAppStateForUser(userId: string): Promise<AppState | nu
     watchingProgressPercent: me.watchingProgressPercent,
     watchingStartedAt: me.watchingStartedAt?.toISOString() ?? null,
     recentlyWatchedIds: parseJson<string[]>(me.recentlyWatchedIdsJson, []),
-    activities: activities.map(
-      (a): Activity => ({
-        id: a.id,
-        userId: a.userId,
-        type: a.type as ActivityType,
-        movieId: a.movieId,
-        watchlistId: a.watchlistId ?? undefined,
-        partyId: a.partyId ?? undefined,
-        serviceId: (a.serviceId as StreamingServiceId | null) ?? undefined,
-        progressPercent: a.progressPercent,
-        createdAt: a.createdAt.toISOString(),
-      })
-    ),
+    activities: activities.map(mapActivityRow),
     watchingPublic: me.publicWatching,
     friendIds,
     friendRequests: friendRequests.map(
@@ -465,22 +454,161 @@ export async function searchDirectoryUsers(
   return ranked.map((r) => mapPublicUser(r.row));
 }
 
+type ActivityRow = {
+  id: string;
+  userId: string;
+  type: string;
+  movieId: string | null;
+  watchlistId: string | null;
+  partyId: string | null;
+  serviceId: string | null;
+  progressPercent: number | null;
+  text: string | null;
+  visibility: string;
+  createdAt: Date;
+};
+
+export function mapActivityRow(a: ActivityRow): Activity {
+  return {
+    id: a.id,
+    userId: a.userId,
+    type: a.type as ActivityType,
+    movieId: a.movieId ?? null,
+    watchlistId: a.watchlistId ?? undefined,
+    partyId: a.partyId ?? undefined,
+    serviceId: (a.serviceId as StreamingServiceId | null) ?? undefined,
+    progressPercent: a.progressPercent,
+    text: a.text ?? null,
+    visibility: (a.visibility === "public" ? "public" : "friends") as ActivityVisibility,
+    createdAt: a.createdAt.toISOString(),
+  };
+}
+
+const DISCOVER_TYPES: ActivityType[] = [
+  "watching",
+  "finished",
+  "party_created",
+  "party_joined",
+  "post",
+];
+
 export async function pushActivity(
   userId: string,
   partial: Omit<Activity, "id" | "userId" | "createdAt">
 ) {
+  const visibility: ActivityVisibility =
+    partial.visibility === "public" ? "public" : "friends";
+  const text =
+    partial.text != null ? sanitizeText(partial.text, 180) || null : null;
   await prisma.activity.create({
     data: {
       id: uid("a"),
       userId,
       type: partial.type,
-      movieId: partial.movieId,
+      movieId: partial.movieId ?? null,
       watchlistId: partial.watchlistId,
       partyId: partial.partyId,
       serviceId: partial.serviceId ?? null,
       progressPercent: partial.progressPercent ?? null,
+      text,
+      visibility,
     },
   });
+}
+
+/** Short watch-related post for the activity feed. */
+export async function createFeedPost(
+  userId: string,
+  input: {
+    text: string;
+    movieId?: string | null;
+    visibility?: ActivityVisibility;
+  }
+): Promise<{ ok: true; activity: Activity } | { ok: false; error: string }> {
+  const text = sanitizeText(input.text, 180);
+  if (!text || text.length < 2) {
+    return { ok: false, error: "Post needs at least 2 characters." };
+  }
+  const me = await prisma.user.findUnique({ where: { id: userId } });
+  if (!me || me.bannedAt) return { ok: false, error: "Account unavailable" };
+
+  const visibility: ActivityVisibility =
+    input.visibility === "public" ? "public" : "friends";
+  const movieId = input.movieId?.trim() || null;
+
+  const id = uid("a");
+  const row = await prisma.activity.create({
+    data: {
+      id,
+      userId,
+      type: "post",
+      movieId,
+      text,
+      visibility,
+    },
+  });
+  return { ok: true, activity: mapActivityRow(row as ActivityRow) };
+}
+
+export async function loadFeedForUser(
+  userId: string,
+  tab: "following" | "discover",
+  opts?: { take?: number; since?: string }
+): Promise<Activity[]> {
+  const take = Math.min(Math.max(opts?.take ?? 60, 1), 100);
+  const since = opts?.since ? new Date(opts.since) : null;
+  const sinceFilter =
+    since && !Number.isNaN(since.getTime())
+      ? { createdAt: { gt: since } }
+      : {};
+
+  const [friendships, blocks] = await Promise.all([
+    prisma.friendship.findMany({
+      where: { userId },
+      select: { friendId: true },
+    }),
+    prisma.block.findMany({
+      where: { OR: [{ blockerId: userId }, { blockedId: userId }] },
+    }),
+  ]);
+  const friendIds = friendships.map((f) => f.friendId);
+  const blocked = new Set<string>();
+  for (const b of blocks) {
+    blocked.add(b.blockerId === userId ? b.blockedId : b.blockerId);
+  }
+
+  if (tab === "following") {
+    const allowed = [userId, ...friendIds].filter((id) => !blocked.has(id));
+    if (!allowed.length) return [];
+    const rows = await prisma.activity.findMany({
+      where: {
+        userId: { in: allowed },
+        ...sinceFilter,
+        user: { bannedAt: null },
+      },
+      orderBy: { createdAt: "desc" },
+      take,
+    });
+    return rows.map((r) => mapActivityRow(r as ActivityRow));
+  }
+
+  // Discover: public Watchify activity (not a Facebook clone of everything)
+  const rows = await prisma.activity.findMany({
+    where: {
+      visibility: "public",
+      type: { in: DISCOVER_TYPES },
+      ...sinceFilter,
+      user: { bannedAt: null },
+      NOT: blocked.size
+        ? { userId: { in: Array.from(blocked) } }
+        : undefined,
+    },
+    orderBy: { createdAt: "desc" },
+    take,
+  });
+  return rows
+    .map((r) => mapActivityRow(r as ActivityRow))
+    .filter((a) => !blocked.has(a.userId));
 }
 
 function cosmeticAllowed(
@@ -690,6 +818,7 @@ export async function setPresence(
       movieId,
       serviceId: input.serviceId ?? undefined,
       progressPercent: input.progressPercent ?? 0,
+      visibility: me?.publicWatching === false ? "friends" : "public",
     });
   }
 }
@@ -728,6 +857,7 @@ export async function markFinished(userId: string, movieId: string) {
     type: "finished",
     movieId,
     serviceId: (me.currentlyWatchingServiceId as StreamingServiceId | null) ?? undefined,
+    visibility: me.publicWatching === false ? "friends" : "public",
   });
 }
 
@@ -813,6 +943,7 @@ export async function addWatchlistItemDb(
     type: "watchlist_add",
     movieId,
     watchlistId,
+    visibility: list.isPublic ? "public" : "friends",
   });
   const row = await prisma.watchlist.findUnique({
     where: { id: watchlistId },
@@ -910,6 +1041,7 @@ export async function acceptFriendRequestDb(userId: string, requestId: string) {
   await pushActivity(userId, {
     type: "friend_added",
     movieId: "m1",
+    visibility: "friends",
   });
   return { ok: true };
 }
@@ -964,7 +1096,10 @@ export async function createPartyDb(
       startsAt: input.isLive || !input.startsAt ? null : new Date(input.startsAt),
       isLive: input.isLive,
       status: "open",
-      serviceId: syncMode === "watchify_free" ? null : input.serviceId ?? null,
+      serviceId:
+        syncMode === "watchify_free" || syncMode === "screen_share"
+          ? null
+          : input.serviceId ?? null,
       syncMode,
       coHostIdsJson: JSON.stringify(
         (input.coHostIds || []).filter((id) => id !== userId)
@@ -985,7 +1120,10 @@ export async function createPartyDb(
   if (input.isLive) {
     await setPresence(userId, {
       movieId: input.movieId,
-      serviceId: syncMode === "watchify_free" ? null : input.serviceId ?? null,
+      serviceId:
+        syncMode === "watchify_free" || syncMode === "screen_share"
+          ? null
+          : input.serviceId ?? null,
       progressPercent: 0,
     });
   }
@@ -1000,6 +1138,7 @@ export async function createPartyDb(
     movieId: input.movieId,
     partyId,
     serviceId: (row.serviceId as StreamingServiceId | null) ?? undefined,
+    visibility: row.visibility === "public" ? "public" : "friends",
   });
   return { ok: true, value: mapParty(row) };
 }
@@ -1448,6 +1587,7 @@ export async function joinPartyByInviteDb(userId: string, invite: string) {
     type: "party_joined",
     movieId: party.movieId,
     partyId: party.id,
+    visibility: party.visibility === "public" ? "public" : "friends",
   });
 
   const refreshed = await prisma.party.findUnique({
@@ -1513,6 +1653,7 @@ export async function acceptJoinRequestDb(userId: string, requestId: string) {
     type: "party_joined",
     movieId: party.movieId,
     partyId: party.id,
+    visibility: party.visibility === "public" ? "public" : "friends",
   });
   return { ok: true };
 }

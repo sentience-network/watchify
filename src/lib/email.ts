@@ -19,6 +19,11 @@ export function getEmailTransport(): EmailTransport {
   return "console";
 }
 
+/**
+ * Transactional From address.
+ * Production: set EMAIL_FROM=Watchify <hello@watchify.app> after Resend verifies the domain
+ * (see docs/COMPANY_EMAIL.md). Default stays onboarding@resend.dev so unverified API keys still smoke-test.
+ */
 export function emailFromAddress(): string {
   return (
     process.env.EMAIL_FROM ||

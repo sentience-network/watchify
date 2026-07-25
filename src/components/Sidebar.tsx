@@ -11,7 +11,7 @@ const baseLinks = [
   { href: "/library", label: "Free", badgeKey: null },
   { href: "/upload", label: "Upload", badgeKey: null },
   { href: "/parties", label: "Parties", badgeKey: "joins" },
-  { href: "/feed", label: "Friends", badgeKey: "friends" },
+  { href: "/feed", label: "Feed", badgeKey: "friends" },
   { href: "/messages", label: "Messages", badgeKey: "dms" },
   { href: "/tv", label: "TV mode", badgeKey: null },
   { href: "/watchlists", label: "Lists", badgeKey: null },
@@ -63,7 +63,7 @@ export function Sidebar() {
   ];
 
   const moreLinks = [
-    { href: "/feed", label: "Friends", badgeKey: "friends" as string | null },
+    { href: "/feed", label: "Feed", badgeKey: "friends" as string | null },
     ...(currentUserId
       ? [{ href: `/profile/${currentUserId}`, label: "Profile", badgeKey: null as string | null }]
       : [{ href: "/auth/signin", label: "Sign in", badgeKey: null as string | null }]),

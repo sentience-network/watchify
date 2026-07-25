@@ -33,7 +33,7 @@ const STEPS = [
     n: 5,
     title: "Face video + screen share",
     detail:
-      "Join video room, mute/camera toggle. Desktop: Share screen with party. iPhone: expect Share options (camera / upload / TV) — Safari has no getDisplayMedia.",
+      "Create a TikTok / screen party. Android Chrome or desktop: Share screen → switch to TikTok/Shorts/Reels. iPhone: use Watchify iOS app (ReplayKit) — Safari shows honest unavailable + Open in app.",
     href: "/parties",
   },
   {

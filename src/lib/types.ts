@@ -76,18 +76,25 @@ export type ActivityType =
   | "finished"
   | "party_created"
   | "party_joined"
-  | "friend_added";
+  | "friend_added"
+  | "post";
+
+export type ActivityVisibility = "public" | "friends";
 
 export type Activity = {
   id: string;
   userId: string;
   type: ActivityType;
-  movieId: string;
+  movieId?: string | null;
   watchlistId?: string;
   partyId?: string;
   /** Streaming service badge for social share (metadata only) */
   serviceId?: StreamingServiceId | null;
   progressPercent?: number | null;
+  /** Short watch-related post (type=post) */
+  text?: string | null;
+  /** public → Discover; friends → Following only */
+  visibility?: ActivityVisibility;
   createdAt: string;
 };
 
@@ -174,8 +181,9 @@ export type WatchParty = {
    * - social: chat/reactions only
    * - own_account: Teleparty-style sync + deep links (each uses own login)
    * - watchify_free: synced playback of Watchify-hosted free title
+   * - screen_share: host shares phone/desktop screen (TikTok / Shorts / Reels-style co-watch) + chat
    */
-  syncMode?: "social" | "own_account" | "watchify_free";
+  syncMode?: "social" | "own_account" | "watchify_free" | "screen_share";
   /** Co-hosts who can accept joins / end party */
   coHostIds?: string[];
   /** Soft recurring flag for host tools */

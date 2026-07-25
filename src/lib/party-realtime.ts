@@ -55,6 +55,8 @@ export type VideoPeer = {
   name: string;
   camera: boolean;
   microphone: boolean;
+  /** True when this peer is sending a display-capture (screen) track. */
+  screen?: boolean;
 };
 export type WebrtcSignal =
   | { type: "offer"; sdp: RTCSessionDescriptionInit }
@@ -401,7 +403,11 @@ export class PartyRealtimeClient {
     });
   }
 
-  joinVideo(camera: boolean, microphone: boolean): Promise<VideoPeer[]> {
+  joinVideo(
+    camera: boolean,
+    microphone: boolean,
+    screen = false
+  ): Promise<VideoPeer[]> {
     const socket = this.socket;
     if (!socket?.connected) return Promise.resolve([]);
     return new Promise((resolve, reject) => {
@@ -409,7 +415,7 @@ export class PartyRealtimeClient {
         .timeout(5000)
         .emit(
           "video_join",
-          { camera, microphone },
+          { camera, microphone, screen },
           (
             err: Error | null,
             response?: { ok: boolean; peers?: VideoPeer[]; error?: string }
@@ -430,8 +436,8 @@ export class PartyRealtimeClient {
     this.socket?.emit("webrtc_signal", { targetUserId, signal });
   }
 
-  updateVideoState(camera: boolean, microphone: boolean) {
-    this.socket?.emit("video_state", { camera, microphone });
+  updateVideoState(camera: boolean, microphone: boolean, screen = false) {
+    this.socket?.emit("video_state", { camera, microphone, screen });
   }
 
   private emitAck<T>(event: string, payload: unknown): Promise<T | null> {

@@ -27,14 +27,15 @@ export function recommendationsFromFriends(
 
   for (const a of state.activities) {
     if (!state.friendIds.includes(a.userId)) continue;
-    if (mine.has(a.movieId)) continue;
-    if (!getMovie(a.movieId)) continue;
+    const movieId = a.movieId;
+    if (!movieId || mine.has(movieId)) continue;
+    if (!getMovie(movieId)) continue;
     const friend = getUser(a.userId);
     if (!friend) continue;
     const weight =
       a.type === "finished" ? 3 : a.type === "watching" ? 2 : a.type === "watchlist_add" ? 1 : 0;
     if (!weight) continue;
-    const prev = scores.get(a.movieId);
+    const prev = scores.get(movieId);
     const reason =
       a.type === "finished"
         ? `Because ${friend.name.split(" ")[0]} finished it`
@@ -42,8 +43,8 @@ export function recommendationsFromFriends(
           ? `${friend.name.split(" ")[0]} is watching this now`
           : `${friend.name.split(" ")[0]} queued this`;
     if (!prev || weight > prev.score) {
-      scores.set(a.movieId, {
-        movieId: a.movieId,
+      scores.set(movieId, {
+        movieId,
         reason,
         fromUserId: a.userId,
         score: weight + (prev?.score || 0),

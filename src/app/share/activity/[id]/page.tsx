@@ -29,7 +29,7 @@ export default function SharedActivityPage() {
         href="/feed"
         className="mt-8 inline-flex rounded-xl bg-teal px-5 py-3 text-sm font-semibold text-ink hover:bg-teal-soft"
       >
-        Open friend feed
+        Open activity feed
       </Link>
     </main>
   );

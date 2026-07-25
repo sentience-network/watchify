@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { prisma } from "../src/lib/db";
 import {
   getScreenShareCapability,
+  isLikelyAndroid,
   isLikelyIos,
   isLikelyIosSafari,
   supportsDisplayMedia,
@@ -41,6 +42,8 @@ test("screen share capability uses feature detection, not UA-only block", () => 
   assert.equal(isLikelyIos(iosSafari), true);
   assert.equal(isLikelyIosSafari(iosSafari), true);
   assert.equal(isLikelyIos(androidChrome), false);
+  assert.equal(isLikelyAndroid(androidChrome), true);
+  assert.equal(isLikelyAndroid(iosSafari), false);
 
   // No getDisplayMedia → unsupported even on desktop UA
   const noApi = getScreenShareCapability({
@@ -48,6 +51,7 @@ test("screen share capability uses feature detection, not UA-only block", () => 
     userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0",
   });
   assert.equal(noApi.supported, false);
+  assert.equal(noApi.canShare, false);
   assert.equal(supportsDisplayMedia(null), false);
 
   // getDisplayMedia present → supported even on iOS UA (progressive enhancement)
@@ -59,6 +63,7 @@ test("screen share capability uses feature detection, not UA-only block", () => 
     userAgent: iosSafari,
   });
   assert.equal(iosWithApi.supported, true);
+  assert.equal(iosWithApi.canShare, true);
   assert.equal(iosWithApi.isIos, true);
 
   // Android without API is unsupported but not labeled as iOS
@@ -68,7 +73,36 @@ test("screen share capability uses feature detection, not UA-only block", () => 
   });
   assert.equal(androidNoApi.supported, false);
   assert.equal(androidNoApi.isIos, false);
-  assert.match(androidNoApi.unsupportedReason, /does not support/i);
+  assert.equal(androidNoApi.isAndroid, true);
+  assert.match(androidNoApi.unsupportedReason, /Android|Chrome/i);
+
+  // Android with API gets mobile host tip
+  const androidWithApi = getScreenShareCapability({
+    mediaDevices: fakeMedia,
+    userAgent: androidChrome,
+  });
+  assert.equal(androidWithApi.supported, true);
+  assert.equal(androidWithApi.isAndroid, true);
+  assert.match(androidWithApi.mobileHostTip, /Android Chrome/i);
+
+  // iOS without API points hosts to native app / Android Chrome / desktop
+  const iosNoApi = getScreenShareCapability({
+    mediaDevices: null,
+    userAgent: iosSafari,
+  });
+  assert.equal(iosNoApi.canShare, false);
+  assert.match(iosNoApi.unsupportedReason, /Watchify iOS app|Android Chrome|desktop/i);
+
+  // Native ReplayKit bridge enables share without getDisplayMedia
+  const iosNative = getScreenShareCapability({
+    mediaDevices: null,
+    userAgent: iosSafari,
+    nativeIosBridge: true,
+  });
+  assert.equal(iosNative.supported, false);
+  assert.equal(iosNative.canShare, true);
+  assert.equal(iosNative.nativeIosBridge, true);
+  assert.match(iosNative.mobileHostTip, /Share Screen \(iOS\)|ReplayKit|Watchify iOS/i);
 });
 
 test("invite joins create durable membership and enforce capacity", async () => {
