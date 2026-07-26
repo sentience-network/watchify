@@ -89,6 +89,16 @@ export default function ContentPage() {
               shorts (what ships in the free library today).
             </li>
             <li>
+              <strong className="text-white">Free Live TV</strong> — public
+              broadcasters and openly published linear streams (NASA TV, DW,
+              France 24, Al Jazeera, Red Bull TV) via official HLS / YouTube Live.
+              See{" "}
+              <a href="/live" className="text-teal-soft hover:underline">
+                /live
+              </a>
+              .
+            </li>
+            <li>
               <strong className="text-white">Official trailers</strong> — YouTube
               / studio embeds for promotion; not full features.
             </li>

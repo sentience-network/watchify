@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import Hls from "hls.js";
 import { archiveEmbedUrl } from "@/lib/archive-org";
 import { getMovie } from "@/lib/movies";
 import { isFreePlayable } from "@/lib/free-content";
+import { isAllowlistedHlsUrl } from "@/lib/live-tv";
 import { useWatchify } from "@/lib/store";
 import { usePartyRealtime } from "@/hooks/usePartyRealtime";
 
@@ -70,11 +72,22 @@ function loadYouTubeApi(): Promise<boolean> {
   });
 }
 
-/** In-app player for Watchify free/CC/PD titles (MP4 or YouTube embed). */
+function isHlsUrl(url: string | undefined): boolean {
+  if (!url) return false;
+  return /\.m3u8(\?|#|$)/i.test(url) || url.includes("/hls/");
+}
+
+function proxiedHlsUrl(url: string): string {
+  return `/api/live/hls?url=${encodeURIComponent(url)}`;
+}
+
+/** In-app player for Watchify free/CC/PD titles and free live TV (MP4, HLS, or YouTube). */
 export function FreePlayer({ movieId, partyId, autoplay }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const ytPlayerRef = useRef<YtPlayer | null>(null);
+  const hlsRef = useRef<Hls | null>(null);
   const ytElementId = `watchify-yt-${movieId}`;
+  const [hlsError, setHlsError] = useState<string | null>(null);
   const {
     state,
     updatePartyPlayback,
@@ -89,7 +102,13 @@ export function FreePlayer({ movieId, partyId, autoplay }: Props) {
   const applyingRemote = useRef(false);
   const lastBroadcast = useRef(0);
   const useYoutube = Boolean(movie?.youtubePlaybackId);
+  const isLive = Boolean(movie?.isLive || movieId.startsWith("live-"));
+  const rawHls =
+    movie?.hlsUrl ||
+    (isHlsUrl(movie?.freePlaybackUrl) ? movie?.freePlaybackUrl : undefined);
+  const useHls = Boolean(!useYoutube && rawHls);
   const mp4Url =
+    !useHls &&
     movie?.freePlaybackUrl &&
     !movie.freePlaybackUrl.includes("archive.org/embed/")
       ? movie.freePlaybackUrl
@@ -97,7 +116,7 @@ export function FreePlayer({ movieId, partyId, autoplay }: Props) {
   const archiveId =
     movie?.archiveOrgId ||
     (movie?.id?.startsWith("ia-") ? movie.id.slice(3) : undefined);
-  const useArchiveEmbed = Boolean(!useYoutube && !mp4Url && archiveId);
+  const useArchiveEmbed = Boolean(!useYoutube && !useHls && !mp4Url && archiveId);
 
   const youtubeEmbedSrc = useMemo(() => {
     if (!movie?.youtubePlaybackId) return "";
@@ -122,14 +141,78 @@ export function FreePlayer({ movieId, partyId, autoplay }: Props) {
     if (isFreePlayable(movie)) {
       setCurrentlyWatching(movieId, {
         serviceId: null,
-        progressPercent: 0,
+        progressPercent: isLive ? null : 0,
         startTracker: true,
       });
     }
-  }, [movie, movieId, setCurrentlyWatching]);
+  }, [movie, movieId, setCurrentlyWatching, isLive]);
+
+  // HLS live / VOD — native Safari, hls.js elsewhere; proxy fallback for CORS.
+  useEffect(() => {
+    if (!useHls || !rawHls) return;
+    const el = videoRef.current;
+    if (!el) return;
+
+    let cancelled = false;
+    setHlsError(null);
+
+    const destroyHls = () => {
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+    };
+
+    const attach = (src: string, allowProxyFallback: boolean) => {
+      destroyHls();
+      if (el.canPlayType("application/vnd.apple.mpegurl")) {
+        el.src = src;
+        if (autoplay) void el.play().catch(() => undefined);
+        return;
+      }
+      if (!Hls.isSupported()) {
+        setHlsError("This browser cannot play live HLS streams.");
+        return;
+      }
+      const hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: isLive,
+      });
+      hlsRef.current = hls;
+      hls.loadSource(src);
+      hls.attachMedia(el);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        if (cancelled) return;
+        if (autoplay) void el.play().catch(() => undefined);
+      });
+      hls.on(Hls.Events.ERROR, (_evt, data) => {
+        if (cancelled || !data.fatal) return;
+        if (
+          allowProxyFallback &&
+          isAllowlistedHlsUrl(rawHls) &&
+          src === rawHls
+        ) {
+          attach(proxiedHlsUrl(rawHls), false);
+          return;
+        }
+        setHlsError("Live stream failed to load. Try another channel.");
+        destroyHls();
+      });
+    };
+
+    attach(rawHls, true);
+
+    return () => {
+      cancelled = true;
+      destroyHls();
+      el.removeAttribute("src");
+      el.load();
+    };
+  }, [useHls, rawHls, autoplay, isLive]);
 
   // Push rough progress % to presence so friends see where you are.
   useEffect(() => {
+    if (isLive) return;
     if (!movie?.runtime || movie.runtime <= 0) return;
     const runtimeSec = movie.runtime * 60;
     const id = window.setInterval(() => {
@@ -199,14 +282,14 @@ export function FreePlayer({ movieId, partyId, autoplay }: Props) {
     };
   }, [useYoutube, movie?.youtubePlaybackId, ytElementId, partyId, updatePartyPlayback]);
 
-  // Apply remote sync — HTML5
+  // Apply remote sync — HTML5 / HLS (skip seek for live linear)
   useEffect(() => {
     if (useYoutube || useArchiveEmbed) return;
     const el = videoRef.current;
     if (!el || !sync || !partyId) return;
     if (sync.updatedBy === state.currentUserId) return;
     applyingRemote.current = true;
-    if (Math.abs(el.currentTime - sync.positionSec) > 1.5) {
+    if (!isLive && Math.abs(el.currentTime - sync.positionSec) > 1.5) {
       el.currentTime = sync.positionSec;
     }
     if (sync.playing && el.paused) void el.play().catch(() => undefined);
@@ -215,7 +298,7 @@ export function FreePlayer({ movieId, partyId, autoplay }: Props) {
       applyingRemote.current = false;
     }, 150);
     return () => window.clearTimeout(t);
-  }, [sync, partyId, state.currentUserId, useYoutube, useArchiveEmbed]);
+  }, [sync, partyId, state.currentUserId, useYoutube, useArchiveEmbed, isLive]);
 
   // Apply remote sync — YouTube (when API attached)
   useEffect(() => {
@@ -308,37 +391,51 @@ export function FreePlayer({ movieId, partyId, autoplay }: Props) {
           />
         </div>
       ) : (
-        <video
-          ref={videoRef}
-          className="aspect-video w-full rounded-2xl bg-black"
-          src={mp4Url}
-          controls
-          playsInline
-          autoPlay={autoplay}
-          onPlay={broadcast}
-          onPause={broadcast}
-          onSeeked={broadcast}
-          onTimeUpdate={() => {
-            if (!partyId || applyingRemote.current || !videoRef.current) return;
-            const t = Math.floor(videoRef.current.currentTime);
-            if (t % 3 === 0) broadcast();
-          }}
-        />
+        <div className="space-y-2">
+          <video
+            ref={videoRef}
+            className="aspect-video w-full rounded-2xl bg-black"
+            src={useHls ? undefined : mp4Url}
+            controls
+            playsInline
+            autoPlay={autoplay}
+            onPlay={broadcast}
+            onPause={broadcast}
+            onSeeked={isLive ? undefined : broadcast}
+            onTimeUpdate={() => {
+              if (isLive) return;
+              if (!partyId || applyingRemote.current || !videoRef.current) return;
+              const t = Math.floor(videoRef.current.currentTime);
+              if (t % 3 === 0) broadcast();
+            }}
+          />
+          {hlsError && (
+            <p className="text-xs text-amber">{hlsError}</p>
+          )}
+        </div>
       )}
       <p className="text-xs text-mist/70">
-        Free on Watchify · License:{" "}
+        {isLive ? "Live · Free on Watchify" : "Free on Watchify"} · License:{" "}
         {movie.licenseKind?.replace("_", " ") || "free sample"}
         {useYoutube
-          ? " · YouTube embed"
+          ? isLive
+            ? " · YouTube Live"
+            : " · YouTube embed"
           : useArchiveEmbed
             ? " · Internet Archive embed"
-            : " · Direct file"}{" "}
+            : useHls
+              ? " · HLS live stream"
+              : " · Direct file"}{" "}
         ·{" "}
-        {partyId
-          ? useArchiveEmbed
-            ? "Archive embeds play in-party chat; scrub sync is limited vs MP4/YouTube free titles."
-            : "Joining a party auto-seeks to the live playhead."
-          : "Party sync works for Watchify free titles only — not Netflix or other paid apps."}
+        {isLive
+          ? partyId
+            ? "Live linear — everyone watches the same broadcast; scrub sync is off."
+            : "Public free livestream — not cable or paid IPTV."
+          : partyId
+            ? useArchiveEmbed
+              ? "Archive embeds play in-party chat; scrub sync is limited vs MP4/YouTube free titles."
+              : "Joining a party auto-seeks to the live playhead."
+            : "Party sync works for Watchify free titles only — not Netflix or other paid apps."}
       </p>
       {movie.attribution && (
         <p className="text-xs text-mist/70">

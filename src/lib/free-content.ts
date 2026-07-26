@@ -495,8 +495,11 @@ export function isFreePlayable(movie: Movie | undefined): boolean {
   return Boolean(
     movie?.youtubePlaybackId ||
       movie?.freePlaybackUrl ||
+      movie?.hlsUrl ||
       movie?.archiveOrgId ||
-      (movie?.id && movie.id.startsWith("ia-"))
+      movie?.isLive ||
+      (movie?.id && movie.id.startsWith("ia-")) ||
+      (movie?.id && movie.id.startsWith("live-"))
   );
 }
 

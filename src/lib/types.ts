@@ -33,18 +33,31 @@ export type Movie = {
   mediaType?: "movie" | "tv";
   /**
    * Direct playable URL for Watchify-hosted free/licensed titles only.
-   * Never used for paid-streamer scrapes.
+   * Never used for paid-streamer scrapes. May be an MP4 or HLS (.m3u8) for live TV.
    */
   freePlaybackUrl?: string;
   /**
    * YouTube video id for in-app free playback (PD / CC / rights-cleared uploads).
    * Prefer over broken hotlinks; party sync uses the IFrame API.
+   * Also used for official YouTube Live public channels (e.g. NASA TV).
    */
   youtubePlaybackId?: string;
   /** Internet Archive item id for free embed/download playback. */
   archiveOrgId?: string;
+  /** True for free linear / live TV channels (public broadcasters, etc.). */
+  isLive?: boolean;
+  /** Live TV grouping for /live filters. */
+  liveCategory?: "news" | "science" | "lifestyle" | "public";
+  /** Explicit HLS master URL for live channels (mirrors freePlaybackUrl when set). */
+  hlsUrl?: string;
   /** How this title may be played on Watchify */
-  licenseKind?: "catalog" | "trailer" | "public_domain" | "creative_commons" | "avod_sample";
+  licenseKind?:
+    | "catalog"
+    | "trailer"
+    | "public_domain"
+    | "creative_commons"
+    | "avod_sample"
+    | "public_broadcast";
   attribution?: { creator: string; license: string; licenseUrl: string; sourceUrl: string };
   /** Where to open on paid streamers (deep links / search — not piracy) */
   providers?: MovieProvider[];

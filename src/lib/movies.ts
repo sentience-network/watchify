@@ -2,6 +2,7 @@ import type { Movie } from "./types";
 import { EXTRA_CATALOG } from "./catalog-seed";
 import { buildProviderDeepLink } from "./deep-links";
 import { FREE_LIBRARY, TRAILER_IDS } from "./free-content";
+import { LIVE_TV_CHANNELS } from "./live-tv";
 import { isAbsolutePoster, resolvePosterPath } from "./poster-paths";
 import type { StreamingServiceId } from "./streaming";
 import { getCachedMovie, rememberMovies } from "./tmdb";
@@ -490,6 +491,7 @@ export const CATALOG: Movie[] = [
   }),
   ...EXTRA_CATALOG,
   ...FREE_LIBRARY,
+  ...LIVE_TV_CHANNELS,
 ];
 
 export function getMovie(id: string): Movie | undefined {
@@ -506,10 +508,17 @@ export function freeMovies(): Movie[] {
     Boolean(
       m.youtubePlaybackId ||
         m.freePlaybackUrl ||
+        m.hlsUrl ||
         m.archiveOrgId ||
-        m.id.startsWith("ia-")
+        m.isLive ||
+        m.id.startsWith("ia-") ||
+        m.id.startsWith("live-")
     )
   );
+}
+
+export function liveTvChannels(): Movie[] {
+  return LIVE_TV_CHANNELS;
 }
 
 export function catalogMovies(): Movie[] {

@@ -40,6 +40,7 @@ function WatchInner() {
     const needsLive =
       params.id.startsWith("ia-") ||
       params.id.startsWith("tmdb-") ||
+      params.id.startsWith("live-") ||
       !local;
     if (local) {
       setMovie(local);
@@ -186,16 +187,24 @@ function WatchInner() {
                 : movie.title}
             </h1>
             <p className="mt-1 text-sm text-mist/75">
+              {movie.isLive ? (
+                <span className="mr-2 inline-flex items-center gap-1 rounded-md bg-amber px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ink">
+                  <span className="h-1.5 w-1.5 animate-live-glow rounded-full bg-ink" />
+                  Live
+                </span>
+              ) : null}
               {movie.year} · {movie.genres.join(" · ")}
               {free
-                ? " · Free on Watchify"
+                ? movie.isLive
+                  ? " · Free Live TV"
+                  : " · Free on Watchify"
                 : movie.trailerYoutubeId
                   ? " · Trailer"
                   : ""}
               {movie.licenseKind
                 ? ` · ${movie.licenseKind.replace("_", " ")}`
                 : ""}
-              {partyId ? " · party sync on" : ""}
+              {partyId ? (movie.isLive ? " · watching together" : " · party sync on") : ""}
             </p>
             {movie.id.startsWith("ugc-") ? (
               <div className="mt-2">
