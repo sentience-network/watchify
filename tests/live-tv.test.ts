@@ -42,7 +42,7 @@ test("HLS allowlist rejects open proxy abuse", () => {
     true
   );
   assert.equal(
-    isAllowlistedHlsUrl("https://static.france24.com/live/F24_EN_LO_HLS/live_web.m3u8"),
+    isAllowlistedHlsUrl("https://live-hls-apps-aje.getaj.net/AJE/01.m3u8"),
     true
   );
   assert.equal(isAllowlistedHlsUrl("http://evil.example/x.m3u8"), false);
