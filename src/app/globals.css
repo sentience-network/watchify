@@ -864,7 +864,7 @@ textarea::placeholder {
   width: min(1100px, 160vw);
   height: min(1100px, 160vw);
   transform: translate(-50%, -50%);
-  animation: spiral-spin 72s linear infinite;
+  animation: spiral-spin 48s linear infinite;
 }
 
 .hero-spiral__arm {
@@ -898,7 +898,7 @@ textarea::placeholder {
   transform-origin: center center;
   /* Counter wheel spin + gentle float */
   animation:
-    spiral-counter 72s linear infinite,
+    spiral-counter 48s linear infinite,
     spiral-float 5.5s ease-in-out infinite;
   animation-delay: 0s, var(--spiral-delay, 0s);
 }

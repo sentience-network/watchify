@@ -1,6 +1,7 @@
-/* Watchify PWA — cache shell assets only; never cache auth/API.
- * HTML navigations are network-first so deploys (e.g. spiral hero) show immediately. */
-const CACHE = "watchify-shell-v6";
+/* Watchify PWA — cache shell assets only; never cache auth/API/HTML.
+ * HTML navigations are network-only so deploys (e.g. spiral hero) are never
+ * stuck behind a stale document cached during a Render cold-start timeout. */
+const CACHE = "watchify-shell-v7";
 const PRECACHE = [
   "/manifest.webmanifest",
   "/icons/icon-192.svg",
@@ -70,20 +71,10 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/auth/")) return;
 
-  // Always prefer network for documents so landing HTML isn't stuck on an old shell.
-  if (isNavigation(req) || url.pathname === "/") {
+  // Never cache HTML — network only; offline page if the host is unreachable.
+  if (isNavigation(req) || url.pathname === "/" || url.pathname.endsWith(".html")) {
     event.respondWith(
-      fetch(req)
-        .then((res) => {
-          if (res.ok) {
-            const copy = res.clone();
-            void caches.open(CACHE).then((c) => c.put(req, copy));
-          }
-          return res;
-        })
-        .catch(() =>
-          caches.match(req).then((cached) => cached || caches.match("/offline.html"))
-        )
+      fetch(req).catch(() => caches.match("/offline.html"))
     );
     return;
   }
@@ -99,6 +90,11 @@ self.addEventListener("fetch", (event) => {
           return res;
         })
         .catch(() => cached);
+
+      // Hashed Next bundles: network-first so deploys aren't masked by old JS/CSS.
+      if (url.pathname.startsWith("/_next/static/")) {
+        return network.then((res) => res || cached);
+      }
       return cached || network;
     })
   );

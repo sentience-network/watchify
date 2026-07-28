@@ -18,9 +18,12 @@ function toHeroPoster(movie: Movie): HeroPoster | null {
 }
 
 function curatedFallback(): HeroPoster[] {
+  // Spiral center uses the first slot (largest). Rotate so catalog[0] (Dune)
+  // is not the permanent dead-center card when TMDB is thin/down.
+  const rotated = [...CATALOG.slice(8), ...CATALOG.slice(0, 8)];
   const seen = new Set<string>();
   const out: HeroPoster[] = [];
-  for (const movie of CATALOG) {
+  for (const movie of rotated) {
     const poster = toHeroPoster(movie);
     if (!poster || seen.has(poster.src)) continue;
     seen.add(poster.src);
