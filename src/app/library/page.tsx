@@ -265,6 +265,15 @@ function LibraryInner() {
             Internet Archive, plus curated Creative Commons shorts. Movies and
             series are A–Z; TV series list episodes from ep1 to the last.
           </p>
+          <p className="mt-3">
+            <Link
+              href="/live"
+              className="inline-flex items-center gap-2 rounded-xl border border-teal/40 bg-teal/10 px-3 py-2 text-sm font-medium text-teal-soft transition hover:bg-teal/20"
+            >
+              <span className="h-2 w-2 animate-live-glow rounded-full bg-amber" />
+              Free Live TV — NASA, DW, France 24 &amp; more
+            </Link>
+          </p>
           <p className="mt-2 text-xs text-mist/60">{STREAMING_HONEST_COPY}</p>
           {note && (
             <p className="mt-3 text-xs text-teal-soft">

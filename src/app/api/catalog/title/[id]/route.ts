@@ -3,6 +3,7 @@ import {
   fetchArchiveTitle,
   parseArchiveCatalogId,
 } from "@/lib/archive-org";
+import { getLiveChannel, isLiveChannelId } from "@/lib/live-tv";
 import { getMovie, rememberCatalogMovies } from "@/lib/movies";
 import { fetchApprovedUploadMovie } from "@/lib/server/uploads-db";
 import { fetchTmdbTitle, parseTmdbCatalogId, tmdbConfigured } from "@/lib/tmdb";
@@ -15,6 +16,15 @@ export async function GET(
 ) {
   const id = decodeURIComponent(params.id || "");
   const local = getMovie(id);
+
+  if (isLiveChannelId(id)) {
+    const channel = getLiveChannel(id) || (local?.isLive ? local : undefined);
+    if (!channel) {
+      return NextResponse.json({ error: "Live channel not found" }, { status: 404 });
+    }
+    rememberCatalogMovies([channel]);
+    return NextResponse.json({ movie: channel, source: "live-tv" });
+  }
 
   if (id.startsWith("ugc-")) {
     const movie = await fetchApprovedUploadMovie(id);
